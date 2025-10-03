@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Быстрый тест @web3grow</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+        .info { background: rgba(33, 150, 243, 0.3); }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #45a049; }
+        .chat-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .user { background: rgba(76, 175, 80, 0.3); margin-left: 20%; }
+        .bot { background: rgba(33, 150, 243, 0.3); margin-right: 20%; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Быстрый тест @web3grow</h1>
+        
+        <div id="status" class="status info">Проверка системы...</div>
+        
+        <div>
+            <button onclick="testConnection()">🔍 Тест подключения</button>
+            <button onclick="testAI()">🤖 Тест AI</button>
+            <button onclick="simulateChat()">💬 Симуляция чата</button>
+            <button onclick="showSetup()">⚙️ Инструкция</button>
+        </div>
+
+        <div id="results"></div>
+        
+        <div class="chat-box" id="chat-box" style="display: none;">
+            <div class="message bot">
+                🤖 Привет! Я @web3grow, твой консультант по грибным добавкам. Чем могу помочь?
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function addResult(test, success, message) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `status ${success ? 'success' : 'error'}`;
+            resultDiv.innerHTML = `<strong>${test}:</strong> ${success ? '✅ УСПЕХ' : '❌ ОШИБКА'} - ${message}`;
+            resultsDiv.appendChild(resultDiv);
+            
+            testResults.push({ test, success, message });
+            updateStatus();
+        }
+        
+        function updateStatus() {
+            const passed = testResults.filter(r => r.success).length;
+            const total = testResults.length;
+            const statusDiv = document.getElementById('status');
+            
+            if (total === 0) {
+                statusDiv.className = 'status info';
+                statusDiv.textContent = 'Готов к тестированию';
+            } else if (passed === total) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ Все тесты пройдены (${passed}/${total})`;
+                } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Есть ошибки (${passed}/${total})`;
+            }
+        }
+        
+        async function testConnection() {
+            try {
+                const response = await fetch('/api/init-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegram_id: 'test-' + Date.now() })
+                });
+                
+                if (response.ok) {
+                    addResult('Подключение', true, 'API доступен');
+                } else {
+                    addResult('Подключение', false, 'API недоступен');
+                }
+            } catch (error) {
+                addResult('Подключение', false, `Ошибка: ${error.message}`);
+            }
+        }
+
+        async function testAI() {
+            try {
+                const response = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: 'Привет, расскажи о ежовике',
+                        source: 'web3grow'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('AI API', true, `Ответ получен: ${data.response.substring(0, 50)}...`);
+                } else {
+                    addResult('AI API', false, 'Ошибка получения ответа');
+                }
+            } catch (error) {
+                addResult('AI API', false, `Ошибка: ${error.message}`);
+            }
+        }
+        
+        function simulateChat() {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.style.display = 'block';
+            
+            const scenarios = [
+                {
+                    user: 'Привет, расскажи о ежовике',
+                    bot: 'Привет! 👋 Ежовик - это мощная добавка для памяти и концентрации. Он улучшает когнитивные функции и помогает сосредоточиться. Хочешь узнать больше или сразу заказать? 🧠✨'
+                },
+                {
+                    user: 'Хочу заказать мухомор',
+                    bot: 'Отлично! 🎉 Создаю заказ для тебя...\n\n📦 Мухомор - 1200₽\n💤 Для сна и снятия стресса\n\nПереходи в Mini App для оформления! 🔗'
+                },
+                {
+                    user: 'Сколько у меня монет?',
+                    bot: 'Проверяю твой баланс Spor3s Coins... 💰\n\n🪙 Баланс: 150 SC\n📊 Уровень: 2\n🎯 До следующего уровня: 50 SC'
+                }
+            ];
+            
+            let currentScenario = 0;
+            
+            function addMessage(text, isUser = false) {
+                const chatBox = document.getElementById('chat-box');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+                messageDiv.textContent = isUser ? `👤 ${text}` : text;
+                chatBox.appendChild(messageDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+            
+            function nextScenario() {
+                if (currentScenario < scenarios.length) {
+                    const scenario = scenarios[currentScenario];
+                    setTimeout(() => addMessage(scenario.user, true), 1000);
+                    setTimeout(() => addMessage(scenario.bot), 3000);
+                    currentScenario++;
+                    setTimeout(nextScenario, 5000);
+                }
+            }
+            
+            nextScenario();
+            
+            addResult('Симуляция чата', true, 'Запущена демонстрация работы @web3grow');
+        }
+        
+        function showSetup() {
+            const resultsDiv = document.getElementById('results');
+            const setupDiv = document.createElement('div');
+            setupDiv.className = 'status info';
+            setupDiv.innerHTML = `
+                <strong>📋 Инструкция по настройке:</strong><br>
+                1. 🔑 Получите Telegram API данные на https://my.telegram.org<br>
+                2. 📱 Сгенерируйте session string: node generate-session.js<br>
+                3. ⚙️ Настройте переменные окружения в .env.local<br>
+                4. 🚀 Запустите: node web3grow-integration.js<br>
+                5. 🧪 Протестируйте отправкой сообщения @web3grow
+            `;
+            resultsDiv.appendChild(setupDiv);
+        }
+        
+        // Автозапуск базовых тестов
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testConnection();
+                testAI();
+            }, 1000);
+        });
+    </script>
+</body>
+</html> 

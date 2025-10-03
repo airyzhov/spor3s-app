@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статус системы</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .status-card {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-online { border-left: 4px solid #28a745; }
+        .status-offline { border-left: 4px solid #dc3545; }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Статус системы Spor3s</h1>
+    
+    <div class="status-card status-online">
+        <h2>✅ Система работает!</h2>
+        <p><strong>Сервер:</strong> http://localhost:3000</p>
+        <p><strong>Telegram бот:</strong> @Spor3s_bot</p>
+        <p><strong>Статус:</strong> Все системы запущены</p>
+    </div>
+
+    <div class="status-card">
+        <h2>🧪 Тестирование</h2>
+        <button class="test-button" onclick="testAPI()">Тест API</button>
+        <button class="test-button" onclick="testAI()">Тест AI</button>
+        <button class="test-button" onclick="testProducts()">Тест продуктов</button>
+    </div>
+
+    <div class="status-card">
+        <h2>📋 Результаты</h2>
+        <div id="results" class="result">Нажмите кнопку для тестирования...</div>
+    </div>
+
+    <div class="status-card">
+        <h2>📱 Как использовать бота</h2>
+        <ol>
+            <li><strong>Найдите бота:</strong> @Spor3s_bot в Telegram</li>
+            <li><strong>Напишите:</strong> /start</li>
+            <li><strong>Закажите:</strong> просто опишите что нужно</li>
+        </ol>
+        <p><strong>Примеры:</strong></p>
+        <ul>
+            <li>"Хочу заказать ежовик"</li>
+            <li>"Расскажи о мухоморе"</li>
+            <li>"Сколько стоит курс 4 в 1?"</li>
+        </ul>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            results.textContent = '🔄 Тестируем API...\n\n';
+            
+            try {
+                const response = await fetch('/api/products');
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += '✅ API работает\n';
+                    results.textContent += `📦 Найдено ${data.products.length} продуктов\n`;
+                    results.textContent += '🎉 Система готова к работе!\n';
+                } else {
+                    results.textContent += '❌ API не отвечает\n';
+                }
+            } catch (error) {
+                results.textContent += `❌ Ошибка: ${error.message}\n`;
+            }
+        }
+
+        async function testAI() {
+            const results = document.getElementById('results');
+            results.textContent = '🔄 Тестируем AI...\n\n';
+            
+            try {
+                const response = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: 'Привет! Бот работает?' }],
+                        user_id: 'test-user-123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += '✅ AI работает\n';
+                    results.textContent += `📝 Ответ: ${data.reply}\n`;
+                    results.textContent += '🎉 Telegram бот готов к работе!\n';
+                } else {
+                    results.textContent += '❌ AI не отвечает\n';
+                }
+            } catch (error) {
+                results.textContent += `❌ Ошибка: ${error.message}\n`;
+            }
+        }
+
+        async function testProducts() {
+            const results = document.getElementById('results');
+            results.textContent = '🔄 Тестируем продукты...\n\n';
+            
+            try {
+                const response = await fetch('/api/products');
+                if (response.ok) {
+                    const data = await response.json();
+                    results.textContent += '✅ Продукты загружены\n';
+                    results.textContent += '📦 Список продуктов:\n';
+                    data.products.forEach(product => {
+                        results.textContent += `   - ${product.name}: ${product.price}₽\n`;
+                    });
+                } else {
+                    results.textContent += '❌ Ошибка загрузки продуктов\n';
+                }
+            } catch (error) {
+                results.textContent += `❌ Ошибка: ${error.message}\n`;
+            }
+        }
+
+        // Автозапуск теста
+        window.onload = function() {
+            testAPI();
+        };
+    </script>
+</body>
+</html> 

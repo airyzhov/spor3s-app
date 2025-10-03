@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # Основное Next.js приложение
+  spor3s-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spor3s-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+    restart: unless-stopped
+    networks:
+      - spor3s-network
+    volumes:
+      - spor3s-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegram бот
+  spor3s-bot:
+    build:
+      context: ./tg-bot
+      dockerfile: Dockerfile
+    container_name: spor3s-bot
+    environment:
+      - NODE_ENV=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - APP_URL=http://spor3s-app:3000
+    restart: unless-stopped
+    networks:
+      - spor3s-network
+    depends_on:
+      - spor3s-app
+    volumes:
+      - spor3s-data:/app/data
+
+  # Telegram клиент для уведомлений
+  spor3s-client:
+    build:
+      context: ./tg-client
+      dockerfile: Dockerfile
+    container_name: spor3s-client
+    environment:
+      - NODE_ENV=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+    restart: unless-stopped
+    networks:
+      - spor3s-network
+    depends_on:
+      - spor3s-app
+    volumes:
+      - spor3s-data:/app/data
+
+  # Nginx прокси
+  spor3s-nginx:
+    image: nginx:alpine
+    container_name: spor3s-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-spor3s-app.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/nginx/ssl
+      - spor3s-data:/var/log/nginx
+    depends_on:
+      - spor3s-app
+    restart: unless-stopped
+    networks:
+      - spor3s-network
+
+volumes:
+  spor3s-data:
+    driver: local
+
+networks:
+  spor3s-network:
+    driver: bridge

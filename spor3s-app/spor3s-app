@@ -1,0 +1,270 @@
+require('dotenv').config({ path: '.env.local' });
+const fs = require('fs');
+const path = require('path');
+const { TelegramClient } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const { NewMessage } = require('telegram/events');
+
+const API_ID = Number(process.env.TELEGRAM_API_ID);
+const API_HASH = process.env.TELEGRAM_API_HASH;
+const SESSION = process.env.TELEGRAM_SESSION_STRING;
+
+if (!API_ID || !API_HASH || !SESSION) {
+  console.error('Missing TELEGRAM_API_ID / TELEGRAM_API_HASH / TELEGRAM_SESSION_STRING in .env.local');
+  process.exit(1);
+}
+
+const DATA_DIR = path.resolve('.data');
+const CONSENTS_FILE = path.join(DATA_DIR, 'consents.json');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(CONSENTS_FILE)) fs.writeFileSync(CONSENTS_FILE, '{}', 'utf8');
+
+function readConsents() {
+  try { return JSON.parse(fs.readFileSync(CONSENTS_FILE, 'utf8') || '{}'); } catch { return {}; }
+}
+function writeConsents(obj) {
+  try { fs.writeFileSync(CONSENTS_FILE, JSON.stringify(obj, null, 2), 'utf8'); } catch {}
+}
+
+const stringSession = new StringSession(SESSION);
+const client = new TelegramClient(stringSession, API_ID, API_HASH, { connectionRetries: 5 });
+
+function normalizeTarget(input) {
+  if (!input) return null;
+  if (/^\d+$/.test(input)) return BigInt(input);
+  if (input.startsWith('@')) return input.slice(1);
+  return input;
+}
+
+async function resolvePeer(target) {
+  try { return await client.getEntity(target); } catch { return null; }
+}
+
+async function askConsent(entity, current) {
+  const text = 'Включить напоминания о приёме и прогрессе? Ответь кнопкой ниже: Да / Нет';
+  await client.sendMessage(entity, { message: text, buttons: [['Да'], ['Нет']] });
+}
+
+async function sendReminder(entity, message) {
+  await client.sendMessage(entity, { message });
+}
+
+function extractSenderId(e) {
+  try {
+    const sid = e.message?.senderId;
+    if (!sid) return null;
+    if (sid.userId && sid.userId.value) return String(sid.userId.value);
+    if (sid.value) return String(sid.value);
+    return String(sid);
+  } catch { return null; }
+}
+
+async function main() {
+  await client.connect();
+  if (!(await client.isUserAuthorized())) {
+    console.error('Telegram client is not authorized. Update TELEGRAM_SESSION_STRING.');
+    process.exit(1);
+  }
+
+  const [cmd, rawTarget, ...rest] = process.argv.slice(2);
+
+  client.addEventHandler(async (event) => {
+    try {
+      const msg = event.message?.message?.trim()?.toLowerCase();
+      if (!msg) return;
+      const isPrivate = event.isPrivate === true || (event.message?.peerId?.className === 'PeerUser');
+      if (!isPrivate) return;
+      const senderId = extractSenderId(event);
+      if (!senderId) return;
+      if (msg === 'да' || msg === 'yes') {
+        const cons = readConsents();
+        cons[senderId] = { value: 'yes', updated_at: new Date().toISOString() };
+        writeConsents(cons);
+        await client.sendMessage(event.message.peerId, { message: 'Готово! Напоминания включены. Изменить можно, ответив "Нет".' });
+      } else if (msg === 'нет' || msg === 'no') {
+        const cons = readConsents();
+        cons[senderId] = { value: 'no', updated_at: new Date().toISOString() };
+        writeConsents(cons);
+        await client.sendMessage(event.message.peerId, { message: 'Ок, напоминания отключены. Вернуть можно, ответив "Да".' });
+      }
+    } catch {}
+  }, new NewMessage({}));
+
+  if (cmd === 'ask-consent') {
+    const target = normalizeTarget(rawTarget);
+    if (!target) { console.error('Usage: node tg-client/client.js ask-consent <id|@username>'); process.exit(2); }
+    const entity = await resolvePeer(target);
+    if (!entity) { console.error('Cannot resolve target user.'); process.exit(3); }
+    const cons = readConsents();
+    const key = typeof target === 'bigint' ? String(target) : target.toString();
+    const current = cons[key]?.value;
+    await askConsent(entity, current);
+    console.log('Consent message sent.');
+    return;
+  }
+
+  if (cmd === 'send-reminder') {
+    const target = normalizeTarget(rawTarget);
+    const text = rest.join(' ').trim();
+    if (!target || !text) { console.error('Usage: node tg-client/client.js send-reminder <id|@username> "Текст"'); process.exit(2); }
+    const entity = await resolvePeer(target);
+    if (!entity) { console.error('Cannot resolve target user.'); process.exit(3); }
+
+    const key = typeof target === 'bigint' ? String(target) : target.toString();
+    const cons = readConsents();
+    if (cons[key]?.value !== 'yes') {
+      await askConsent(entity, cons[key]?.value);
+      console.log('Consent not granted. Asked for consent instead of sending reminder.');
+      return;
+    }
+    await sendReminder(entity, text);
+    console.log('Reminder sent.');
+    return;
+  }
+
+  console.log('Telegram client is running and listening for Да/Нет replies...');
+  // keep alive
+  setInterval(() => {}, 1 << 30);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+
+require('dotenv').config({ path: '.env.local' });
+const fs = require('fs');
+const path = require('path');
+const { TelegramClient } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const { NewMessage } = require('telegram/events');
+
+const API_ID = Number(process.env.TELEGRAM_API_ID);
+const API_HASH = process.env.TELEGRAM_API_HASH;
+const SESSION = process.env.TELEGRAM_SESSION_STRING;
+
+if (!API_ID || !API_HASH || !SESSION) {
+  console.error('Missing TELEGRAM_API_ID / TELEGRAM_API_HASH / TELEGRAM_SESSION_STRING in .env.local');
+  process.exit(1);
+}
+
+const DATA_DIR = path.resolve('.data');
+const CONSENTS_FILE = path.join(DATA_DIR, 'consents.json');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(CONSENTS_FILE)) fs.writeFileSync(CONSENTS_FILE, '{}', 'utf8');
+
+function readConsents() {
+  try { return JSON.parse(fs.readFileSync(CONSENTS_FILE, 'utf8') || '{}'); } catch { return {}; }
+}
+function writeConsents(obj) {
+  try { fs.writeFileSync(CONSENTS_FILE, JSON.stringify(obj, null, 2), 'utf8'); } catch {}
+}
+
+const stringSession = new StringSession(SESSION);
+const client = new TelegramClient(stringSession, API_ID, API_HASH, { connectionRetries: 5 });
+
+function normalizeTarget(input) {
+  if (!input) return null;
+  if (/^\d+$/.test(input)) return BigInt(input);
+  if (input.startsWith('@')) return input.slice(1);
+  return input;
+}
+
+async function resolvePeer(target) {
+  try { return await client.getEntity(target); } catch { return null; }
+}
+
+async function askConsent(entity, current) {
+  const text = 'Включить напоминания о приёме и прогрессе? Ответь кнопкой ниже: Да / Нет';
+  await client.sendMessage(entity, { message: text, buttons: [['Да'], ['Нет']] });
+}
+
+async function sendReminder(entity, message) {
+  await client.sendMessage(entity, { message });
+}
+
+function extractSenderId(e) {
+  try {
+    const sid = e.message?.senderId;
+    if (!sid) return null;
+    if (sid.userId && sid.userId.value) return String(sid.userId.value);
+    if (sid.value) return String(sid.value);
+    return String(sid);
+  } catch { return null; }
+}
+
+async function main() {
+  await client.connect();
+  if (!(await client.isUserAuthorized())) {
+    console.error('Telegram client is not authorized. Update TELEGRAM_SESSION_STRING.');
+    process.exit(1);
+  }
+
+  const [cmd, rawTarget, ...rest] = process.argv.slice(2);
+
+  // Listen for replies "Да" / "Нет"
+  client.addEventHandler(async (event) => {
+    try {
+      const msg = event.message?.message?.trim()?.toLowerCase();
+      if (!msg) return;
+      const isPrivate = event.isPrivate === true || (event.message?.peerId?.className === 'PeerUser');
+      if (!isPrivate) return;
+      const senderId = extractSenderId(event);
+      if (!senderId) return;
+      if (msg === 'да' || msg === 'yes') {
+        const cons = readConsents();
+        cons[senderId] = { value: 'yes', updated_at: new Date().toISOString() };
+        writeConsents(cons);
+        await client.sendMessage(event.message.peerId, { message: 'Готово! Напоминания включены. Изменить можно, ответив "Нет".' });
+      } else if (msg === 'нет' || msg === 'no') {
+        const cons = readConsents();
+        cons[senderId] = { value: 'no', updated_at: new Date().toISOString() };
+        writeConsents(cons);
+        await client.sendMessage(event.message.peerId, { message: 'Ок, напоминания отключены. Вернуть можно, ответив "Да".' });
+      }
+    } catch {}
+  }, new NewMessage({}));
+
+  if (cmd === 'ask-consent') {
+    const target = normalizeTarget(rawTarget);
+    if (!target) { console.error('Usage: npm run tg:ask-consent -- <id|@username>'); process.exit(2); }
+    const entity = await resolvePeer(target);
+    if (!entity) { console.error('Cannot resolve target user. Убедитесь, что пользователь писал аккаунту web3grow или есть в контактах.'); process.exit(3); }
+    const cons = readConsents();
+    const key = typeof target === 'bigint' ? String(target) : target.toString();
+    const current = cons[key]?.value;
+    await askConsent(entity, current);
+    console.log('Consent message sent.');
+    return;
+  }
+
+  if (cmd === 'send-reminder') {
+    const target = normalizeTarget(rawTarget);
+    const text = rest.join(' ').trim();
+    if (!target || !text) { console.error('Usage: npm run tg:send-reminder -- <id|@username> "Текст"'); process.exit(2); }
+    const entity = await resolvePeer(target);
+    if (!entity) { console.error('Cannot resolve target user.'); process.exit(3); }
+
+    const key = typeof target === 'bigint' ? String(target) : target.toString();
+    const cons = readConsents();
+    if (cons[key]?.value !== 'yes') {
+      await askConsent(entity, cons[key]?.value);
+      console.log('Consent not granted. Asked for consent instead of sending reminder.');
+      return;
+    }
+    await sendReminder(entity, text);
+    console.log('Reminder sent.');
+    return;
+  }
+
+  console.log('Telegram client is running and listening for Да/Нет replies...');
+  // Keep process alive
+  setInterval(() => {}, 1 << 30);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+
+
