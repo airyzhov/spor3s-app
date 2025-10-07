@@ -119,7 +119,7 @@ export class ContentManager {
         return null;
       }
 
-      return data;
+      return data as AIPrompt | null;
     } catch (error) {
       console.error('Exception fetching AI prompt:', error);
       return null;
