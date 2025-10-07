@@ -143,7 +143,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as AIPrompt[]) || [];
     } catch (error) {
       console.error('Exception fetching AI prompts:', error);
       return [];
@@ -174,7 +174,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as ReminderScenario[]) || [];
     } catch (error) {
       console.error('Exception fetching reminder scenarios:', error);
       return [];
