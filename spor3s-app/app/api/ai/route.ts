@@ -871,7 +871,7 @@ export async function POST(req: NextRequest) {
         const productTitle = product?.name || productName;
         const ezhProduct = findProduct(['ежовик']);
         const ezhPrice = ezhProduct?.price ?? '1200';
-         return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за ${ezhPrice}₽. Добавить его тоже? [add_to_cart:${productId?.id}]`);
+         return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за ${ezhPrice}₽. Добавить его тоже? [add_to_cart:${product?.id || productId}]`);
       } else if (userMessage.includes('ежовик') || userMessage.includes('память') || userMessage.includes('мозг') || userMessage.includes('концентрация')) {
         // Проверяем, есть ли уже контекст о добавлении в корзину
         const hasAddContext = context.some(msg =>
