@@ -15,6 +15,28 @@ if (!supabaseUrl || !supabaseServiceKey) {
   });
 }
 
+const nowIso = new Date().toISOString();
+
+const FALLBACK_PROMPT: AIPrompt = {
+  id: 'fallback-main-prompt',
+  name: 'main_ai_prompt',
+  description: 'Заглушка основного AI промпта для разработки',
+  content: `Ты — AI-ассистент spor3s. Помогаешь пользователю подобрать и купить функциональные грибные добавки.
+
+Правила:
+• Используй дружелюбный тон и говори на «ты».
+• Если пользователь просит добавить товар, возвращай тег вида [add_to_cart:PRODUCT_ID].
+• Если просят удалить — [remove_from_cart:PRODUCT_ID].
+• Для внешних каналов напоминай оформить заказ через приложение spor3s.
+• Если данных нет, честно скажи об этом и предложи помощь.
+• Никогда не придумывай цены — используй переданные или скажи, что уточняешь.
+`,
+  version: 1,
+  is_active: true,
+  created_at: nowIso,
+  updated_at: nowIso,
+};
+
 // Типы для контента
 export interface AIPrompt {
   id: string;
@@ -77,28 +99,6 @@ export interface SystemSetting {
   updated_at: string;
 }
 
-const nowIso = new Date().toISOString();
-
-const FALLBACK_PROMPT: AIPrompt = {
-  id: 'fallback-main-prompt',
-  name: 'main_ai_prompt',
-  description: 'Заглушка основного AI промпта для разработки',
-  content: `Ты — AI-ассистент spor3s. Помогаешь пользователю подобрать и купить функциональные грибные добавки.
-
-Правила:
-• Используй дружелюбный тон и говори на «ты».
-• Если пользователь просит добавить товар, возвращай тег вида [add_to_cart:PRODUCT_ID].
-• Если просят удалить — [remove_from_cart:PRODUCT_ID].
-• Для внешних каналов напоминай оформить заказ через приложение spor3s.
-• Если данных нет, честно скажи об этом и предложи помощь.
-• Никогда не придумывай цены — используй переданные или скажи, что уточняешь.
-`,
-  version: 1,
-  is_active: true,
-  created_at: nowIso,
-  updated_at: nowIso,
-};
-
 // Класс для управления контентом
 export class ContentManager {
   // Получение AI промпта по имени
@@ -119,7 +119,7 @@ export class ContentManager {
         return null;
       }
 
-      return data;
+      return data as unknown as AIPrompt | null;
     } catch (error) {
       console.error('Exception fetching AI prompt:', error);
       return null;
@@ -143,7 +143,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as AIPrompt[]) || [];
     } catch (error) {
       console.error('Exception fetching AI prompts:', error);
       return [];
@@ -174,7 +174,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as ReminderScenario[]) || [];
     } catch (error) {
       console.error('Exception fetching reminder scenarios:', error);
       return [];
@@ -204,7 +204,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as GamificationRule[]) || [];
     } catch (error) {
       console.error('Exception fetching gamification rules:', error);
       return [];
@@ -230,7 +230,8 @@ export class ContentManager {
       }
 
       // Ищем сценарий по ключевым словам
-      for (const scenario of data || []) {
+      const scenarios = (data as unknown as DialogScenario[]) || [];
+      for (const scenario of scenarios) {
         for (const keyword of keywords) {
           if (scenario.trigger_keywords.some((k: string) => 
             keyword.toLowerCase().includes(k.toLowerCase())
@@ -266,7 +267,7 @@ export class ContentManager {
         return null;
       }
 
-      return data;
+      return data as unknown as SystemSetting | null;
     } catch (error) {
       console.error('Exception fetching system setting:', error);
       return null;
@@ -396,7 +397,8 @@ export class ContentManager {
         return null;
       }
 
-      return this.replaceVariables(data.message_template, variables);
+      const scenario = data as unknown as ReminderScenario;
+      return this.replaceVariables(scenario.message_template, variables);
     } catch (error) {
       console.error('Exception getting reminder message:', error);
       return null;
@@ -425,7 +427,8 @@ export class ContentManager {
         return null;
       }
 
-      return this.replaceVariables(data.message_template, variables);
+      const rule = data as unknown as GamificationRule;
+      return this.replaceVariables(rule.message_template, variables);
     } catch (error) {
       console.error('Exception getting gamification message:', error);
       return null;
