@@ -1,4 +1,4 @@
-import { supabaseServer } from '@/app/supabaseServerClient';
+import { supabaseServer } from '../app/supabaseServerClient';
 
 console.log('[initUserHandler] Using supabaseServer client');
 
