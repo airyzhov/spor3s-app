@@ -397,7 +397,8 @@ export class ContentManager {
         return null;
       }
 
-      return this.replaceVariables(data.message_template, variables);
+      const scenario = data as unknown as ReminderScenario;
+      return this.replaceVariables(scenario.message_template, variables);
     } catch (error) {
       console.error('Exception getting reminder message:', error);
       return null;
