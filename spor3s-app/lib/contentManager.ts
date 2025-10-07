@@ -427,7 +427,8 @@ export class ContentManager {
         return null;
       }
 
-      return this.replaceVariables(data.message_template, variables);
+      const rule = data as unknown as GamificationRule;
+      return this.replaceVariables(rule.message_template, variables);
     } catch (error) {
       console.error('Exception getting gamification message:', error);
       return null;
