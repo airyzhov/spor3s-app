@@ -689,28 +689,30 @@ export async function POST(req: NextRequest) {
        const message = error instanceof Error ? error.message : 'Unknown error';
        console.error('[AI API] Fetch error:', message);
        
-       // Получаем продукты для fallback ответов
-       const products = (await getProductsServer()) as ProductRecord[];
-      
-             // Fallback ответы в зависимости от запроса
-       const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
-       const rawUserMessage = (lastMsg && typeof lastMsg.content === 'string')
-         ? lastMsg.content
-         : (typeof message === 'string' ? message : '');
-       const userMessage = normalizeName(rawUserMessage || '');
-       
-       // Проверяем контекст на наличие уточнений
-       const hasContext = context.length > 0;
-       const hasFormSpecification = hasContext && context.some(msg => 
-         msg.content && (
-           msg.content.includes('капсулы') || 
-           msg.content.includes('порошок') || 
-           msg.content.includes('месяц')
-         )
-       );
-       
-      // Находим подходящие продукты для fallback
+      // Получаем продукты для fallback ответов
+      const products = (await getProductsServer()) as ProductRecord[];
+     
+      // Вспомогательная функция для нормализации названий
       const normalizeName = (value?: string) => (value || '').toLowerCase();
+      
+      // Fallback ответы в зависимости от запроса
+      const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      const rawUserMessage = (lastMsg && typeof lastMsg.content === 'string')
+        ? lastMsg.content
+        : (typeof message === 'string' ? message : '');
+      const userMessage = normalizeName(rawUserMessage || '');
+      
+      // Проверяем контекст на наличие уточнений
+      const hasContext = context.length > 0;
+      const hasFormSpecification = hasContext && context.some(msg => 
+        msg.content && (
+          msg.content.includes('капсулы') || 
+          msg.content.includes('порошок') || 
+          msg.content.includes('месяц')
+        )
+      );
+      
+     // Находим подходящие продукты для fallback
 
       const findProduct = (keywords: string[]) =>
         products.find(p => {
