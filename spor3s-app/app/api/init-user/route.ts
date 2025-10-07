@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../supabaseServerClient';
-import { getOrCreateUser } from '@/lib/initUserHandler';
+import { getOrCreateUser } from '../../../lib/initUserHandler';
 console.log('[init-user route] typeof getOrCreateUser:', typeof getOrCreateUser);
 
 export async function POST(request: NextRequest) {
