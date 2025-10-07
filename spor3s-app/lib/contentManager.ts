@@ -267,7 +267,7 @@ export class ContentManager {
         return null;
       }
 
-      return data;
+      return data as unknown as SystemSetting | null;
     } catch (error) {
       console.error('Exception fetching system setting:', error);
       return null;
