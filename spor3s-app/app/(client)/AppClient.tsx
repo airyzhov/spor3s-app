@@ -40,13 +40,7 @@ interface TelegramWebApp {
   };
 }
 
-declare global {
-  interface Window {
-    Telegram?: {
-      WebApp?: TelegramWebApp;
-    };
-  }
-}
+// Type declaration moved to global.d.ts to avoid conflicts
 
 export default function AppClient() {
   const [user, setUser] = useState<AppUser | null>(null);
