@@ -177,7 +177,7 @@ async function verifyYouTubeSubscription(userId: string, channelId: string) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json() as { error?: string };
       throw new Error(errorData.error || 'Ошибка проверки подписки');
     }
 
