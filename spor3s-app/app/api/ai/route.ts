@@ -912,7 +912,7 @@ export async function POST(req: NextRequest) {
         const productPrice = product?.price ?? '1200';
         const kordiceps = findProduct(['кордицепс']);
         const kordicepsPrice = kordiceps?.price ?? '800';
-         return forceAddToCartTag(`Добавил ${productTitle} в корзину за ${productPrice}₽! Он прекрасно помогает с памятью и концентрацией. Хотите также попробовать Кордицепс для энергии за ${kordicepsPrice}₽? [add_to_cart:${productId?.id}]`);
+         return forceAddToCartTag(`Добавил ${productTitle} в корзину за ${productPrice}₽! Он прекрасно помогает с памятью и концентрацией. Хотите также попробовать Кордицепс для энергии за ${kordicepsPrice}₽? [add_to_cart:${product?.id || productId}]`);
 
       } else if (userMessage.includes('капсулы') || userMessage.includes('порошок') || userMessage.includes('месяц')) {
         // Обработка уточнений формы и срока
@@ -957,7 +957,7 @@ export async function POST(req: NextRequest) {
           const productPrice = product?.price ?? '1400';
           const ezhProduct = findProduct(['ежовик']);
           const ezhPrice = ezhProduct?.price ?? '1100';
-          return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за ${ezhPrice}₽. Добавить его тоже? [add_to_cart:${productId?.id}]`);
+          return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за ${ezhPrice}₽. Добавить его тоже? [add_to_cart:${product?.id || productId}]`);
         } else if (userMessage.includes('ежовик') || context.some(msg => msg.content?.includes('ежовик'))) {
           // Обработка ежовика
           let productId = 'ezh120k';
@@ -973,7 +973,7 @@ export async function POST(req: NextRequest) {
           const productPrice = product?.price ?? '1100';
           const kordProduct = findProduct(['кордицепс']);
           const kordPrice = kordProduct?.price ?? '800';
-          return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он прекрасно помогает с памятью и концентрацией. Кстати, для лучшего эффекта рекомендую также Кордицепс для энергии за ${kordPrice}₽. Добавить его тоже? [add_to_cart:${productId?.id}]`);
+          return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он прекрасно помогает с памятью и концентрацией. Кстати, для лучшего эффекта рекомендую также Кордицепс для энергии за ${kordPrice}₽. Добавить его тоже? [add_to_cart:${product?.id || productId}]`);
         }
       } else if (userMessage.includes('кордицепс') || userMessage.includes('энергия') || userMessage.includes('выносливость')) {
         const product = findProduct(['кордицепс']);
@@ -996,7 +996,7 @@ export async function POST(req: NextRequest) {
         const product = findProduct(['комплекс', '4 в 1']);
         const productTitle = product?.name || productName;
         const productPrice = product?.price ?? '2000';
-         return forceAddToCartTag(`Добавил ${productTitle} в корзину за ${productPrice}₽! Это комплексное решение для всех ваших потребностей. Хотите оформить заказ? [add_to_cart:${productId?.id}]`);
+         return forceAddToCartTag(`Добавил ${productTitle} в корзину за ${productPrice}₽! Это комплексное решение для всех ваших потребностей. Хотите оформить заказ? [add_to_cart:${product?.id || productId}]`);
       } else if (userMessage.includes('убрать') || userMessage.includes('удалить') || userMessage.includes('убери')) {
         const product = products[0]; // Берем первый продукт для примера
         const productId = product?.id || 'ezh100';
