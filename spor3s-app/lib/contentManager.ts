@@ -204,7 +204,7 @@ export class ContentManager {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as GamificationRule[]) || [];
     } catch (error) {
       console.error('Exception fetching gamification rules:', error);
       return [];
@@ -230,7 +230,8 @@ export class ContentManager {
       }
 
       // Ищем сценарий по ключевым словам
-      for (const scenario of data || []) {
+      const scenarios = (data as unknown as DialogScenario[]) || [];
+      for (const scenario of scenarios) {
         for (const keyword of keywords) {
           if (scenario.trigger_keywords.some((k: string) => 
             keyword.toLowerCase().includes(k.toLowerCase())
