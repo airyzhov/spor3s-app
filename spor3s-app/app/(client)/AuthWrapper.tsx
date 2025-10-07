@@ -74,7 +74,7 @@ function AdminOrders({ user }: { user: AdminUser }) {
               <td>{order.id}</td>
               <td>{order.user_id}</td>
               <td>
-                {order.items ? JSON.stringify(order.items) : `${order.product_id} x${order.quantity}`}
+                {order.items ? JSON.stringify(order.items) : "-"}
               </td>
               <td>{order.total || "-"}</td>
               <td>{order.status || "pending"}</td>
