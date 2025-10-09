@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
-import { supabaseServer } from "../../supabaseServerClient";
-import { scenariosPrompt } from "../../ai/scenarios";
+import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../../lib/supabaseServerHelpers";
+import { supabaseServer } from "../../../app/supabaseServerClient";
+import { scenariosPrompt } from "../../../lib/ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
 function forceAddToCartTag(text: string): string {
