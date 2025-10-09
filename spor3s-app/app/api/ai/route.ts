@@ -381,7 +381,7 @@ export async function POST(req: NextRequest) {
     telegram_id,
   } = (await req.json()) as AiRequestBody;
   const context = Array.isArray(rawContext) ? rawContext : [];
-  console.log("[AI API] OR_TOKEN:", process.env.OR_TOKEN);
+  console.log("[AI API] OR_TOKEN:", process.env.OPENROUTER_API_KEY);
   console.log("[AI API] user_id:", user_id);
   if (telegram_id) console.log("[AI API] telegram_id:", telegram_id);
   console.log("[AI API] message:", message);
