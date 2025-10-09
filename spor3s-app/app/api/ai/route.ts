@@ -391,7 +391,7 @@ export async function POST(req: NextRequest) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
-  const OR_TOKEN = process.env.OR_TOKEN;
+  const OR_TOKEN = process.env.OPENROUTER_API_KEY;
   if (!OR_TOKEN) {
     return NextResponse.json({ response: "OpenRouter токен не найден." }, { status: 500 });
   }
