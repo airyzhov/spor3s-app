@@ -1031,6 +1031,7 @@ export async function POST(req: NextRequest) {
         return 'Здравствуйте! Я ваш персональный консультант по грибным добавкам spor3s. Расскажите, что вас беспокоит или какие цели хотите достичь? Помогу подобрать подходящие продукты.';
       }
     }
+    return null; // fallback return
   }
   
   let allContent = '';
