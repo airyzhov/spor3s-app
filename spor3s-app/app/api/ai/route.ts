@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../../../app/supabaseServerHelpers";
 import { supabaseServer } from "../../../../app/supabaseServerClient";
 import { scenariosPrompt } from "../../../../app/ai/scenarios";
-import { ContentManager } from "../../../../app/contentManager";
+import { ContentManager } from "../../../../lib/contentManager";
 
 function forceAddToCartTag(text: string): string {
   const productMap = [
