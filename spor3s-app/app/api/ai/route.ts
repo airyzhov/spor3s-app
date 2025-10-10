@@ -407,7 +407,7 @@ export async function POST(req: NextRequest) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
-  const OR_TOKEN = process.env.OPENROUTER_API_KEY || "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";
+  const OR_TOKEN = "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";
   console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
   console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
   
