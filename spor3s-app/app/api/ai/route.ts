@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
-import { supabaseServer } from "../../supabaseServerClient";
+import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../../app/supabaseServerHelpers";
+import { supabaseServer } from "../../../app/supabaseServerClient";
 import { scenariosPrompt } from "../../../lib/ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
