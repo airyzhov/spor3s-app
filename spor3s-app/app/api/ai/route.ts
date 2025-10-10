@@ -372,6 +372,22 @@ type AiRequestBody = {
 };
 
 export async function POST(req: NextRequest) {
+  let requestBody: AiRequestBody;
+  
+  try {
+    const bodyText = await req.text();
+    console.log('[AI API] Raw body:', bodyText);
+    
+    if (!bodyText || bodyText.trim() === '') {
+      return NextResponse.json({ response: "Пустой запрос", error: 'EMPTY_REQUEST' }, { status: 400 });
+    }
+    
+    requestBody = JSON.parse(bodyText) as AiRequestBody;
+  } catch (error) {
+    console.error('[AI API] JSON parse error:', error);
+    return NextResponse.json({ response: "Ошибка парсинга JSON", error: 'JSON_PARSE_ERROR' }, { status: 400 });
+  }
+  
   const {
     message,
     context: rawContext,
@@ -379,7 +395,7 @@ export async function POST(req: NextRequest) {
     user_id,
     products_prompt,
     telegram_id,
-  } = (await req.json()) as AiRequestBody;
+  } = requestBody;
   const context = Array.isArray(rawContext) ? rawContext : [];
   console.log("[AI API] OR_TOKEN:", process.env.OPENROUTER_API_KEY);
   console.log("[AI API] user_id:", user_id);
@@ -392,8 +408,12 @@ export async function POST(req: NextRequest) {
   const messageSource = source || 'mini_app';
   
   const OR_TOKEN = process.env.OPENROUTER_API_KEY || "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";
-  if (!OR_TOKEN) {
-    return NextResponse.json({ response: "OpenRouter токен не найден." }, { status: 500 });
+  console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
+  console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
+  
+  if (!OR_TOKEN || OR_TOKEN === 'undefined' || OR_TOKEN.length < 10) {
+    console.error('[AI API] Invalid OR_TOKEN:', OR_TOKEN);
+    return NextResponse.json({ response: "OpenRouter токен не найден.", error: 'NO_API_KEY' }, { status: 500 });
   }
 
   // Валидация входного сообщения
