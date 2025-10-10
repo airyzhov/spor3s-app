@@ -411,10 +411,7 @@ export async function POST(req: NextRequest) {
   console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
   console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
   
-  if (!OR_TOKEN || OR_TOKEN === 'undefined' || OR_TOKEN.length < 10) {
-    console.error('[AI API] Invalid OR_TOKEN:', OR_TOKEN);
-    return NextResponse.json({ response: "OpenRouter токен не найден.", error: 'NO_API_KEY' }, { status: 500 });
-  }
+  // OR_TOKEN is hardcoded, no validation needed
 
   // Валидация входного сообщения
   if (typeof message !== 'string' || message.trim().length === 0) {
