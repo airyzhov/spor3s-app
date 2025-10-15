@@ -2,13 +2,22 @@ import { Telegraf } from 'telegraf';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
-dotenv.config();
+import path from 'path';
+
+// Загружаем .env из директории бота
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+console.log('🔧 Переменные окружения загружены');
+console.log('🔍 Отладка переменных окружения:');
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'ЕСТЬ' : 'НЕТ');
+console.log('TELEGRAM_BOT_TOKEN:', process.env.TELEGRAM_BOT_TOKEN ? 'ЕСТЬ' : 'НЕТ');
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 // Функция для получения или создания пользователя
