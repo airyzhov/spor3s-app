@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../../../app/supabaseServerHelpers";
-import { supabaseServer } from "../../../../app/supabaseServerClient";
-import { scenariosPrompt } from "../../../../app/ai/scenarios";
-import { ContentManager } from "../../../../lib/contentManager";
+import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
+import { supabaseServer } from "../../supabaseServerClient";
+import { scenariosPrompt } from "../../ai/scenarios";
+import { ContentManager } from "../../../lib/contentManager";
 
 function forceAddToCartTag(text: string): string {
   const productMap = [
@@ -17,7 +17,7 @@ function forceAddToCartTag(text: string): string {
      { keyword: /ежовик.*120.*капсул/i, id: 'ezh120k' },
      { keyword: /ежовик.*порошк/i, id: 'ezh100' },
      { keyword: /ежовик.*капсул/i, id: 'ezh120k' },
-     { keyword: /ежовик/i, id: 'ezh120k' }, // fallback для ежовика
+     // КРИТИЧНО: Убрали fallback /ежовик/i - если форма не указана, не добавляем автоматически!
     
          // Мухомор
      { keyword: /мухомор.*180.*капсул/i, id: 'mhm180k' },
@@ -32,7 +32,7 @@ function forceAddToCartTag(text: string): string {
      { keyword: /мухомор.*30/i, id: 'mhm30' },
      { keyword: /мухомор.*капсул/i, id: 'mhm60k' },
      { keyword: /мухомор.*шляпк/i, id: 'mhm30' },
-     { keyword: /мухомор/i, id: 'mhm30' }, // fallback для мухомора
+     // Убрали fallback - если форма не указана, не добавляем автоматически
     
          // Кордицепс
      { keyword: /кордицепс.*150.*г/i, id: 'kor150' },
@@ -133,7 +133,23 @@ function forceAddToCartTag(text: string): string {
                              /отлично.*заказ/i.test(text) ||
                              /ваш.*заказ/i.test(text) ||
                              /подтверждаю.*заказ/i.test(text) ||
-                             /заказ.*оформлен/i.test(text);
+                             /заказ.*оформлен/i.test(text) ||
+                             // Новые фразы для добавления
+                             /добавь.*ежовик/i.test(text) ||
+                             /добавь.*мухомор/i.test(text) ||
+                             /добавь.*кордицепс/i.test(text) ||
+                             /добавь.*цистозира/i.test(text) ||
+                             /добавь.*комплекс/i.test(text) ||
+                             /добавь.*4.*1/i.test(text) ||
+                             // Фразы с формой и сроком
+                             /ежовик.*порошок.*месяц.*добавь/i.test(text) ||
+                             /ежовик.*капсул.*месяц.*добавь/i.test(text) ||
+                             /мухомор.*порошок.*месяц.*добавь/i.test(text) ||
+                             /мухомор.*капсул.*месяц.*добавь/i.test(text) ||
+                             /ежовик.*в.*порошке.*добавь/i.test(text) ||
+                             /ежовик.*в.*капсулах.*добавь/i.test(text) ||
+                             /мухомор.*в.*порошке.*добавь/i.test(text) ||
+                             /мухомор.*в.*капсулах.*добавь/i.test(text);
   const hasAddToCartTag = /\[add_to_cart:([\w-]+)\]/.test(text);
   
   console.log('[AI API] forceAddToCartTag DEBUG:', {
@@ -163,23 +179,138 @@ function forceAddToCartTag(text: string): string {
   if (hasAddToCartPhrase && !hasAddToCartTag) {
     console.log('[AI API] Нужно добавить тег, ищем продукт...');
     let foundProduct = false;
-    for (const { keyword, id } of productMap) {
-      const matches = keyword.test(text);
-      console.log(`[AI API] Проверяем ${keyword}: ${matches} для ${id}`);
-      if (matches) {
-        fixed += ` [add_to_cart:${id}]`;
-        console.log('[AI API] Добавлен тег:', id);
+    
+    // Специальная логика для определения формы продукта
+    const isPowder = /порошок|порошк/i.test(text);
+    const isCapsules = /капсул|капсул/i.test(text);
+    const isMonth = /месяц/i.test(text) && !/3.*месяц|три.*месяц/i.test(text);
+    const isThreeMonths = /3.*месяц|три.*месяц|трех.*месяц/i.test(text);
+    
+    console.log('[AI API] Форма продукта:', { isPowder, isCapsules, isMonth, isThreeMonths });
+    
+    // Приоритетная обработка по форме и сроку
+    if (/ежовик/i.test(text)) {
+      // Проверяем вес (500г, 300г, 100г) - приоритет над сроком
+      const has500g = /500|500г|500\s*гр/i.test(text);
+      const has300g = /300|300г|300\s*гр/i.test(text);
+      const has100g = /100|100г|100\s*гр/i.test(text);
+      const has120caps = /120|120\s*капсул/i.test(text);
+      const has360caps = /360|360\s*капсул/i.test(text);
+      
+      if (isPowder && has500g) {
+        fixed += ` [add_to_cart:ezh500]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок 500г: ezh500');
         foundProduct = true;
-        break;
+      } else if (isPowder && has300g) {
+        fixed += ` [add_to_cart:ezh300]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок 300г: ezh300');
+        foundProduct = true;
+      } else if (isPowder && has100g) {
+        fixed += ` [add_to_cart:ezh100]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок 100г: ezh100');
+        foundProduct = true;
+      } else if (isCapsules && has360caps) {
+        fixed += ` [add_to_cart:ezh360k]`;
+        console.log('[AI API] Добавлен тег для ежовик капсулы 360: ezh360k');
+        foundProduct = true;
+      } else if (isCapsules && has120caps) {
+        fixed += ` [add_to_cart:ezh120k]`;
+        console.log('[AI API] Добавлен тег для ежовик капсулы 120: ezh120k');
+        foundProduct = true;
+      } else if (isPowder && isMonth) {
+        fixed += ` [add_to_cart:ezh100]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок месяц: ezh100');
+        foundProduct = true;
+      } else if (isCapsules && isMonth) {
+        fixed += ` [add_to_cart:ezh120k]`;
+        console.log('[AI API] Добавлен тег для ежовик капсулы месяц: ezh120k');
+        foundProduct = true;
+      } else if (isPowder && isThreeMonths) {
+        fixed += ` [add_to_cart:ezh300]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок 3 месяца: ezh300');
+        foundProduct = true;
+      } else if (isCapsules && isThreeMonths) {
+        fixed += ` [add_to_cart:ezh360k]`;
+        console.log('[AI API] Добавлен тег для ежовик капсулы 3 месяца: ezh360k');
+        foundProduct = true;
+      } else if (isPowder) {
+        fixed += ` [add_to_cart:ezh100]`;
+        console.log('[AI API] Добавлен тег для ежовик порошок: ezh100');
+        foundProduct = true;
+      } else if (isCapsules) {
+        fixed += ` [add_to_cart:ezh120k]`;
+        console.log('[AI API] Добавлен тег для ежовик капсулы: ezh120k');
+        foundProduct = true;
+      } else {
+        // КРИТИЧНО: Если форма не указана - НЕ добавляем тег, чтобы агент спросил уточнение
+        // НЕ используем fallback, который добавляет капсулы по умолчанию!
+        console.log('[AI API] ⚠️ КРИТИЧНО: Форма ежовика не указана (порошок/капсулы), тег НЕ добавляется');
+        foundProduct = false; // Не добавляем, пусть агент спросит
+        // НЕ добавляем fallback тег - это критично!
+      }
+    } else if (/мухомор/i.test(text)) {
+      if (isPowder && isMonth) {
+        fixed += ` [add_to_cart:mhm30]`;
+        console.log('[AI API] Добавлен тег для мухомор порошок месяц: mhm30');
+        foundProduct = true;
+      } else if (isCapsules && isMonth) {
+        fixed += ` [add_to_cart:mhm60k]`;
+        console.log('[AI API] Добавлен тег для мухомор капсулы месяц: mhm60k');
+        foundProduct = true;
+      } else if (isPowder && isThreeMonths) {
+        fixed += ` [add_to_cart:mhm100]`;
+        console.log('[AI API] Добавлен тег для мухомор порошок 3 месяца: mhm100');
+        foundProduct = true;
+      } else if (isCapsules && isThreeMonths) {
+        fixed += ` [add_to_cart:mhm180k]`;
+        console.log('[AI API] Добавлен тег для мухомор капсулы 3 месяца: mhm180k');
+        foundProduct = true;
+      } else if (isPowder) {
+        fixed += ` [add_to_cart:mhm30]`;
+        console.log('[AI API] Добавлен тег для мухомор порошок: mhm30');
+        foundProduct = true;
+      } else if (isCapsules) {
+        fixed += ` [add_to_cart:mhm60k]`;
+        console.log('[AI API] Добавлен тег для мухомор капсулы: mhm60k');
+        foundProduct = true;
+      } else {
+        // Если форма не указана - НЕ добавляем тег, чтобы агент спросил уточнение
+        console.log('[AI API] Форма мухомора не указана (порошок/капсулы), тег не добавляется');
+        foundProduct = false; // Не добавляем, пусть агент спросит
+      }
+    }
+    
+    // Если не нашли по специальной логике, используем старую
+    // НО КРИТИЧНО: не добавляем ежовик и мухомор без формы!
+    if (!foundProduct) {
+      for (const { keyword, id } of productMap) {
+        // КРИТИЧНО: Проверяем, не ежовик ли это или мухомор без формы
+        const isEzhOrMhm = id.startsWith('ezh') || id.startsWith('mhm');
+        if (isEzhOrMhm && !isPowder && !isCapsules) {
+          console.log(`[AI API] ⚠️ КРИТИЧНО: Пропускаем ${id} - форма не указана`);
+          continue; // Пропускаем этот товар
+        }
+        
+        const matches = keyword.test(text);
+        console.log(`[AI API] Проверяем ${keyword}: ${matches} для ${id}`);
+        if (matches) {
+          fixed += ` [add_to_cart:${id}]`;
+          console.log('[AI API] Добавлен тег:', id);
+          foundProduct = true;
+          break;
+        }
       }
     }
     if (!foundProduct) {
       console.log('[AI API] Продукт не найден в тексте:', text);
+      console.log('[AI API] Проверка формы перед fallback:', { isPowder, isCapsules });
       // Принудительно добавляем fallback теги
+      // НО КРИТИЧНО: для ежовика и мухомора без формы - НЕ добавляем!
       if (/мухомор.*180|мухомор.*180.*капсул/i.test(text)) {
         fixed += ` [add_to_cart:mhm180k]`;
         console.log('[AI API] Добавлен fallback тег для мухомора 180 капсул: mhm180k');
-      } else if (/мухомор.*60|мухомор.*60.*капсул/i.test(text)) {
+      } else if (/мухомор.*60|мухомор.*60.*капсул/i.test(text) && (isCapsules || !isPowder)) {
+        // Добавляем только если явно указаны капсулы или нет упоминания порошка
         fixed += ` [add_to_cart:mhm60k]`;
         console.log('[AI API] Добавлен fallback тег для мухомора 60 капсул: mhm60k');
       } else if (/мухомор.*100|мухомор.*100г/i.test(text)) {
@@ -191,15 +322,17 @@ function forceAddToCartTag(text: string): string {
       } else if (/мухомор.*30|мухомор.*30г/i.test(text)) {
         fixed += ` [add_to_cart:mhm30]`;
         console.log('[AI API] Добавлен fallback тег для мухомора 30г: mhm30');
-             } else if (/мухомор.*капсул/i.test(text)) {
+             } else if (/мухомор.*капсул/i.test(text) && !isPowder) {
+         // Если явно указаны капсулы, но не порошок - добавляем
          fixed += ` [add_to_cart:mhm60k]`;
          console.log('[AI API] Добавлен fallback тег для мухомора капсулы: mhm60k');
        } else if (/мухомор.*шляпк/i.test(text)) {
          fixed += ` [add_to_cart:mhm30]`;
          console.log('[AI API] Добавлен fallback тег для мухомора шляпки: mhm30');
        } else if (/мухомор/i.test(text)) {
-         fixed += ` [add_to_cart:mhm30]`;
-         console.log('[AI API] Добавлен fallback тег для мухомора: mhm30');
+         // НЕ добавляем по умолчанию - пусть агент спросит форму
+         console.log('[AI API] Мухомор без указания формы - тег НЕ добавляется, пусть агент спросит уточнение');
+         // foundProduct остается false
              } else if (/ежовик.*500|ежовик.*500г/i.test(text)) {
          fixed += ` [add_to_cart:ezh500]`;
          console.log('[AI API] Добавлен fallback тег для ежовика 500г: ezh500');
@@ -215,12 +348,14 @@ function forceAddToCartTag(text: string): string {
        } else if (/ежовик.*порошк/i.test(text)) {
          fixed += ` [add_to_cart:ezh100]`;
          console.log('[AI API] Добавлен fallback тег для ежовика порошок: ezh100');
-       } else if (/ежовик.*капсул|ежовик.*120/i.test(text)) {
+       } else if (/ежовик.*капсул|ежовик.*120/i.test(text) && isCapsules) {
+         // ТОЛЬКО если явно указаны капсулы
          fixed += ` [add_to_cart:ezh120k]`;
          console.log('[AI API] Добавлен fallback тег для ежовика капсулы: ezh120k');
        } else if (/ежовик/i.test(text)) {
-         fixed += ` [add_to_cart:ezh120k]`;
-         console.log('[AI API] Добавлен fallback тег для ежовика: ezh120k');
+         // КРИТИЧНО: НЕ добавляем капсулы по умолчанию - пусть агент спросит форму
+         console.log('[AI API] ⚠️ КРИТИЧНО: Ежовик без указания формы - тег НЕ добавляется, пусть агент спросит уточнение');
+         // foundProduct остается false - НЕ добавляем fallback!
       } else if (/кордицепс.*150|кордицепс.*150г/i.test(text)) {
         fixed += ` [add_to_cart:kor150]`;
         console.log('[AI API] Добавлен fallback тег для кордицепса 150г: kor150');
@@ -559,6 +694,181 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Интеллектуальный fallback ответ на основе RAG
+  function generateIntelligentFallback(msgs: DialogMessage[], userSummary: string, productsInfo: string): string {
+    console.log('[AI API] === FALLBACK FUNCTION CALLED ===');
+    const lastMessage = msgs[msgs.length - 1]?.content?.toLowerCase() || '';
+    
+    console.log('[AI API] Генерируем интеллектуальный fallback ответ');
+    console.log('[AI API] Последнее сообщение:', lastMessage);
+    console.log('[AI API] Проверяем условия:', {
+      hasEzhovik: lastMessage.includes('ежовик'),
+      hasMemory: lastMessage.includes('память'),
+      hasConcentration: lastMessage.includes('концентрация')
+    });
+    
+    // Анализируем намерение пользователя
+    if (lastMessage.includes('ежовик') || lastMessage.includes('память') || lastMessage.includes('концентрация')) {
+      // Проверяем, есть ли указание формы и срока
+      const isPowder = /порошок|порошк/i.test(lastMessage);
+      const isCapsules = /капсул|капсул/i.test(lastMessage);
+      const isMonth = /месяц/i.test(lastMessage) && !/3.*месяц|три.*месяц/i.test(lastMessage);
+      const isThreeMonths = /3.*месяц|три.*месяц|трех.*месяц/i.test(lastMessage);
+      const hasAddPhrase = /добавь|добав|закажи|купи/i.test(lastMessage);
+      
+      console.log('[AI API] Fallback анализ:', { isPowder, isCapsules, isMonth, isThreeMonths, hasAddPhrase });
+      
+      // Если есть четкое указание формы и срока + фраза добавления
+      if (hasAddPhrase && isPowder && isMonth) {
+        return `Отлично! Добавил Ежовик 100г порошок на месяц в корзину за 1100₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh100]`;
+      } else if (hasAddPhrase && isCapsules && isMonth) {
+        return `Отлично! Добавил Ежовик 120 капсул на месяц в корзину за 1100₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh120k]`;
+      } else if (hasAddPhrase && isPowder && isThreeMonths) {
+        return `Отлично! Добавил Ежовик 300г порошок на 3 месяца в корзину за 3000₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh300]`;
+      } else if (hasAddPhrase && isCapsules && isThreeMonths) {
+        return `Отлично! Добавил Ежовик 360 капсул на 3 месяца в корзину за 3000₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh360k]`;
+      } else if (hasAddPhrase && isPowder) {
+        return `Отлично! Добавил Ежовик 100г порошок в корзину за 1100₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh100]`;
+      } else if (hasAddPhrase && isCapsules) {
+        return `Отлично! Добавил Ежовик 120 капсул в корзину за 1100₽. Он отлично помогает с памятью и концентрацией. [add_to_cart:ezh120k]`;
+      } else if (hasAddPhrase) {
+        // КРИТИЧНО: Если форма НЕ указана - НЕ добавляем тег, спрашиваем уточнение!
+        // Вместо автоматического добавления капсул - спрашиваем форму
+        return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
+• Порошок (быстрее эффект, 100г на месяц за 1100₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+      }
+      
+      // Если нет фразы добавления, задаем уточняющие вопросы
+      return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
+• Порошок (быстрее эффект, 100г на месяц за 1100₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+    }
+    
+    if (lastMessage.includes('мухомор') || lastMessage.includes('сон') || lastMessage.includes('стресс')) {
+      // КРИТИЧНО: Проверяем форму ПЕРЕД добавлением тега
+      const isPowder = /порошок|порошк|шляпк/i.test(lastMessage);
+      const isCapsules = /капсул/i.test(lastMessage);
+      const hasAddPhrase = /добавь|добав|закажи|купи/i.test(lastMessage);
+      
+      // Если форма указана И есть фраза добавления - добавляем тег
+      if (hasAddPhrase && (isPowder || isCapsules)) {
+        if (isCapsules) {
+          return `Отлично! Добавил Мухомор 60 капсул в корзину за 1400₽. Он отлично помогает со сном и снимает стресс. [add_to_cart:mhm60k]`;
+        } else {
+          return `Отлично! Добавил Мухомор 30г (шляпки) в корзину за 1400₽. Он отлично помогает со сном и снимает стресс. [add_to_cart:mhm30]`;
+        }
+      }
+      
+      // Если форма НЕ указана - спрашиваем уточнение БЕЗ тега
+      return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
+• Шляпки (порошок, быстрее эффект, 30г на месяц за 1400₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+    }
+    
+    if (lastMessage.includes('кордицепс') || lastMessage.includes('энергия') || lastMessage.includes('выносливость')) {
+      return `Отлично! Кордицепс Милитарис плодовые тела отлично помогает с энергией, выносливостью и спортивными результатами.
+
+В какой форме предпочитаете:
+• Порошок плодовые тела (50г на месяц за 800₽)
+• Порошок плодовые тела (150г на 3 месяца за 2000₽)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+    }
+    
+    if (lastMessage.includes('цистозира') || lastMessage.includes('щитовидка') || lastMessage.includes('йод')) {
+      // КРИТИЧНО: Проверяем срок и фразу добавления
+      const hasAddPhrase = /добавь|добав|закажи|купи/i.test(lastMessage);
+      const isThreeMonths = /3.*месяц|три.*месяц|трех.*месяц/i.test(lastMessage);
+      
+      // Если есть фраза добавления и указан срок - добавляем тег
+      if (hasAddPhrase) {
+        if (isThreeMonths) {
+          return `Отлично! Добавил Цистозира 90г на 3 месяца в корзину за 1350₽. Он отлично помогает с щитовидной железой. [add_to_cart:ci90]`;
+        } else {
+          return `Отлично! Добавил Цистозира 30г на месяц в корзину за 500₽. Он отлично помогает с щитовидной железой. [add_to_cart:ci30]`;
+        }
+      }
+      
+      // Если нет фразы добавления - спрашиваем уточнение БЕЗ тега
+      return `Отлично! Цистозира отлично помогает с щитовидной железой и гормональной системой.
+
+Варианты:
+• 30г на месяц за 500₽
+• 90г на 3 месяца за 1350₽
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+    }
+    
+    if (lastMessage.includes('комплекс') || lastMessage.includes('4 в 1') || lastMessage.includes('все вместе')) {
+      return `Отлично! Комплекс 4 в 1 включает все основные добавки для максимального эффекта.
+
+Варианты:
+• 4 в 1 (месяц) - 3300₽
+• 4 в 1 (3 месяца) - 9000₽
+
+Включает: Ежовик + Мухомор + Кордицепс + Цистозира
+
+Также у вас уже есть опыт приема добавок или начинаете впервые? [add_to_cart:4v11m]`;
+    }
+    
+    if (lastMessage.includes('порошок') || lastMessage.includes('капсулы')) {
+      // Пользователь уточняет форму - продолжаем диалог
+      return `Отлично! ${lastMessage.includes('порошок') ? 'Порошок' : 'Капсулы'} - хороший выбор!
+
+Теперь уточните срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)`;
+    }
+    
+    if (lastMessage.includes('месяц') || lastMessage.includes('3 месяца') || lastMessage.includes('6 месяцев')) {
+      // Пользователь выбрал срок - предлагаем оформить
+      return `Отлично! Вы выбрали ${lastMessage.includes('3 месяца') ? '3 месяца' : lastMessage.includes('6 месяцев') ? '6 месяцев' : 'месяц'}.
+
+Теперь добавлю в корзину и вы сможете оформить заказ!`;
+    }
+    
+    // Общий ответ для неопределенных запросов
+    return `Привет! Я консультант по грибным добавкам СПОРС.
+
+Помогу подобрать добавки для ваших целей:
+
+🧠 **Память и концентрация** → Ежовик
+😴 **Сон и стресс** → Мухомор  
+⚡ **Энергия и выносливость** → Кордицепс
+🦋 **Щитовидная железа** → Цистозира
+🎯 **Все вместе** → Комплекс 4 в 1
+
+Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!`;
+  }
+
   async function fetchCompletion(msgs: DialogMessage[]): Promise<string | null> {
     try {
       // Используем переданные цены от Telegram бота или получаем из БД
@@ -604,8 +914,6 @@ export async function POST(req: NextRequest) {
       msgs.forEach((msg, index) => {
         console.log(`[AI API] ${index + 1}. ${msg.role}: ${msg.content.substring(0, 100)}...`);
       });
-      
-      
        
        // Получаем промпт из системы управления контентом
       const aiPrompt = await ContentManager.getFullAIPrompt('main_ai_prompt', 
@@ -615,19 +923,25 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
        
+      // Пробуем OpenRouter с улучшенными заголовками
        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
          method: "POST",
          headers: {
            "Authorization": `Bearer ${OR_TOKEN}`,
            "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Accept": "application/json",
+          "HTTP-Referer": "https://ai.spor3s.ru",
+          "X-Title": "Spor3s AI"
          },
          body: JSON.stringify({
            model: "openai/gpt-4o-mini",
            messages: [
              { role: "system", content: aiPrompt },
-             { role: "user", content: userMessage }
+            ...msgs  // Передаем всю историю диалога
            ],
-           max_tokens: 600,
+          max_tokens: 800,
+          temperature: 0.8,  // Более естественные ответы
          }),
         signal: controller.signal,
        });
@@ -636,7 +950,25 @@ export async function POST(req: NextRequest) {
 
       if (!response.ok) {
         console.error('[AI API] HTTP Error:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        
+        // FALLBACK: Если OpenRouter не работает, используем интеллектуальный ответ
+        console.log('[AI API] OpenRouter недоступен, используем fallback ответ');
+        let fallbackResponse = generateIntelligentFallback(msgs, userSummary, productsInfo);
+        
+        // КРИТИЧНО: Применяем те же проверки к fallback ответу!
+        const userMessageLower = message.toLowerCase();
+        const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
+        const userHasForm = /порошок|капсул|порошк|шляпк/i.test(userMessageLower);
+        const userWantsToAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLower);
+        const isQuestionAboutAvailability = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLower);
+        
+        if ((userHasEzhOrMhm && !userHasForm && !userWantsToAdd) || isQuestionAboutAvailability) {
+          console.log('[AI API] ⚠️ КРИТИЧНО: Fallback - форма НЕ указана, удаляем теги!');
+          fallbackResponse = fallbackResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+          fallbackResponse = fallbackResponse.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+        }
+        
+        return fallbackResponse;
       }
 
              const data = await response.json();
@@ -647,38 +979,93 @@ export async function POST(req: NextRequest) {
        }
 
               let aiResponse = data.choices[0].message.content;
+              console.log('[AI API] ============================================');
               console.log('[AI API] Original AI Response:', aiResponse);
+              console.log('[AI API] User message:', message);
               
-
+      // КРИТИЧНО: Проверяем СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ - если форма НЕ указана, блокируем теги
+      const userMessageLower = message.toLowerCase();
+      const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
+      const userHasForm = /порошок|капсул|порошк|шляпк/i.test(userMessageLower);
+      const userWantsToAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLower);
+      // КРИТИЧНО: Проверяем, что это НЕ вопрос о наличии
+      const isQuestionAboutAvailability = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLower);
       
-      const beforeForceAdd = aiResponse;
-      console.log('[AI API] About to call forceAddToCartTag...');
-      aiResponse = forceAddToCartTag(aiResponse);
-      console.log('[AI API] After forceAddToCartTag:', aiResponse);
-      console.log('[AI API] Changed:', beforeForceAdd !== aiResponse);
-      console.log('[AI API] ForceAddToCartTag DEBUG - Input:', beforeForceAdd);
-      console.log('[AI API] ForceAddToCartTag DEBUG - Output:', aiResponse);
+      console.log('[AI API] Проверка пользователя:', {
+        userHasEzhOrMhm,
+        userHasForm,
+        userWantsToAdd,
+        isQuestionAboutAvailability,
+        shouldBlock: (userHasEzhOrMhm && !userHasForm && !userWantsToAdd) || isQuestionAboutAvailability
+      });
+      
+      // КРИТИЧНО: Если пользователь спросил про ежовик/мухомор БЕЗ формы и БЕЗ явного запроса добавления
+      // ИЛИ это вопрос о наличии - УДАЛЯЕМ ВСЕ ТЕГИ из ответа AI немедленно!
+      if ((userHasEzhOrMhm && !userHasForm && !userWantsToAdd) || isQuestionAboutAvailability) {
+        const tagsBefore = [...aiResponse.matchAll(/\[add_to_cart:([\w-]+)\]/g)].map(m => m[1]);
+        console.log('[AI API] ⚠️ КРИТИЧНО: Пользователь спросил про ежовик/мухомор БЕЗ формы - удаляем ВСЕ теги из ответа!');
+        console.log('[AI API] Теги ДО удаления:', tagsBefore);
+        aiResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+        aiResponse = aiResponse.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+        const tagsAfter = [...aiResponse.matchAll(/\[add_to_cart:([\w-]+)\]/g)].map(m => m[1]);
+        console.log('[AI API] Теги ПОСЛЕ удаления:', tagsAfter);
+        console.log('[AI API] После удаления тегов:', aiResponse);
+        console.log('[AI API] ============================================');
+      }
+      
+      // КРИТИЧНО: Проверяем, есть ли ежовик или мухомор БЕЗ указания формы в ответе AI
+      // Если есть - НЕ вызываем forceAddToCartTag, чтобы не добавить тег автоматически
+      const hasEzhOrMhm = /ежовик|мухомор/i.test(aiResponse);
+      const hasFormSpecified = /порошок|капсул|порошк/i.test(aiResponse);
+      const hasAddPhrase = /добав|полож|положил/i.test(aiResponse);
+      
+      // КРИТИЧНО: Если есть ежовик/мухомор БЕЗ формы и БЕЗ фразы добавления - НЕ вызываем forceAddToCartTag
+      const shouldSkipForceAdd = hasEzhOrMhm && !hasFormSpecified && !hasAddPhrase;
+      
+      if (shouldSkipForceAdd) {
+        console.log('[AI API] ⚠️ КРИТИЧНО: Обнаружен ежовик/мухомор БЕЗ формы - пропускаем forceAddToCartTag');
+      } else {
+        const beforeForceAdd = aiResponse;
+        console.log('[AI API] About to call forceAddToCartTag...');
+        aiResponse = forceAddToCartTag(aiResponse);
+        console.log('[AI API] After forceAddToCartTag:', aiResponse);
+        console.log('[AI API] Changed:', beforeForceAdd !== aiResponse);
+        console.log('[AI API] ForceAddToCartTag DEBUG - Input:', beforeForceAdd);
+        console.log('[AI API] ForceAddToCartTag DEBUG - Output:', aiResponse);
+      }
        
        const beforeForceRemove = aiResponse;
        aiResponse = forceRemoveFromCartTag(aiResponse);
        console.log('[AI API] After forceRemoveFromCartTag:', aiResponse);
        
                  // Сохраняем теги для обработки, но заменяем их на предложение перехода в приложение
-         let finalResponse = aiResponse;
-         
+        let finalResponse = aiResponse;
+        
                  // Заменяем теги add_to_cart на естественную фразу в зависимости от канала
-        if (/\[add_to_cart:[\w-]+\]/.test(aiResponse)) {
+        // КРИТИЧНО: Проверяем СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ - если форма НЕ указана, блокируем теги
+        const userMessageLower = message.toLowerCase();
+        const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
+        const userHasForm = /порошок|капсул|порошк/i.test(userMessageLower);
+        const userWantsToAdd = /добав|закаж|купи|полож/i.test(userMessageLower);
+        
+        // КРИТИЧНО: Если пользователь спросил про ежовик/мухомор БЕЗ формы - удаляем теги!
+        const shouldRemoveTags = userHasEzhOrMhm && !userHasForm && !userWantsToAdd;
+        
+        if (shouldRemoveTags) {
+          console.log('[AI API] ⚠️ КРИТИЧНО: Пользователь спросил БЕЗ формы - удаляем ВСЕ теги!');
           finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
-          
+          finalResponse = finalResponse.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+        } else if (/\[add_to_cart:[\w-]+\]/.test(aiResponse)) {
           if (messageSource === 'mini_app') {
-            // В Mini App - товар уже добавлен в корзину приложения
-            finalResponse += '\n\n✅ Товар добавлен в корзину! Что еще добавить?';
+            // В Mini App - теги остаются для обработки приложением
+            finalResponse = aiResponse;
           } else if (messageSource === 'telegram_bot') {
-            // В Telegram Bot - предлагаем перейти в приложение
+            // В Telegram Bot - предлагаем перейти в приложение и удаляем теги
+            finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
             finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot\n\nИли укажите ФИО+телефон+адрес СДЭК для оформления здесь.';
           } else {
-            // В Spor3z - персональный подход  
-            finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot';
+            // В Spor3z - удаляем теги (агент их обработает)
+            finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
           }
          }
          
@@ -706,30 +1093,30 @@ export async function POST(req: NextRequest) {
        const message = error instanceof Error ? error.message : 'Unknown error';
        console.error('[AI API] Fetch error:', message);
        
-      // Получаем продукты для fallback ответов
-      const products = (await getProductsServer()) as ProductRecord[];
+       // Получаем продукты для fallback ответов
+       const products = (await getProductsServer()) as ProductRecord[];
      
       // Вспомогательная функция для нормализации названий
       const normalizeName = (value?: string) => (value || '').toLowerCase();
       
-      // Fallback ответы в зависимости от запроса
-      const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
-      const rawUserMessage = (lastMsg && typeof lastMsg.content === 'string')
-        ? lastMsg.content
-        : (typeof message === 'string' ? message : '');
-      const userMessage = normalizeName(rawUserMessage || '');
-      
-      // Проверяем контекст на наличие уточнений
-      const hasContext = context.length > 0;
-      const hasFormSpecification = hasContext && context.some(msg => 
-        msg.content && (
-          msg.content.includes('капсулы') || 
-          msg.content.includes('порошок') || 
-          msg.content.includes('месяц')
-        )
-      );
-      
-     // Находим подходящие продукты для fallback
+             // Fallback ответы в зависимости от запроса
+       const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+       const rawUserMessage = (lastMsg && typeof lastMsg.content === 'string')
+         ? lastMsg.content
+         : (typeof message === 'string' ? message : '');
+       const userMessage = normalizeName(rawUserMessage || '');
+       
+       // Проверяем контекст на наличие уточнений
+       const hasContext = context.length > 0;
+       const hasFormSpecification = hasContext && context.some(msg => 
+         msg.content && (
+           msg.content.includes('капсулы') || 
+           msg.content.includes('порошок') || 
+           msg.content.includes('месяц')
+         )
+       );
+       
+      // Находим подходящие продукты для fallback
 
       const findProduct = (keywords: string[]) =>
         products.find(p => {
@@ -738,21 +1125,59 @@ export async function POST(req: NextRequest) {
         });
       
              // Специальная обработка шляпок (высший приоритет)
-       if (userMessage.includes('шляпки')) {
-         // Шляпки = мухомор 30г порошок
-         return forceAddToCartTag(`Отлично! Добавил Мухомор 30г в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+       // КРИТИЧНО: Шляпки - это уже указание формы, но проверяем фразу добавления
+       if (userMessage.includes('шляпки') && userMessage.includes('мухомор')) {
+         const wantsToAdd = /добав|закаж|купи|полож/i.test(userMessage);
+         if (wantsToAdd) {
+           // Шляпки = мухомор 30г порошок
+           return forceAddToCartTag(`Отлично! Добавил Мухомор 30г (шляпки) в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+         }
        }
        
        // Специальная обработка "30 гр" (высший приоритет)
-       if (userMessage.includes('30 гр') || userMessage.includes('30гр')) {
-         // 30 гр = мухомор 30г
-         return forceAddToCartTag(`Отлично! Добавил Мухомор 30г в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+       // КРИТИЧНО: 30гр - это указание веса, но нужно проверить форму и фразу добавления
+       if ((userMessage.includes('30 гр') || userMessage.includes('30гр')) && userMessage.includes('мухомор')) {
+         const hasForm = /шляпк|порошок|капсул/i.test(userMessage);
+         const wantsToAdd = /добав|закаж|купи|полож/i.test(userMessage);
+         
+         if (wantsToAdd && hasForm) {
+           // 30 гр = мухомор 30г
+           return forceAddToCartTag(`Отлично! Добавил Мухомор 30г в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+         } else if (!hasForm) {
+           // Если форма не указана - спрашиваем
+           return `Отлично! Мухомор 30г - хороший выбор для начала.
+
+В какой форме предпочитаете:
+• Шляпки (порошок) - 30г на месяц за 600₽
+• Капсулы - 60 капсул на месяц за 1400₽
+
+Хотите добавить в корзину?`;
+         }
        }
        
        // Специальная обработка "на месяц" (высший приоритет)
+       // КРИТИЧНО: "на месяц" - это срок, но нужно проверить форму
        if (userMessage.includes('на месяц') && userMessage.includes('мухомор')) {
-         // на месяц = мухомор 30г
-         return forceAddToCartTag(`Отлично! Добавил Мухомор 30г (месяц) в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+         const hasForm = /шляпк|порошок|капсул/i.test(userMessage);
+         const wantsToAdd = /добав|закаж|купи|полож/i.test(userMessage);
+         
+         if (wantsToAdd && hasForm) {
+           // на месяц = мухомор 30г или 60 капсул
+           if (userMessage.includes('капсул')) {
+             return forceAddToCartTag(`Отлично! Добавил Мухомор 60 капсул (месяц) в корзину за 1400₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm60k]`);
+           } else {
+             return forceAddToCartTag(`Отлично! Добавил Мухомор 30г (шляпки, месяц) в корзину за 600₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за 1200₽. Добавить его тоже? [add_to_cart:mhm30]`);
+           }
+         } else if (!hasForm) {
+           // Если форма не указана - спрашиваем
+           return `Отлично! Мухомор на месяц - хороший выбор для начала.
+
+В какой форме предпочитаете:
+• Шляпки (порошок) - 30г на месяц за 600₽
+• Капсулы - 60 капсул на месяц за 1400₽
+
+Хотите добавить в корзину?`;
+         }
        }
 
        // Специальная обработка "оформи ежовик на 3 месяца" (высший приоритет)
@@ -817,25 +1242,28 @@ export async function POST(req: NextRequest) {
         // Проверяем, есть ли уточнения формы и срока
         const hasFormSpecification = userMessage.includes('капсулы') || userMessage.includes('порошок') || userMessage.includes('шляпки') || userMessage.includes('месяц') || userMessage.includes('30') || userMessage.includes('3') || userMessage.includes('три');
         
-        // Если это первый запрос о мухоморе, уточняем детали
-        if (!hasAddContext && !userMessage.includes('добавь') && !userMessage.includes('закажи') && !userMessage.includes('купи') && !hasFormSpecification) {
-          return `Отлично! Мухомор отлично помогает со сном и снимает стресс. 
+        // КРИТИЧНО: Проверяем форму ПЕРЕД установкой дефолтного значения!
+        const hasFormInMessage = /капсул|шляпк|порошок|порошк/i.test(userMessage);
+        const wantsToAddInMessage = /добав|закаж|купи|полож/i.test(userMessage);
+        
+        // Если это первый запрос о мухоморе БЕЗ формы - уточняем детали
+        if (!hasAddContext && !wantsToAddInMessage && !hasFormSpecification && !hasFormInMessage) {
+          return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
 
 В какой форме предпочитаете:
 • Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
-• Порошок из шляпок (быстрее эффект, 30г на месяц за 1400₽)
+• Шляпки (порошок, быстрее эффект, 30г на месяц за 600₽)
 
 И на какой срок:
 • Месяц (для начала)
 • 3 месяца (курс, экономично)
-• 6 месяцев (максимальный эффект)
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?`;
         }
         
         // Если пользователь уже указал форму и срок, добавляем в корзину
         let productId = 'mhm30';
-        let productName = 'Мухомор 30г';
+        let productName = 'Мухомор 30г (шляпки)';
         
         // Приоритет: сначала проверяем "30", потом "на месяц", потом "3 месяца"
         if (userMessage.includes('30') || userMessage.includes('тридцать')) {
@@ -849,16 +1277,26 @@ export async function POST(req: NextRequest) {
           }
         } else if (userMessage.includes('месяц') && !userMessage.includes('3') && !userMessage.includes('три') && !userMessage.includes('трех')) {
           // Мухомор на месяц
+          // КРИТИЧНО: Проверяем форму ПЕРЕД установкой дефолтного значения!
+          const hasForm = /капсул|шляпк|порошок|порошк/i.test(userMessage);
+          
+          if (!hasForm) {
+            // Если форма НЕ указана - спрашиваем уточнение БЕЗ добавления
+            return `Отлично! Мухомор на месяц - хороший выбор для начала.
+
+В какой форме предпочитаете:
+• Шляпки (порошок) - 30г на месяц за 600₽
+• Капсулы - 60 капсул на месяц за 1400₽
+
+Хотите добавить в корзину?`;
+          }
+          
           if (userMessage.includes('капсул') || userMessage.includes('капсул')) {
             productId = 'mhm60k';
             productName = 'Мухомор 60 капсул (месяц)';
           } else if (userMessage.includes('шляпки') || userMessage.includes('порошок') || userMessage.includes('порошк')) {
             productId = 'mhm30';
-            productName = 'Мухомор 30г (месяц)';
-          } else {
-            // По умолчанию для месяца - порошок 30г
-            productId = 'mhm30';
-            productName = 'Мухомор 30г (месяц)';
+            productName = 'Мухомор 30г (шляпки, месяц)';
           }
         } else if (userMessage.includes('3') || userMessage.includes('три') || userMessage.includes('трех')) {
           // Мухомор на 3 месяца - предлагаем выбор между шляпками и капсулами
@@ -931,12 +1369,31 @@ export async function POST(req: NextRequest) {
         const kordicepsPrice = kordiceps?.price ?? '800';
          return forceAddToCartTag(`Добавил ${productTitle} в корзину за ${productPrice}₽! Он прекрасно помогает с памятью и концентрацией. Хотите также попробовать Кордицепс для энергии за ${kordicepsPrice}₽? [add_to_cart:${product?.id || productId}]`);
 
-      } else if (userMessage.includes('капсулы') || userMessage.includes('порошок') || userMessage.includes('месяц')) {
+      } else if (userMessage.includes('капсулы') || userMessage.includes('порошок') || userMessage.includes('месяц') || userMessage.includes('шляпки')) {
         // Обработка уточнений формы и срока
         if (userMessage.includes('мухомор') || context.some(msg => msg.content?.includes('мухомор'))) {
+          // КРИТИЧНО: Проверяем форму ПЕРЕД установкой дефолтного значения!
+          const hasForm = /порошок|капсул|порошк|шляпк/i.test(userMessage);
+          const wantsToAdd = /добав|закаж|купи|полож/i.test(userMessage);
+          
+          // Если форма НЕ указана и нет явного запроса добавления - НЕ добавляем тег!
+          if (!hasForm && !wantsToAdd) {
+            return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
+• Шляпки (порошок, быстрее эффект, 30г на месяц за 1400₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+          }
+          
           // Обработка мухомора
           let productId = 'mhm30';
-          let productName = 'Мухомор 30г';
+          let productName = 'Мухомор 30г (шляпки)';
           
           // Приоритет: сначала проверяем "на месяц", потом "3 месяца"
           if (userMessage.includes('месяц') && !userMessage.includes('3') && !userMessage.includes('три') && !userMessage.includes('трех')) {
@@ -946,27 +1403,23 @@ export async function POST(req: NextRequest) {
               productName = 'Мухомор 60 капсул (месяц)';
             } else if (userMessage.includes('шляпки') || userMessage.includes('порошок') || userMessage.includes('порошк')) {
               productId = 'mhm30';
-              productName = 'Мухомор 30г (месяц)';
-            } else {
-              // По умолчанию для месяца - порошок 30г
-              productId = 'mhm30';
-              productName = 'Мухомор 30г (месяц)';
+              productName = 'Мухомор 30г (шляпки, месяц)';
             }
           } else if (userMessage.includes('3') || userMessage.includes('три') || userMessage.includes('трех')) {
             // Мухомор на 3 месяца
             if (userMessage.includes('капсул') || userMessage.includes('капсул')) {
               productId = 'mhm180k';
               productName = 'Мухомор 180 капсул (3 месяца)';
-            } else {
+            } else if (userMessage.includes('шляпки') || userMessage.includes('порошок') || userMessage.includes('порошк')) {
               productId = 'mhm100';
-              productName = 'Мухомор 100г (3 месяца)';
+              productName = 'Мухомор 100г (шляпки, 3 месяца)';
             }
           } else if (userMessage.includes('капсул') || userMessage.includes('капсул')) {
             productId = 'mhm60k';
             productName = 'Мухомор 60 капсул';
           } else if (userMessage.includes('шляпки') || userMessage.includes('порошок') || userMessage.includes('порошк')) {
             productId = 'mhm30';
-            productName = 'Мухомор 30г';
+            productName = 'Мухомор 30г (шляпки)';
           }
           
           const product = findProduct(['мухомор']);
@@ -976,6 +1429,26 @@ export async function POST(req: NextRequest) {
           const ezhPrice = ezhProduct?.price ?? '1100';
           return forceAddToCartTag(`Отлично! Добавил ${productTitle} в корзину за ${productPrice}₽. Он отлично помогает со сном и снимает стресс. Кстати, для лучшего эффекта рекомендую также Ежовик для улучшения памяти за ${ezhPrice}₽. Добавить его тоже? [add_to_cart:${product?.id || productId}]`);
         } else if (userMessage.includes('ежовик') || context.some(msg => msg.content?.includes('ежовик'))) {
+          // КРИТИЧНО: Проверяем форму ПЕРЕД установкой дефолтного значения!
+          const hasForm = /порошок|капсул|порошк/i.test(userMessage);
+          const wantsToAdd = /добав|закаж|купи|полож/i.test(userMessage);
+          
+          // Если форма НЕ указана и нет явного запроса добавления - НЕ добавляем тег!
+          if (!hasForm && !wantsToAdd) {
+            return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
+• Порошок (быстрее эффект, 100г на месяц за 1100₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?`;
+          }
+          
           // Обработка ежовика
           let productId = 'ezh120k';
           let productName = 'Ежовик 120 капсул';
@@ -983,6 +1456,9 @@ export async function POST(req: NextRequest) {
           if (userMessage.includes('порошок')) {
             productId = 'ezh100';
             productName = 'Ежовик 100г порошок';
+          } else if (userMessage.includes('капсул')) {
+            productId = 'ezh120k';
+            productName = 'Ежовик 120 капсул';
           }
           
           const product = findProduct(['ежовик']);
@@ -995,7 +1471,8 @@ export async function POST(req: NextRequest) {
       } else if (userMessage.includes('кордицепс') || userMessage.includes('энергия') || userMessage.includes('выносливость')) {
         const product = findProduct(['кордицепс']);
         const productId = product?.id || 'kor50';
-         return forceAddToCartTag(`Добавил ${product?.name || 'Кордицепс 50г'} в корзину за ${product?.price || '800'}₽! Он отлично повышает энергию и выносливость. Хотите также попробовать Мухомор для сна за ${findProduct(['мухомор'])?.price || '600'}₽? [add_to_cart:${productId}]`);
+        const productName = product?.name || 'Кордицепс Милитарис плодовые тела 50г';
+         return forceAddToCartTag(`Добавил ${productName} в корзину за ${product?.price || '800'}₽! Он отлично повышает энергию и выносливость. Хотите также попробовать Мухомор для сна за ${findProduct(['мухомор'])?.price || '600'}₽? [add_to_cart:${productId}]`);
       } else if (userMessage.includes('цистозира') || userMessage.includes('щитовидка') || userMessage.includes('щитовидная')) {
         const product = findProduct(['цистозира']);
         const productId = product?.id || 'ci30';
@@ -1049,10 +1526,47 @@ export async function POST(req: NextRequest) {
   let reply = allContent || "Извините, не удалось получить ответ.";
   
   // Применяем логику замены тегов к финальному ответу
+  // КРИТИЧНО: Для Mini App НЕ добавляем строку "Товар добавлен в корзину" здесь
+  // Клиент сам решает, что показывать, на основе наличия тегов и проверки формы
+  
+  // КРИТИЧНО: Проверяем намерение пользователя, чтобы не добавлять ежовик/мухомор без формы
+  const userMessageLower = message.toLowerCase();
+  const userMentionsEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
+  const userMentionsForm = /порошок|капсул|шляпк/i.test(userMessageLower);
+  const userExplicitAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLower);
+  const userAvailabilityQuestion = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLower);
+  const shouldForceRemoveByUserIntent =
+    userMentionsEzhOrMhm &&
+    (
+      (!userMentionsForm && !userExplicitAdd) ||
+      (!userExplicitAdd && userAvailabilityQuestion)
+    );
+
+  if (shouldForceRemoveByUserIntent) {
+    reply = reply.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+    reply = reply.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+    console.log('[AI API] ⚠️ КРИТИЧНО: Удалены теги и подтверждение из ответа — пользователь не указал форму/только спрашивает наличие');
+  } else {
+    // КРИТИЧНО: Проверяем, есть ли ежовик/мухомор БЕЗ формы непосредственно в ответе
+    const hasEzhOrMhmInReply = /ежовик|мухомор/i.test(reply);
+    const hasFormInReply = /порошок|капсул|порошк/i.test(reply);
+    const shouldRemoveFromReply = hasEzhOrMhmInReply && !hasFormInReply;
+    
+    if (shouldRemoveFromReply) {
+      // Удаляем теги и строку "✅ Товар добавлен в корзину!"
+      reply = reply.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+      reply = reply.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+      console.log('[AI API] ⚠️ КРИТИЧНО: Удалены теги и строка из ответа для ежовика/мухомора БЕЗ формы (по ответу)');
+    }
+  }
+  
   if (/\[add_to_cart:[\w-]+\]/.test(reply)) {
     if (messageSource === 'mini_app') {
-      // Для Mini App сохраняем теги для обработки на фронтенде
-      reply += '\n\n✅ Товар добавлен в корзину! Что еще добавить?';
+      // Для Mini App просто сохраняем теги - клиент сам обработает их
+      // НЕ добавляем строку "Товар добавлен в корзину" - клиент сам решает!
+      // Удаляем строку, если AI её добавила
+      reply = reply.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
+      console.log('[AI API] Обнаружены теги [add_to_cart] для Mini App - клиент обработает их');
     } else {
       // Для других источников удаляем теги и добавляем ссылку
       reply = reply.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
