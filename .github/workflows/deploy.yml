@@ -10,15 +10,87 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Deploy to server
-      uses: appleboy/ssh-action@v0.1.5
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.HOST }}
-        username: ${{ secrets.USERNAME }}
-        key: ${{ secrets.SSH_KEY }}
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: 22
         script: |
+          set -e
+          echo "🚀 Начало деплоя spor3s-app"
+          
+          # Переходим в директорию проекта
+          if [ ! -d /var/www/spor3s-app ]; then
+            echo "📁 Создание директории /var/www/spor3s-app"
+            mkdir -p /var/www/spor3s-app
+            cd /var/www/spor3s-app
+            git clone https://github.com/airyzhov/spor3s-app.git .
+          else
+            cd /var/www/spor3s-app
+            echo "📦 Обновление кода из GitHub..."
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+          fi
+          
+          echo "📋 Проверка .env файла..."
+          if [ ! -f .env ]; then
+            if [ -f .env.vps ]; then
+              cp .env.vps .env
+              echo "✅ Скопирован .env.vps в .env"
+            elif [ -f env-production ]; then
+              cp env-production .env
+              echo "✅ Скопирован env-production в .env"
+            else
+              echo "⚠️ Файл .env не найден, создайте его вручную"
+            fi
+          fi
+          
+          # Копируем .env в подпроекты
+          if [ -f .env ]; then
+            cp .env tg-bot/.env 2>/dev/null || true
+            cp .env tg-client/.env.local 2>/dev/null || true
+            echo "✅ .env скопирован в подпроекты"
+          fi
+          
+          echo "📦 Установка зависимостей основного проекта..."
+          npm ci --production=false
+          
+          echo "📦 Установка зависимостей tg-bot..."
+          if [ -f tg-bot/package.json ]; then
+            cd /var/www/spor3s-app/tg-bot
+            npm ci --production=false || npm install
+            cd /var/www/spor3s-app
+          fi
+          
+          echo "📦 Установка зависимостей tg-client..."
+          if [ -f tg-client/package.json ]; then
+            cd /var/www/spor3s-app/tg-client
+            npm ci --production=false || npm install
+            cd /var/www/spor3s-app
+          fi
+          
+          echo "🏗️ Сборка Next.js приложения..."
           cd /var/www/spor3s-app
-          git pull origin main
-          npm install
           npm run build
-          pm2 restart spor3s-app
+          
+          echo "🔄 Перезапуск PM2 процессов..."
+          # Останавливаем старые процессы
+          pm2 delete all || true
+          
+          # Запускаем через ecosystem.config.js
+          pm2 start ecosystem.config.js
+          
+          # Сохраняем конфигурацию
+          pm2 save
+          
+          echo "📊 Статус процессов:"
+          pm2 status
+          
+          echo "✅ Деплой завершен успешно!"
+          echo "🌐 Приложение доступно на: https://ai.spor3s.ru"

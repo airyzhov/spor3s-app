@@ -160,10 +160,10 @@ export default function MainApp() {
   }
 
   const steps = [
-    { id: 1, name: "🤖 AI Консультант", icon: "🤖" },
-    { id: 2, name: "🛒 Каталог", icon: "🛒" },
-    { id: 3, name: "👤 Личный кабинет", icon: "👤" },
-    { id: 4, name: "📊 Ваш прогресс", icon: "📊" }
+    { id: 1, name: "🤖 AI Консультант", icon: "🤖", shortName: "AI" },
+    { id: 2, name: "🛒 Каталог", icon: "🛒", shortName: "Каталог" },
+    { id: 3, name: "👤 Личный кабинет", icon: "👤", shortName: "Кабинет" },
+    { id: 4, name: "📊 Ваш прогресс", icon: "📊", shortName: "Прогресс" }
   ];
 
   const renderContent = () => {
@@ -240,7 +240,7 @@ export default function MainApp() {
           display: "flex",
           justifyContent: "center",
           marginBottom: 30,
-          gap: 10,
+          gap: 8,
           flexWrap: "wrap",
           width: "100%",
           maxWidth: "800px"
@@ -249,6 +249,7 @@ export default function MainApp() {
             <button
               key={step.id}
               onClick={() => setCurrentStep(step.id)}
+              title={step.name}
               style={{
                 background: currentStep === step.id 
                   ? "linear-gradient(45deg, #ff00cc, #3333ff)"
@@ -258,20 +259,22 @@ export default function MainApp() {
                   ? "2px solid transparent" 
                   : "2px solid rgba(255, 255, 255, 0.2)",
                 borderRadius: 25,
-                padding: "12px 20px",
-                fontSize: "clamp(14px, 3vw, 16px)",
+                padding: "10px 14px",
+                fontSize: "clamp(13px, 2.5vw, 15px)",
                 fontWeight: currentStep === step.id ? 700 : 500,
                 cursor: "pointer",
                 transition: "all 0.3s ease",
                 boxShadow: currentStep === step.id 
                   ? "0 4px 15px rgba(255, 0, 204, 0.3)"
                   : "none",
-                minWidth: "clamp(100px, 20vw, 120px)",
+                flex: "0 1 auto",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8,
-                flex: "1 1 auto"
+                gap: 6,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
               onMouseOver={(e) => {
                 if (currentStep !== step.id) {
@@ -288,12 +291,12 @@ export default function MainApp() {
                 }
               }}
             >
-              <span style={{ fontSize: "clamp(16px, 4vw, 18px)" }}>{step.icon}</span>
+              <span style={{ fontSize: "clamp(16px, 3.5vw, 18px)", flexShrink: 0 }}>{step.icon}</span>
               <span style={{ 
-                fontSize: "clamp(12px, 2.5vw, 14px)",
-                display: window.innerWidth > 600 ? "inline" : "none"
+                fontSize: "clamp(11px, 2vw, 13px)",
+                display: window.innerWidth > 500 ? "inline" : "none"
               }}>
-                {step.name.replace(/^[^\s]+ /, '')}
+                {step.shortName}
               </span>
             </button>
           ))}

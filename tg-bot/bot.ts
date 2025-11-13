@@ -4,8 +4,10 @@ import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
 
-// Загружаем .env из директории бота
-dotenv.config({ path: path.join(__dirname, '.env') });
+// Загружаем .env и .env.local (.env.local имеет приоритет)
+// __dirname в dist/ указывает на compiled код, поэтому поднимаемся на уровень выше
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.join(__dirname, '../.env.local'), override: true });
 
 console.log('🔧 Переменные окружения загружены');
 console.log('🔍 Отладка переменных окружения:');
@@ -13,40 +15,74 @@ console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
 console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'ЕСТЬ' : 'НЕТ');
 console.log('TELEGRAM_BOT_TOKEN:', process.env.TELEGRAM_BOT_TOKEN ? 'ЕСТЬ' : 'НЕТ');
 
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
+// Проверяем что ключи загружены ПЕРЕД созданием клиентов
+if (!process.env.SUPABASE_URL) {
+  console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: SUPABASE_URL не загружен!');
+  process.exit(1);
+}
+
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Telegram Bot Token не загружен!');
+  process.exit(1);
+}
+
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+// Используем SERVICE_ROLE_KEY если есть, иначе ANON_KEY (с RLS политиками)
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseKey) {
+  console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Нет ни SERVICE_ROLE_KEY ни ANON_KEY!');
+  process.exit(1);
+}
+
+console.log('🔑 Используем Supabase ключ:', supabaseKey === process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE' : 'ANON');
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_URL,
+  supabaseKey
 );
+
+// Кеш контекста в памяти (fallback если Supabase не работает)
+const userContextCache = new Map<string, Array<{role: string, content: string}>>();
+
+// Кеш для подтверждения заказа (храним данные заказа для подтверждения)
+const pendingOrderCache = new Map<string, any>();
 
 // Функция для получения или создания пользователя
 async function getOrCreateUser(telegramId: string, userInfo?: any) {
-  const { data: existingUser, error: selectError } = await supabase
-    .from('users')
-    .select('id, name')
-    .eq('telegram_id', telegramId)
-    .single();
+  try {
+    const { data: existingUser, error: selectError } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('telegram_id', telegramId)
+      .single();
 
-  if (existingUser) {
-    return existingUser;
+    if (existingUser) {
+      return existingUser;
+    }
+
+    // Создаем нового пользователя
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([{ 
+        telegram_id: telegramId, 
+        name: userInfo?.first_name || userInfo?.username || 'User' 
+      }])
+      .select('id, name')
+      .single();
+
+    if (insertError) {
+      console.warn(`⚠️ Supabase error: ${insertError.message}, using fallback mode`);
+      // Fallback: возвращаем объект с telegram_id как id
+      return { id: telegramId, name: userInfo?.first_name || 'User' };
+    }
+
+    return newUser;
+  } catch (error: unknown) {
+    console.warn('⚠️ Supabase unavailable, using fallback mode');
+    return { id: telegramId, name: userInfo?.first_name || 'User' };
   }
-
-  // Создаем нового пользователя
-  const { data: newUser, error: insertError } = await supabase
-    .from('users')
-    .insert([{ 
-      telegram_id: telegramId, 
-      name: userInfo?.first_name || userInfo?.username || 'User' 
-    }])
-    .select('id, name')
-    .single();
-
-  if (insertError) {
-    throw new Error(`Error creating user: ${insertError.message}`);
-  }
-
-  return newUser;
 }
 
 // Функция для сохранения сообщения в базу
@@ -65,7 +101,7 @@ async function saveMessage(userId: string, content: string, role: 'user' | 'assi
   }
 }
 
-// Функция для вызова ИИ API
+// Функция для вызова ИИ API с интеллектуальным fallback
 async function callAI(message: string, context: any[], userId: string, telegramId?: string) {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/ai`, {
@@ -84,15 +120,134 @@ async function callAI(message: string, context: any[], userId: string, telegramI
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      throw new Error(`HTTP ${response.status}. ${text}`);
+      console.error('AI API error:', response.status, text);
+      // Используем интеллектуальный fallback
+      return generateIntelligentFallback(message, context);
     }
 
     const data: any = await response.json().catch(() => ({}));
     return data.response || data.reply || 'Извините, не удалось получить ответ от ИИ.';
   } catch (error: unknown) {
     console.error('AI API error:', error);
-    return 'Извините, произошла ошибка при обращении к ИИ. Попробуйте позже.';
+    // Используем интеллектуальный fallback
+    return generateIntelligentFallback(message, context);
   }
+}
+
+// Интеллектуальный fallback для Telegram бота
+function generateIntelligentFallback(message: string, context: any[]): string {
+  const lastMessage = message.toLowerCase();
+  
+  console.log('[spor3s_bot] Генерируем интеллектуальный fallback ответ');
+  console.log('[spor3s_bot] Последнее сообщение:', lastMessage);
+  
+  // Анализируем намерение пользователя
+  if (lastMessage.includes('ежовик') || lastMessage.includes('память') || lastMessage.includes('концентрация')) {
+    return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
+• Порошок (быстрее эффект, 100г на месяц за 1100₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('мухомор') || lastMessage.includes('сон') || lastMessage.includes('стресс')) {
+    return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
+
+В какой форме предпочитаете:
+• Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
+• Порошок (быстрее эффект, 30г на месяц за 1400₽)
+
+И на какой срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('кордицепс') || lastMessage.includes('энергия') || lastMessage.includes('выносливость')) {
+    return `Отлично! Кордицепс Милитарис плодовые тела отлично помогает с энергией, выносливостью и спортивными результатами.
+
+В какой форме предпочитаете:
+• Порошок плодовые тела (50г на месяц за 800₽)
+• Порошок плодовые тела (150г на 3 месяца за 2000₽)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('цистозира') || lastMessage.includes('щитовидка') || lastMessage.includes('йод')) {
+    return `Отлично! Цистозира отлично помогает с щитовидной железой и гормональной системой.
+
+В какой форме предпочитаете:
+• Порошок (30г на месяц за 500₽)
+• Порошок (90г на 3 месяца за 1350₽)
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('комплекс') || lastMessage.includes('4 в 1') || lastMessage.includes('все вместе')) {
+    return `Отлично! Комплекс 4 в 1 включает все основные добавки для максимального эффекта.
+
+Варианты:
+• 4 в 1 (месяц) - 3300₽
+• 4 в 1 (3 месяца) - 9000₽
+
+Включает: Ежовик + Мухомор + Кордицепс + Цистозира
+
+Также у вас уже есть опыт приема добавок или начинаете впервые?
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('порошок') || lastMessage.includes('капсулы')) {
+    // Пользователь уточняет форму - продолжаем диалог
+    return `Отлично! ${lastMessage.includes('порошок') ? 'Порошок' : 'Капсулы'} - хороший выбор!
+
+Теперь уточните срок:
+• Месяц (для начала)
+• 3 месяца (курс, экономично)
+• 6 месяцев (максимальный эффект)
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  if (lastMessage.includes('месяц') || lastMessage.includes('3 месяца') || lastMessage.includes('6 месяцев')) {
+    // Пользователь выбрал срок - предлагаем оформить
+    return `Отлично! Вы выбрали ${lastMessage.includes('3 месяца') ? '3 месяца' : lastMessage.includes('6 месяцев') ? '6 месяцев' : 'месяц'}.
+
+Теперь добавлю в корзину и вы сможете оформить заказ!
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+  }
+  
+  // Общий ответ для неопределенных запросов
+  return `Привет! Я консультант по грибным добавкам СПОРС.
+
+Помогу подобрать добавки для ваших целей:
+
+🧠 **Память и концентрация** → Ежовик
+😴 **Сон и стресс** → Мухомор  
+⚡ **Энергия и выносливость** → Кордицепс
+🦋 **Щитовидная железа** → Цистозира
+🎯 **Все вместе** → Комплекс 4 в 1
+
+Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!
+
+Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
 }
 
 // Генерация корректной deep-link для Mini App
@@ -118,26 +273,44 @@ async function buildMiniAppLink(telegramId: string): Promise<string> {
 // Функция для создания заказа
 async function createOrder(userId: string, orderData: any) {
   try {
+    console.log('[spor3s_bot] 📦 Создание заказа:', { userId, orderData });
+    
+    // Нормализуем формат данных заказа
+    const normalizedData = {
+      user_id: userId,
+      items: Array.isArray(orderData.items) ? orderData.items : (orderData.items || []),
+      total: orderData.total || 0,
+      address: orderData.address || '',
+      fio: orderData.fio || '',
+      phone: orderData.phone || '',
+      referral_code: orderData.referral_code || null,
+      comment: orderData.comment || '',
+      coins_to_use: orderData.coins_to_use || 0
+    };
+    
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/order-simple`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        user_id: userId,
-        ...orderData
-      })
+      body: JSON.stringify(normalizedData)
     });
 
     if (!response.ok) {
-      const errorData = await response.json() as { error?: string };
-      throw new Error(errorData.error || 'Ошибка создания заказа');
+      const errorText = await response.text();
+      console.error('[spor3s_bot] ❌ Order API error:', response.status, errorText);
+      let errorData: any = {};
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {}
+      throw new Error(errorData.error || errorText || 'Ошибка создания заказа');
     }
 
     const data: any = await response.json();
+    console.log('[spor3s_bot] ✅ Заказ создан:', data);
     return data;
   } catch (error: any) {
-    console.error('Order API error:', error);
+    console.error('[spor3s_bot] ❌ Order API error:', error);
     throw error;
   }
 }
@@ -151,16 +324,23 @@ async function notifyManager(orderData: any, userInfo: any) {
   }
 
   try {
+    // Нормализуем данные заказа
+    const items = Array.isArray(orderData.items) ? orderData.items : (orderData.items || []);
+    const itemsText = items.length > 0 
+      ? items.map((item: any) => `${item.name || item.id || 'Товар'} - ${item.price || 0}₽`).join('\n')
+      : JSON.stringify(orderData.items);
+    
     const message = `🆕 НОВЫЙ ЗАКАЗ ЧЕРЕЗ БОТА!
 
-👤 Пользователь: ${userInfo.first_name} ${userInfo.last_name || ''} (@${userInfo.username || 'без username'})
+👤 Пользователь: ${userInfo.first_name || ''} ${userInfo.last_name || ''} (@${userInfo.username || 'без username'})
 🆔 Telegram ID: ${userInfo.id}
 
-📦 Товары: ${JSON.stringify(orderData.items)}
-💰 Сумма: ${orderData.total}₽
-📍 Адрес: ${orderData.address}
-📞 Телефон: ${orderData.phone}
-👤 ФИО: ${orderData.fio}
+📦 Товары:
+${itemsText}
+💰 Сумма: ${orderData.total || 0}₽
+📍 Адрес: ${orderData.address || 'Не указан'}
+📞 Телефон: ${orderData.phone || 'Не указан'}
+👤 ФИО: ${orderData.fio || 'Не указано'}
 💬 Комментарий: ${orderData.comment || 'нет'}
 
 🕐 Время: ${new Date().toLocaleString('ru-RU')}`;
@@ -230,7 +410,7 @@ bot.start(async (ctx) => {
     }
 
       ctx.reply('✅ Привязка успешна! Теперь вы можете общаться с ИИ агентом spor3s.');
-    } catch (error) {
+    } catch (error: any) {
       ctx.reply('❌ Ошибка привязки: ' + error.message);
     }
   } else {
@@ -504,35 +684,341 @@ bot.on('text', async (ctx) => {
     const user = await getOrCreateUser(telegram_id, ctx.from);
     const userMessage = ctx.message.text;
 
-    // Сохраняем сообщение пользователя
-    await saveMessage(user.id, userMessage, 'user');
-
     // Показываем "печатает..."
     await ctx.replyWithChatAction('typing');
 
-    // Получаем историю сообщений пользователя
-    const { data: recentMessages } = await supabase
-      .from('messages')
-      .select('content')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    // Получаем контекст из кеша (приоритет - кеш, т.к. Supabase может не работать)
+    let messages: Array<{role: string, content: string}> = userContextCache.get(telegram_id) || [];
+    
+    console.log(`[spor3s_bot] 📦 Кеш для ${telegram_id}:`, messages.length, 'сообщений');
 
-    // Формируем контекст для ИИ
-    const messages = recentMessages?.reverse().map(msg => ({
-      role: 'user',
-      content: msg.content
-    })) || [];
+    try {
+      // Пытаемся сохранить в Supabase
+      await saveMessage(user.id, userMessage, 'user');
 
-    // Добавляем текущее сообщение
+      // Если Supabase работает, получаем историю оттуда (более надежно)
+      const { data: recentMessages } = await supabase
+        .from('messages')
+        .select('role, content')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (recentMessages && recentMessages.length > 0) {
+        messages = recentMessages.reverse().map(msg => ({
+          role: msg.role || 'user',
+          content: msg.content
+        }));
+        console.log('[spor3s_bot] ✅ Контекст из Supabase:', messages.length);
+      }
+    } catch (error: unknown) {
+      console.warn('⚠️ Supabase unavailable, using cache');
+    }
+
+    // Добавляем текущее сообщение пользователя
     messages.push({ role: 'user', content: userMessage });
 
-    // Вызываем ИИ с текущим сообщением и контекстом
+    console.log('[spor3s_bot] Отправляем в AI контекст:', messages.length, 'сообщений');
+    console.log('[spor3s_bot] Последние 3 сообщения:', messages.slice(-3).map(m => `${m.role}: ${m.content.substring(0, 30)}...`));
+
+    // Вызываем ИИ с полным контекстом диалога
     const aiResponse = await callAI(userMessage, messages, user.id, telegram_id);
 
-    // Сохраняем ответ ИИ
-    await saveMessage(user.id, aiResponse, 'assistant');
+    try {
+      // Сохраняем ответ ИИ
+      await saveMessage(user.id, aiResponse, 'assistant');
+    } catch (error: unknown) {
+      console.warn('⚠️ Failed to save message to DB');
+    }
 
+    // Обновляем кеш
+    messages.push({ role: 'assistant', content: aiResponse });
+    if (messages.length > 10) {
+      messages = messages.slice(-10);
+    }
+    userContextCache.set(telegram_id, messages);
+
+    // Извлекаем теги товаров из ответа AI
+    const addToCartMatches = [...aiResponse.matchAll(/\[add_to_cart:([\w-]+)\]/g)];
+    const productIds = [...new Set(addToCartMatches.map(m => m[1]))];
+    
+    // Определяем форму продукта из сообщений пользователя (порошок vs капсулы)
+    const allMessagesText = messages.map(m => m.content).join(' ').toLowerCase();
+    const userWantsPowder = /порошок|порошк|в порошке/i.test(allMessagesText);
+    const userWantsCapsules = /капсул|капсул/i.test(allMessagesText);
+    
+    // Проверяем соответствие формы продукта
+    const productFormMap: Record<string, { powder: string[], capsules: string[], name: string }> = {
+      'ezh': { powder: ['ezh100', 'ezh300', 'ezh500'], capsules: ['ezh120k', 'ezh360k'], name: 'Ежовик' },
+      'mhm': { powder: ['mhm30', 'mhm50', 'mhm100'], capsules: ['mhm60k', 'mhm180k'], name: 'Мухомор' },
+      'kor': { powder: ['kor50', 'kor150'], capsules: [], name: 'Кордицепс' },
+      'ci': { powder: ['ci30', 'ci90'], capsules: [], name: 'Цистозира' }
+    };
+    
+    // Проверяем, есть ли товары с несколькими формами, но форма не указана
+    let needsFormClarification = false;
+    let clarificationProduct = null;
+    
+    for (const productId of productIds) {
+      for (const [prefix, forms] of Object.entries(productFormMap)) {
+        if (productId.startsWith(prefix)) {
+          // Проверяем, есть ли у продукта обе формы
+          if (forms.powder.length > 0 && forms.capsules.length > 0) {
+            // Если форма не указана явно - нужно уточнение
+            if (!userWantsPowder && !userWantsCapsules) {
+              needsFormClarification = true;
+              clarificationProduct = { prefix, name: forms.name, powder: forms.powder, capsules: forms.capsules };
+              console.log(`[spor3s_bot] ⚠️ Форма продукта ${forms.name} не указана, требуется уточнение`);
+              break;
+            }
+          }
+        }
+      }
+      if (needsFormClarification) break;
+    }
+    
+    // Если форма не указана, но есть товар с двумя формами - убираем тег и спрашиваем уточнение
+    if (needsFormClarification && clarificationProduct) {
+      // Убираем теги [add_to_cart] из ответа
+      let cleanAiResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+      
+      // Формируем вопрос об уточнении формы
+      const clarificationMessage = `📋 **Уточните форму продукта:**
+
+Для ${clarificationProduct.name} доступны две формы:
+
+• **Порошок** - быстрее эффект, удобно для опытных пользователей
+• **Капсулы** - удобно принимать, идеально для новичков
+
+Какую форму вы предпочитаете? Напишите "порошок" или "капсулы".`;
+
+      await ctx.reply(cleanAiResponse);
+      await ctx.reply(clarificationMessage);
+      
+      // Очищаем кеш контекста, чтобы не добавлять товар автоматически
+      messages[messages.length - 1].content = cleanAiResponse;
+      userContextCache.set(telegram_id, messages);
+      
+      return; // Выходим, чтобы не обрабатывать дальше
+    }
+    
+    // Проверяем соответствие формы продукта и корректируем если нужно
+    let correctedProductIds = [...productIds];
+    if (userWantsPowder || userWantsCapsules) {
+      correctedProductIds = productIds.map(productId => {
+        for (const [prefix, forms] of Object.entries(productFormMap)) {
+          if (productId.startsWith(prefix)) {
+            if (userWantsPowder && forms.powder.length > 0 && forms.capsules.includes(productId)) {
+              // Пользователь хочет порошок, но AI добавил капсулы - заменяем на порошок
+              console.log(`[spor3s_bot] 🔄 Заменяем ${productId} на порошок`);
+              return forms.powder[0]; // Берем первый вариант порошка
+            } else if (userWantsCapsules && forms.capsules.length > 0 && forms.powder.includes(productId)) {
+              // Пользователь хочет капсулы, но AI добавил порошок - заменяем на капсулы
+              console.log(`[spor3s_bot] 🔄 Заменяем ${productId} на капсулы`);
+              return forms.capsules[0]; // Берем первый вариант капсул
+            }
+          }
+        }
+        return productId;
+      });
+      
+      // Убираем дубликаты
+      correctedProductIds = [...new Set(correctedProductIds)];
+      
+      if (JSON.stringify(correctedProductIds) !== JSON.stringify(productIds)) {
+        console.log('[spor3s_bot] ✅ Скорректированы ID товаров:', { было: productIds, стало: correctedProductIds });
+        // Обновляем теги в ответе AI для следующего шага
+        let correctedAiResponse = aiResponse;
+        productIds.forEach((oldId, index) => {
+          if (correctedProductIds[index] && oldId !== correctedProductIds[index]) {
+            correctedAiResponse = correctedAiResponse.replace(
+              new RegExp(`\\[add_to_cart:${oldId}\\]`, 'g'),
+              `[add_to_cart:${correctedProductIds[index]}]`
+            );
+          }
+        });
+        // Обновляем кеш с исправленным ответом
+        messages[messages.length - 1].content = correctedAiResponse;
+        userContextCache.set(telegram_id, messages);
+      }
+    }
+    
+    // Используем скорректированные ID
+    const finalProductIds = correctedProductIds.length > 0 ? correctedProductIds : productIds;
+    
+    // Проверяем наличие данных для заказа в сообщениях пользователя
+    const hasOrderIntent = /заказ|купить|оформить|закажи|отправь|купи|да|подтверждаю|создай заказ/i.test(userMessage) || 
+                          /заказ|оформить|купить/i.test(aiResponse) ||
+                          finalProductIds.length > 0;
+    
+    // Извлекаем данные из контекста диалога
+    const allMessages = messages.map(m => m.content).join(' ');
+    
+    // Улучшенный парсинг ФИО
+    const fioMatch = allMessages.match(/(?:фио|имя|ф\.?и\.?о\.?)[:\s]+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?)/i) ||
+                     allMessages.match(/(?:меня зовут|мое имя|зовут)[:\s]+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё]+)?)/i) ||
+                     allMessages.match(/([А-ЯЁ][а-яё]{2,}\s+[А-ЯЁ][а-яё]{2,}(?:\s+[А-ЯЁ][а-яё]{2,})?)/);
+    
+    // Улучшенный парсинг телефона
+    const phoneMatch = allMessages.match(/(?:телефон|тел|phone|мобильный)[:\s]*(\+?7?\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2})/i) ||
+                      allMessages.match(/(\+?7?\s?\(?\d{3}\)?\s?\d{3}[-\s]?\d{2}[-\s]?\d{2})/) ||
+                      allMessages.match(/(\+?7\d{10})/);
+    
+    // Улучшенный парсинг адреса
+    const addressMatch = allMessages.match(/(?:адрес|доставка|адрес доставки|куда везти)[:\s]+([а-яё\s,\.\d-]+)/i) ||
+                         allMessages.match(/((?:г\.|город|г|м\.|м|москва|спб|петербург|санкт-петербург)[\s,]+[а-яё\s,\.\d-]+(?:д\.|дом|кв\.|квартира|офис)[\s\d]+)/i) ||
+                         allMessages.match(/([а-яё]+\s+[а-яё]+\s+[а-яё]+\s+\d+[,\s]+(?:д\.|дом|кв\.|квартира|офис)[\s\d]+)/i);
+    
+    const fio = fioMatch ? fioMatch[1].trim() : null;
+    const phone = phoneMatch ? phoneMatch[1].trim().replace(/\s+/g, '') : null;
+    const address = addressMatch ? addressMatch[1].trim() : null;
+    
+    // Проверяем, есть ли подтверждение заказа
+    const isOrderConfirmation = /да|подтверждаю|подтверждаю заказ|создай заказ|оформи заказ|согласен/i.test(userMessage.toLowerCase());
+    
+    // Проверяем, есть ли отмена заказа
+    const isOrderCancellation = /нет|отмена|отменить|не надо|не нужно|не хочу/i.test(userMessage.toLowerCase());
+    
+    // Если отмена - очищаем кеш подтверждения
+    if (isOrderCancellation && pendingOrderCache.has(telegram_id)) {
+      pendingOrderCache.delete(telegram_id);
+      await ctx.reply('❌ Оформление заказа отменено. Можете продолжить общение с ИИ!');
+      return;
+    }
+    
+    console.log('[spor3s_bot] 🔍 Анализ заказа:', {
+      hasOrderIntent,
+      productIds: finalProductIds,
+      userWantsPowder,
+      userWantsCapsules,
+      isOrderConfirmation,
+      fio: !!fio,
+      phone: !!phone,
+      address: !!address,
+      allDataPresent: !!(fio && phone && address && finalProductIds.length > 0)
+    });
+    
+    // Если есть подтверждение заказа - создаем заказ
+    if (isOrderConfirmation) {
+      // Проверяем, есть ли сохраненный заказ для подтверждения
+      const pendingOrder = pendingOrderCache.get(telegram_id);
+      if (pendingOrder && pendingOrder.orderData) {
+        try {
+          console.log('[spor3s_bot] ✅ Подтверждение заказа, создаем...');
+          
+          const orderResult: any = await createOrder(user.id, pendingOrder.orderData);
+          
+          // Уведомляем менеджера
+          const order = orderResult.order || orderResult;
+          await notifyManager(order, ctx.from);
+          
+          // Отправляем подтверждение
+          const orderConfirmMessage = `✅ Заказ успешно создан!\n\n📦 Номер заказа: #${order.id}\n💰 Сумма: ${order.total}₽\n📞 Менеджер свяжется с вами в ближайшее время.\n\nСпасибо за заказ! 🍄`;
+          
+          await ctx.reply(orderConfirmMessage);
+          
+          // Очищаем кеш подтверждения
+          pendingOrderCache.delete(telegram_id);
+          
+          return; // Выходим, чтобы не отправлять дополнительные сообщения
+        } catch (error: any) {
+          console.error('[spor3s_bot] ❌ Ошибка создания заказа:', error);
+          await ctx.reply(`❌ Ошибка создания заказа: ${error.message || 'Неизвестная ошибка'}`);
+          return;
+        }
+      }
+    }
+    
+    // Если есть все данные для заказа, но нет подтверждения - показываем подтверждение
+    if (hasOrderIntent && fio && phone && address && finalProductIds.length > 0 && !isOrderConfirmation) {
+      try {
+        console.log('[spor3s_bot] 📋 Формируем подтверждение заказа...');
+        
+        // Получаем информацию о товарах
+        const productsResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products`);
+        const productsData: any = await productsResponse.json();
+        const products = Array.isArray(productsData) 
+          ? productsData 
+          : (productsData.products || []);
+        
+        console.log('[spor3s_bot] 📦 Получено товаров:', products.length);
+        
+        // Формируем список товаров для заказа
+        const orderItems: any[] = [];
+        let total = 0;
+        
+        for (const productId of finalProductIds) {
+          const product = products.find((p: any) => p.id === productId);
+          if (product) {
+            orderItems.push({
+              id: product.id,
+              name: product.name,
+              price: product.price,
+              quantity: 1
+            });
+            total += product.price || 0;
+            console.log('[spor3s_bot] ✅ Добавлен товар:', product.name, product.price);
+          } else {
+            console.warn('[spor3s_bot] ⚠️ Товар не найден:', productId);
+          }
+        }
+        
+        if (orderItems.length > 0) {
+          // Сохраняем данные заказа для подтверждения
+          const orderData = {
+            items: orderItems,
+            total,
+            fio,
+            phone,
+            address,
+            comment: `Заказ создан через Telegram бота. Продукты: ${finalProductIds.join(', ')}`
+          };
+          
+          pendingOrderCache.set(telegram_id, { orderData, timestamp: Date.now() });
+          
+          // Формируем сообщение с деталями заказа
+          const orderDetails = `📋 **Подтвердите заказ:**\n\n` +
+            `📦 **Товары:**\n${orderItems.map(item => `• ${item.name} - ${item.price}₽`).join('\n')}\n\n` +
+            `💰 **Сумма:** ${total}₽\n\n` +
+            `👤 **ФИО:** ${fio}\n` +
+            `📞 **Телефон:** ${phone}\n` +
+            `📍 **Адрес:** ${address}\n\n` +
+            `✅ Напишите "да" или "подтверждаю" для создания заказа\n` +
+            `❌ Или укажите, что нужно изменить`;
+          
+          // Очищаем AI ответ от тегов перед отправкой
+          const cleanAiResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+          
+          await ctx.reply(cleanAiResponse);
+          await ctx.reply(orderDetails);
+          
+          return; // Выходим, чтобы не отправлять дополнительные сообщения
+        }
+      } catch (error: any) {
+        console.error('[spor3s_bot] ❌ Ошибка формирования заказа:', error);
+        // Продолжаем обычную обработку, если заказ не создан
+      }
+    }
+    
+    // Если есть товары, но нет данных для заказа - показываем подтверждение добавления в корзину (для Mini App)
+    // Но в боте мы сразу создаем заказ, так что эта логика не нужна
+    
+    // Если данных недостаточно, но есть намерение заказа - просим недостающие данные
+    if (hasOrderIntent && finalProductIds.length > 0) {
+      const missingFields: string[] = [];
+      if (!fio) missingFields.push('ФИО');
+      if (!phone) missingFields.push('телефон');
+      if (!address) missingFields.push('адрес');
+      
+      if (missingFields.length > 0) {
+        const cleanAiResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+        const requestDataMessage = `\n\n📝 Для оформления заказа мне нужны:\n${missingFields.map(f => `• ${f}`).join('\n')}\n\nПожалуйста, укажите эти данные.`;
+        
+        await ctx.reply(cleanAiResponse + requestDataMessage);
+        return;
+      }
+    }
+    
     // Проверяем, содержит ли ответ команды для заказа
     if (aiResponse.includes('[order_now:') || aiResponse.includes('заказ') || aiResponse.includes('оформить')) {
       // Добавляем кнопку для оформления заказа
@@ -631,15 +1117,16 @@ bot.hears(/ЗАКАЗ:/i, async (ctx) => {
 
     // Создаем заказ
     const orderResult: any = await createOrder(user.id, orderData);
-
+    
     // Уведомляем менеджера
-    await notifyManager(orderResult.order, ctx.from);
+    const order = orderResult.order || orderResult;
+    await notifyManager(order, ctx.from);
 
     // Отправляем подтверждение пользователю
     await ctx.reply(`✅ Заказ успешно создан!
 
-📦 Номер заказа: #${orderResult.order.id}
-💰 Сумма: ${orderResult.order.total}₽
+📦 Номер заказа: #${order.id}
+💰 Сумма: ${order.total}₽
 📞 Менеджер свяжется с вами в ближайшее время.
 
 Спасибо за заказ! 🍄`);
@@ -657,19 +1144,68 @@ function parseOrderData(orderText: string) {
     const orderData: any = {};
 
     for (const line of lines) {
-      if (line.includes('Товары:')) {
-        orderData.items = line.split('Товары:')[1].trim();
-      } else if (line.includes('Сумма:')) {
-        orderData.total = parseInt(line.split('Сумма:')[1].trim());
-      } else if (line.includes('ФИО:')) {
-        orderData.fio = line.split('ФИО:')[1].trim();
-      } else if (line.includes('Телефон:')) {
-        orderData.phone = line.split('Телефон:')[1].trim();
-      } else if (line.includes('Адрес:')) {
-        orderData.address = line.split('Адрес:')[1].trim();
-      } else if (line.includes('Комментарий:')) {
-        orderData.comment = line.split('Комментарий:')[1].trim();
+      if (line.includes('Товары:') || line.includes('товары:')) {
+        orderData.items = line.split(/товары?:/i)[1].trim();
+      } else if (line.includes('Сумма:') || line.includes('сумма:')) {
+        const totalStr = line.split(/сумма?:/i)[1].trim().replace(/[^\d]/g, '');
+        orderData.total = parseInt(totalStr);
+      } else if (line.includes('ФИО:') || line.includes('ф\.?и\.?о\.?:')) {
+        orderData.fio = line.split(/ф\.?и\.?о\.?:/i)[1]?.trim() || line.split('ФИО:')[1]?.trim();
+      } else if (line.includes('Телефон:') || line.includes('телефон:') || line.includes('тел:')) {
+        orderData.phone = line.split(/телефон?:/i)[1]?.trim() || line.split('Телефон:')[1]?.trim();
+        orderData.phone = orderData.phone.replace(/\s+/g, '');
+      } else if (line.includes('Адрес:') || line.includes('адрес:')) {
+        orderData.address = line.split(/адрес?:/i)[1]?.trim() || line.split('Адрес:')[1]?.trim();
+      } else if (line.includes('Комментарий:') || line.includes('комментарий:')) {
+        orderData.comment = line.split(/комментарий?:/i)[1]?.trim() || line.split('Комментарий:')[1]?.trim();
       }
+    }
+
+    // Парсим товары из строки в структурированный формат
+    if (orderData.items && typeof orderData.items === 'string') {
+      const itemsList = orderData.items.split(',').map((item: string) => item.trim());
+      const parsedItems: any[] = [];
+      
+      // Пытаемся определить ID товаров по названию
+      const productKeywords: Record<string, string> = {
+        'ежовик 100': 'ezh100',
+        'ежовик 120': 'ezh120k',
+        'ежовик 300': 'ezh300',
+        'ежовик 360': 'ezh360k',
+        'ежовик 500': 'ezh500',
+        'мухомор 30': 'mhm30',
+        'мухомор 50': 'mhm50',
+        'мухомор 60': 'mhm60k',
+        'мухомор 100': 'mhm100',
+        'мухомор 180': 'mhm180k',
+        'кордицепс 50': 'kor50',
+        'кордицепс 150': 'kor150',
+        'цистозира 30': 'ci30',
+        'цистозира 90': 'ci90',
+        '4 в 1': '4v1',
+        'комплекс 4': '4v1',
+        '4в1': '4v1'
+      };
+      
+      for (const item of itemsList) {
+        const lowerItem = item.toLowerCase();
+        let productId = null;
+        
+        for (const [keyword, id] of Object.entries(productKeywords)) {
+          if (lowerItem.includes(keyword)) {
+            productId = id;
+            break;
+          }
+        }
+        
+        parsedItems.push({
+          id: productId || 'unknown',
+          name: item,
+          quantity: 1
+        });
+      }
+      
+      orderData.items = parsedItems;
     }
 
     // Проверяем обязательные поля
@@ -678,7 +1214,7 @@ function parseOrderData(orderText: string) {
     }
 
     return orderData;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error parsing order data:', error);
     return null;
   }

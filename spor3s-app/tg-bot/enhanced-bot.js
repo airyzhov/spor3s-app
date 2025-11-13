@@ -18,6 +18,10 @@ class EnhancedTelegramBot {
       process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
     
+    // API URL - используем переменную окружения или localhost
+    this.apiUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    console.log('🌐 API URL:', this.apiUrl);
+    
     this.setupHandlers();
   }
 
@@ -198,7 +202,8 @@ class EnhancedTelegramBot {
         if (hasAddToCart) {
           // Извлекаем ID продуктов для ссылки на приложение
           const productIds = addToCartMatches.map(tag => tag.match(/\[add_to_cart:([\w-]+)\]/)[1]);
-          const cartUrl = `https://humane-jaguar-annually.ngrok-free.app/cart?products=${productIds.join(',')}`;
+          const miniAppUrl = process.env.MINIAPP_DEEP_LINK || this.apiUrl;
+          const cartUrl = `${miniAppUrl}/cart?products=${productIds.join(',')}`;
           
           // Создаем кнопку для перехода в приложение
           const keyboard = {
@@ -245,7 +250,7 @@ class EnhancedTelegramBot {
           comment: `Быстрый заказ через Telegram: ${productId}`
         };
         
-        const response = await fetch('http://localhost:3000/api/order', {
+        const response = await fetch(`${this.apiUrl}/api/order`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderData)
@@ -376,13 +381,13 @@ class EnhancedTelegramBot {
 
   // Вызов AI API с ngrok заголовками
   async callAI(message, context) {
-    const baseUrl = 'http://localhost:3000';
+    const baseUrl = `${this.apiUrl}`;
     try {
-      console.log('🤖 Вызываем AI API:', `${baseUrl}/api/ai`);
+      console.log('🤖 Вызываем AI API:', `${this.apiUrl}/api/ai`);
       console.log('📝 Сообщение:', message);
       console.log('👤 User ID:', context?.user_id);
       
-      const response = await fetch(`${baseUrl}/api/test-api`, {
+      const response = await fetch(`${baseUrl}/api/ai`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -477,7 +482,7 @@ class EnhancedTelegramBot {
       const orderData = this.parseOrderData(userMessage, aiResponse);
       
       if (orderData) {
-        const response = await fetch('http://localhost:3000/api/order', {
+        const response = await fetch(`${this.apiUrl}/api/order`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,0 +1,101 @@
+═══════════════════════════════════════════════════════
+🚨 СРОЧНОЕ ИСПРАВЛЕНИЕ БОТА @Spor3s_bot НА VPS
+═══════════════════════════════════════════════════════
+
+ПРОБЛЕМА:
+---------
+✅ VPS доступен: ai.spor3s.ru (185.166.197.49)
+✅ API работает: https://ai.spor3s.ru/api/ai (200 OK)
+✅ Бот активен: @Spor3s_bot (ID: 6522297183)
+❌ Webhook не настроен: url=""
+⚠️  Ожидающих сообщений: 12
+❌ БОТ НЕ ЗАПУЩЕН НА VPS!
+
+РЕШЕНИЕ:
+--------
+
+ШАГИ ДЛЯ ВЫПОЛНЕНИЯ НА VPS:
+
+1. ПОДКЛЮЧИТЬСЯ К VPS:
+   ssh root@ai.spor3s.ru
+   # или
+   ssh ubuntu@ai.spor3s.ru
+
+2. НАЙТИ ДИРЕКТОРИЮ ПРОЕКТА:
+   cd /var/www/spor3s-app
+   # или
+   cd /home/spor3s-app
+   # или
+   find / -name "enhanced-bot.js" 2>/dev/null
+
+3. ПРОВЕРИТЬ ПРОЦЕССЫ:
+   pm2 list
+   ps aux | grep node
+
+4. ЕСЛИ БОТ НЕ ЗАПУЩЕН - ЗАПУСТИТЬ:
+   cd /var/www/spor3s-app/tg-bot
+   pm2 start enhanced-bot.js --name spor3s-bot
+   pm2 save
+
+5. ПРОВЕРИТЬ ЛОГИ:
+   pm2 logs spor3s-bot
+
+6. ЕСЛИ ОШИБКИ - ПЕРЕЗАПУСТИТЬ:
+   pm2 restart spor3s-bot
+   # или полностью переустановить:
+   pm2 delete spor3s-bot
+   cd /var/www/spor3s-app
+   npm install
+   cd tg-bot
+   pm2 start enhanced-bot.js --name spor3s-bot
+   pm2 save
+
+7. АВТОЗАПУСК ПРИ ПЕРЕЗАГРУЗКЕ:
+   pm2 startup
+   # скопировать и выполнить команду, которую выдаст PM2
+
+8. ТЕСТ:
+   Написать боту в Telegram: @Spor3s_bot "привет"
+
+═══════════════════════════════════════════════════════
+АЛЬТЕРНАТИВА - WEBHOOK (вместо long polling):
+═══════════════════════════════════════════════════════
+
+Если нужен webhook (более надежно):
+
+curl -X POST "https://api.telegram.org/bot6522297183:AAE60O9EJy8c8SfdbLOsRGb6B06eHYBWLyo/setWebhook" \
+  -d "url=https://ai.spor3s.ru/api/telegram-webhook"
+
+Затем создать API endpoint /api/telegram-webhook на Next.js
+
+═══════════════════════════════════════════════════════
+ТЕКУЩАЯ ИНФОРМАЦИЯ:
+═══════════════════════════════════════════════════════
+
+VPS: ai.spor3s.ru (185.166.197.49)
+API: https://ai.spor3s.ru/api/ai ✅
+Bot: @Spor3s_bot (6522297183) ✅
+Token: 6522297183:AAE60O9EJy8c8SfdbLOsRGb6B06eHYBWLyo ✅
+Webhook: НЕТ ❌
+Процесс: НЕ ЗАПУЩЕН ❌
+
+ФАЙЛЫ ДЛЯ ЗАПУСКА:
+- tg-bot/enhanced-bot.js (Telegram bot)
+- start-spor3z-improved.js (Spor3z bot)
+
+ENV:
+NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru
+TELEGRAM_BOT_TOKEN=6522297183:AAE60O9EJy8c8SfdbLOsRGb6B06eHYBWLyo
+
+═══════════════════════════════════════════════════════
+ЧТО НУЖНО СДЕЛАТЬ ПРЯМО СЕЙЧАС:
+═══════════════════════════════════════════════════════
+
+1. Получить SSH доступ к ai.spor3s.ru
+2. Запустить: pm2 start tg-bot/enhanced-bot.js --name spor3s-bot
+3. Проверить: pm2 logs
+4. Тест в Telegram: @Spor3s_bot
+
+БЕЗ ДОСТУПА К VPS БОТ НЕ ЗАРАБОТАЕТ!
+
+

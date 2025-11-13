@@ -168,11 +168,14 @@ function analyzeFavoriteProducts(orders: any[]) {
     if (order.items) {
       try {
         const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-        items.forEach((item: any) => {
-          if (item.product_id) {
-            productCounts[item.product_id] = (productCounts[item.product_id] || 0) + (item.quantity || 1);
-          }
-        });
+        // Проверяем что items это массив
+        if (Array.isArray(items)) {
+          items.forEach((item: any) => {
+            if (item.product_id) {
+              productCounts[item.product_id] = (productCounts[item.product_id] || 0) + (item.quantity || 1);
+            }
+          });
+        }
       } catch (e) {
         console.error('Ошибка парсинга items:', e);
       }
