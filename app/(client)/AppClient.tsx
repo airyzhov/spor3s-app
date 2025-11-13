@@ -6,9 +6,9 @@ import Cart from "./Cart";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap";
 import OrderForm from "../order-form";
-import LevelProgress from "../../components/components/LevelProgress";
-import MotivationalHabit from "../../components/components/MotivationalHabit";
-import SCGiftForm from "../../components/components/SCGiftForm";
+import LevelProgress from "../../components/LevelProgress";
+import MotivationalHabit from "../../components/MotivationalHabit";
+import SCGiftForm from "../../components/SCGiftForm";
 import { useState, useEffect } from "react";
 import { CartProvider } from "../CartContext";
 // Removed test AI agent control panel from main screen
