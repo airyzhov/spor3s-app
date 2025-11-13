@@ -1,5 +1,5 @@
-import AppClient from "./(client)/AppClient";
+import AppClient from './(client)/AppClient';
 
-export default AppClient;
-
-
+export default function Home() {
+  return <AppClient />;
+}
