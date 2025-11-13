@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import MotivationalHabit from "../../components/MotivationalHabit";
+import MotivationalHabit from "../../components/components/MotivationalHabit";
 
 interface Metrics {
   memory: number;

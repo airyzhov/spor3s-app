@@ -6,8 +6,8 @@ import Cart from "./Cart";
 import OrderForm from "../order-form";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap"; // Добавлено: импорт Ваш прогресс
-import MushroomTracker from "../../components/MushroomTracker"; // Добавлено: импорт трекера грибов
-import MushroomTrackerPage from "../../components/MushroomTrackerPage"; // Добавлено: импорт страницы трекера
+import MushroomTracker from "../../components/components/MushroomTracker"; // Добавлено: импорт трекера грибов
+import MushroomTrackerPage from "../../components/components/MushroomTrackerPage"; // Добавлено: импорт страницы трекера
 import { useTelegramUser } from "../../hooks/useTelegramUser";
 
 type Product = {
