@@ -55,3 +55,6 @@ fix-*.sql
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# exclude test/demo directories
+/my-fresh-app/

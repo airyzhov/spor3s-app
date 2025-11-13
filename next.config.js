@@ -1,5 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Исключаем my-fresh-app из сборки
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  webpack: (config, { isServer }) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: ['**/node_modules', '**/.git', '**/my-fresh-app/**'],
+    };
+    return config;
+  },
   async headers() {
     return [
       {
