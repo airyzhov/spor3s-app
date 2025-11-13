@@ -1042,13 +1042,8 @@ export async function POST(req: NextRequest) {
         let finalResponse = aiResponse;
         
                  // Заменяем теги add_to_cart на естественную фразу в зависимости от канала
-        // КРИТИЧНО: Проверяем СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ - если форма НЕ указана, блокируем теги
-        const userMessageLower = message.toLowerCase();
-        const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
-        const userHasForm = /порошок|капсул|порошк/i.test(userMessageLower);
-        const userWantsToAdd = /добав|закаж|купи|полож/i.test(userMessageLower);
-        
         // КРИТИЧНО: Если пользователь спросил про ежовик/мухомор БЕЗ формы - удаляем теги!
+        // Используем переменные, объявленные выше (строки 988-990)
         const shouldRemoveTags = userHasEzhOrMhm && !userHasForm && !userWantsToAdd;
         
         if (shouldRemoveTags) {
