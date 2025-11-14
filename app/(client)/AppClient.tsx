@@ -247,7 +247,10 @@ export default function AppClient() {
           marginBottom: 30,
           gap: 10,
           flexWrap: "wrap",
-          padding: "0 20px"
+          padding: "0 20px",
+          position: "relative",
+          zIndex: 100,
+          pointerEvents: "auto"
         }}>
           {steps.map((step) => (
             <button
