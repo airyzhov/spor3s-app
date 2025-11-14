@@ -227,7 +227,14 @@ export default function AppClient() {
   };
 
   return (
-      <div className={styles.page} style={{ background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)' }}>
+      <div 
+        className={styles.page} 
+        style={{ 
+          background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)',
+          position: 'relative',
+          zIndex: 1
+        }}
+      >
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
