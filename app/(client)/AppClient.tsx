@@ -9,7 +9,7 @@ import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import SCGiftForm from "../../components/SCGiftForm";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -135,6 +135,14 @@ export default function AppClient() {
     { id: 2, name: "Каталог", icon: "🛒" },
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
+
+  // Обработчик клика по кнопке навигации
+  const handleStepClick = useCallback((stepId: number) => {
+    console.log('🔘 handleStepClick вызван:', stepId);
+    console.log('🔘 Текущий шаг до изменения:', currentStep);
+    setCurrentStep(stepId);
+    console.log('🔘 setCurrentStep вызван с:', stepId);
+  }, [currentStep]);
 
   if (!mounted) {
     return (
@@ -269,27 +277,23 @@ export default function AppClient() {
           zIndex: 100,
           pointerEvents: "auto"
         }}>
-          {steps.map((step) => {
-            const handleClick = () => {
-              console.log('🔘 Кнопка кликнута:', step.id, step.name);
-              console.log('🔘 Текущий шаг до:', currentStep);
-              setCurrentStep(step.id);
-              console.log('🔘 Новый шаг установлен:', step.id);
-            };
-            
-            return (
+          {steps.map((step) => (
             <button
               key={step.id}
               type="button"
-              onClick={handleClick}
-              onMouseDown={(e) => {
+              onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
+                console.log('🔘 onClick вызван для:', step.id, step.name);
+                handleStepClick(step.id);
+              }}
+              onMouseDown={(e) => {
                 console.log('🔘 onMouseDown:', step.id);
               }}
               onTouchStart={(e) => {
-                e.stopPropagation();
+                e.preventDefault();
                 console.log('🔘 onTouchStart:', step.id);
-                handleClick();
+                handleStepClick(step.id);
               }}
               style={{
                 background: currentStep === step.id 
@@ -339,8 +343,7 @@ export default function AppClient() {
               <span style={{ fontSize: 18 }}>{step.icon}</span>
               <span>{step.name}</span>
             </button>
-            );
-          })}
+          ))}
         </nav>
 
         <main className={styles.main}>
