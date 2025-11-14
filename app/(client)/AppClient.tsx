@@ -238,7 +238,17 @@ export default function AppClient() {
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
-              <img src="/logo.png" alt="logo" className={styles.logo} />
+              <img 
+                src="/logo.png" 
+                alt="logo" 
+                className={styles.logo}
+                style={{
+                  objectFit: 'contain',
+                  width: '54px',
+                  height: '54px',
+                  display: 'block'
+                }}
+              />
               <div>
                 <h1 className={styles.title}>ИИ + ГРИБЫ</h1>
                 <div className={styles.subtitle}>для твоего развития</div>
@@ -259,25 +269,27 @@ export default function AppClient() {
           zIndex: 100,
           pointerEvents: "auto"
         }}>
-          {steps.map((step) => (
+          {steps.map((step) => {
+            const handleClick = () => {
+              console.log('🔘 Кнопка кликнута:', step.id, step.name);
+              console.log('🔘 Текущий шаг до:', currentStep);
+              setCurrentStep(step.id);
+              console.log('🔘 Новый шаг установлен:', step.id);
+            };
+            
+            return (
             <button
               key={step.id}
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('🔘 onClick:', step.id, step.name);
-                console.log('🔘 Текущий шаг:', currentStep);
-                const newStep = step.id;
-                console.log('🔘 Устанавливаем шаг:', newStep);
-                setCurrentStep(newStep);
-                console.log('🔘 setCurrentStep вызван');
-              }}
+              onClick={handleClick}
               onMouseDown={(e) => {
+                e.stopPropagation();
                 console.log('🔘 onMouseDown:', step.id);
               }}
               onTouchStart={(e) => {
+                e.stopPropagation();
                 console.log('🔘 onTouchStart:', step.id);
-                setCurrentStep(step.id);
+                handleClick();
               }}
               style={{
                 background: currentStep === step.id 
@@ -328,7 +340,8 @@ export default function AppClient() {
               <span style={{ fontSize: 18 }}>{step.icon}</span>
               <span>{step.name}</span>
             </button>
-          ))}
+            );
+          })}
         </nav>
 
         <main className={styles.main}>
