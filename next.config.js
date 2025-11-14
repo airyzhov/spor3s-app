@@ -3,10 +3,27 @@ const nextConfig = {
   // Исключаем my-fresh-app из сборки
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   webpack: (config, { isServer }) => {
+    // Исключаем my-fresh-app из сборки
     config.watchOptions = {
       ...config.watchOptions,
       ignored: ['**/node_modules', '**/.git', '**/my-fresh-app/**'],
     };
+    
+    // Исключаем my-fresh-app из правил webpack
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      };
+    }
+    
+    // Игнорируем файлы из my-fresh-app
+    config.module = config.module || {};
+    config.module.rules = config.module.rules || [];
+    config.module.rules.push({
+      test: /my-fresh-app/,
+      use: 'ignore-loader',
+    });
+    
     return config;
   },
   async headers() {
