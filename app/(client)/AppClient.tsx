@@ -305,9 +305,14 @@ export default function AppClient() {
             <button
               key={`nav-btn-${step.id}`}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('🔘 КНОПКА КЛИКНУТА:', step.id, step.name);
-                handleStepClick(step.id);
+                console.log('🔘 Событие:', e);
+                console.log('🔘 Текущий шаг до:', currentStep);
+                setCurrentStep(step.id);
+                console.log('🔘 setCurrentStep вызван напрямую с:', step.id);
               }}
               style={{
                 background: currentStep === step.id 
