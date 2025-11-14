@@ -85,22 +85,30 @@ export default function Cart({ products = [], setStep }: CartProps) {
 
   // Функция добавления в корзину с уведомлением
   const handleAddToCart = (product: any) => {
-    console.log('🛒 Cart: handleAddToCart вызвана с продуктом:', product);
-    console.log('🛒 Cart: Текущая корзина до добавления:', cart);
-    
-    if (!product || !product.id || !product.name || product.price === undefined) {
-      console.error('🛒 Cart: Ошибка - продукт неполный:', product);
-      return;
+    try {
+      console.log('🛒 Cart: handleAddToCart вызвана с продуктом:', product);
+      
+      if (!product || !product.id || !product.name || product.price === undefined) {
+        console.error('🛒 Cart: Ошибка - продукт неполный:', product);
+        return;
+      }
+      
+      if (!addToCart) {
+        console.error('🛒 Cart: addToCart не определена');
+        return;
+      }
+      
+      addToCart({
+        id: String(product.id),
+        name: String(product.name),
+        price: Number(product.price) || 0
+      });
+      
+      console.log('🛒 Cart: Продукт добавлен, показываем уведомление');
+      showNotification(product.name, 'add');
+    } catch (error) {
+      console.error('🛒 Cart: Ошибка при добавлении в корзину:', error);
     }
-    
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price || 0
-    });
-    
-    console.log('🛒 Cart: Продукт добавлен, показываем уведомление');
-    showNotification(product.name, 'add');
   };
 
   useEffect(() => {
@@ -647,11 +655,21 @@ export default function Cart({ products = [], setStep }: CartProps) {
                           height: "100%" 
                         }}
                         onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                          if (target.parentNode instanceof HTMLElement) {
-                            target.parentNode.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 12px;">🍄</div>`;
+                          try {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.style.display = 'none';
+                            if (target.parentNode instanceof HTMLElement) {
+                              const placeholder = document.createElement('div');
+                              placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 24px;';
+                              placeholder.textContent = '🍄';
+                              target.parentNode.appendChild(placeholder);
+                            }
+                          } catch (error) {
+                            console.error('🛒 Cart: Ошибка обработки изображения:', error);
                           }
+                        }}
+                        onLoad={() => {
+                          console.log('🛒 Cart: Изображение загружено:', product.image);
                         }}
                       />
                     ) : (
@@ -842,11 +860,21 @@ export default function Cart({ products = [], setStep }: CartProps) {
                       alt={modalProduct?.name || 'product'} 
                       style={{ objectFit: "cover", width: "100%", height: "100%" }}
                       onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        target.style.display = 'none';
-                        if (target.parentNode instanceof HTMLElement) {
-                          target.parentNode.innerHTML = `<div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 48px;">🍄</div>`;
+                        try {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = 'none';
+                          if (target.parentNode instanceof HTMLElement) {
+                            const placeholder = document.createElement('div');
+                            placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 48px;';
+                            placeholder.textContent = '🍄';
+                            target.parentNode.appendChild(placeholder);
+                          }
+                        } catch (error) {
+                          console.error('🛒 Cart: Ошибка обработки изображения в модалке:', error);
                         }
+                      }}
+                      onLoad={() => {
+                        console.log('🛒 Cart: Изображение в модалке загружено:', modalProduct?.image);
                       }}
                     />
                   ) : (
