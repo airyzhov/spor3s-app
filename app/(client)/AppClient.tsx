@@ -252,7 +252,13 @@ export default function AppClient() {
           {steps.map((step) => (
             <button
               key={step.id}
-              onClick={() => setCurrentStep(step.id)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 Кнопка нажата:', step.id, step.name);
+                setCurrentStep(step.id);
+              }}
               style={{
                 background: currentStep === step.id 
                   ? "linear-gradient(45deg, #ff00cc, #3333ff)"
@@ -274,7 +280,12 @@ export default function AppClient() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8
+                gap: 8,
+                pointerEvents: "auto",
+                position: "relative",
+                zIndex: 10,
+                userSelect: "none",
+                WebkitUserSelect: "none"
               }}
               onMouseOver={(e) => {
                 if (currentStep !== step.id) {
