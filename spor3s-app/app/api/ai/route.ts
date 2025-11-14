@@ -985,23 +985,23 @@ export async function POST(req: NextRequest) {
               
       // КРИТИЧНО: Проверяем СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ - если форма НЕ указана, блокируем теги
       const userMessageLowerCheck = message.toLowerCase();
-      const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLowerCheck);
-      const userHasForm = /порошок|капсул|порошк|шляпк/i.test(userMessageLowerCheck);
-      const userWantsToAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLowerCheck);
+      const userHasEzhOrMhmCheck = /ежовик|мухомор/i.test(userMessageLowerCheck);
+      const userHasFormCheck = /порошок|капсул|порошк|шляпк/i.test(userMessageLowerCheck);
+      const userWantsToAddCheck = /добав|закаж|купи|полож|оформ/i.test(userMessageLowerCheck);
       // КРИТИЧНО: Проверяем, что это НЕ вопрос о наличии
-      const isQuestionAboutAvailability = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLowerCheck);
+      const isQuestionAboutAvailabilityCheck = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLowerCheck);
       
       console.log('[AI API] Проверка пользователя:', {
-        userHasEzhOrMhm,
-        userHasForm,
-        userWantsToAdd,
-        isQuestionAboutAvailability,
-        shouldBlock: (userHasEzhOrMhm && !userHasForm && !userWantsToAdd) || isQuestionAboutAvailability
+        userHasEzhOrMhm: userHasEzhOrMhmCheck,
+        userHasForm: userHasFormCheck,
+        userWantsToAdd: userWantsToAddCheck,
+        isQuestionAboutAvailability: isQuestionAboutAvailabilityCheck,
+        shouldBlock: (userHasEzhOrMhmCheck && !userHasFormCheck && !userWantsToAddCheck) || isQuestionAboutAvailabilityCheck
       });
       
       // КРИТИЧНО: Если пользователь спросил про ежовик/мухомор БЕЗ формы и БЕЗ явного запроса добавления
       // ИЛИ это вопрос о наличии - УДАЛЯЕМ ВСЕ ТЕГИ из ответа AI немедленно!
-      if ((userHasEzhOrMhm && !userHasForm && !userWantsToAdd) || isQuestionAboutAvailability) {
+      if ((userHasEzhOrMhmCheck && !userHasFormCheck && !userWantsToAddCheck) || isQuestionAboutAvailabilityCheck) {
         const tagsBefore = [...aiResponse.matchAll(/\[add_to_cart:([\w-]+)\]/g)].map(m => m[1]);
         console.log('[AI API] ⚠️ КРИТИЧНО: Пользователь спросил про ежовик/мухомор БЕЗ формы - удаляем ВСЕ теги из ответа!');
         console.log('[AI API] Теги ДО удаления:', tagsBefore);
