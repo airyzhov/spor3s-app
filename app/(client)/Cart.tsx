@@ -23,12 +23,15 @@ export default function Cart({ products = [], setStep }: CartProps) {
   const [showVitrina, setShowVitrina] = useState(false);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
-  // Отладочные логи
+  // Отладочные логи (только при монтировании и изменении продуктов)
   useEffect(() => {
     console.log('🛒 Cart: Компонент смонтирован');
-    console.log('🛒 Cart: Получены продукты:', products);
-    console.log('🛒 Cart: Текущая корзина:', cart);
-  }, [products, cart]);
+    console.log('🛒 Cart: Получены продукты:', products?.length || 0, 'шт');
+  }, [products]);
+  
+  useEffect(() => {
+    console.log('🛒 Cart: Корзина обновлена:', cart?.length || 0, 'шт');
+  }, [cart]);
 
   // Функция показа уведомлений
   const showNotification = (productName: string, type: 'add' | 'remove' = 'add') => {
@@ -100,15 +103,6 @@ export default function Cart({ products = [], setStep }: CartProps) {
     showNotification(product.name, 'add');
   };
 
-  // Функция удаления из корзины с уведомлением
-  const handleRemoveFromCart = (productId: string) => {
-    const product = safeProducts.find(p => p.id === productId);
-    if (product) {
-      removeFromCart(productId);
-      showNotification(product.name, 'remove');
-    }
-  };
-
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -120,8 +114,28 @@ export default function Cart({ products = [], setStep }: CartProps) {
   const safeCart = Array.isArray(cart) ? cart : [];
   const safeProducts = Array.isArray(products) ? products : [];
 
+  // Функция удаления из корзины с уведомлением
+  const handleRemoveFromCart = (productId: string) => {
+    try {
+      const product = safeProducts.find(p => p && p.id === productId);
+      if (product) {
+        removeFromCart(productId);
+        showNotification(product.name, 'remove');
+      }
+    } catch (error) {
+      console.error('🛒 Cart: Ошибка при удалении из корзины:', error);
+    }
+  };
+
   // Проверка, есть ли товар в корзине
-  const getCartItem = (id: string) => cart.find(item => item.id === id);
+  const getCartItem = (id: string) => {
+    try {
+      return safeCart.find(item => item && item.id === id);
+    } catch (error) {
+      console.error('🛒 Cart: Ошибка в getCartItem:', error);
+      return undefined;
+    }
+  };
 
   const handleOrderClick = () => {
     if (setStep) {
@@ -580,13 +594,19 @@ export default function Cart({ products = [], setStep }: CartProps) {
             maxWidth: "100%",
             padding: "0 12px"
           }}>
-            {safeProducts.map(product => {
-              const cartItem = getCartItem(product.id);
-              const shortDesc = product.description && product.description.length > 90
-                ? product.description.slice(0, 90) + "…"
-                : product.description;
+            {safeProducts.map((product, index) => {
+              if (!product || !product.id) {
+                console.warn('🛒 Cart: Пропущен некорректный продукт:', product);
+                return null;
+              }
+              
+              try {
+                const cartItem = getCartItem(product.id);
+                const shortDesc = product.description && product.description.length > 90
+                  ? product.description.slice(0, 90) + "…"
+                  : product.description;
 
-              return (
+                return (
                 <div key={product.id} className="product-card" style={{ 
                   background: "rgba(255, 255, 255, 0.15)", 
                   borderRadius: 16, 
