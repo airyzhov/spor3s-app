@@ -139,10 +139,12 @@ export default function AppClient() {
   // Обработчик клика по кнопке навигации
   const handleStepClick = useCallback((stepId: number) => {
     console.log('🔘 handleStepClick вызван:', stepId);
-    console.log('🔘 Текущий шаг до изменения:', currentStep);
-    setCurrentStep(stepId);
-    console.log('🔘 setCurrentStep вызван с:', stepId);
-  }, [currentStep]);
+    setCurrentStep((prevStep) => {
+      console.log('🔘 Текущий шаг до изменения:', prevStep);
+      console.log('🔘 Устанавливаем новый шаг:', stepId);
+      return stepId;
+    });
+  }, []);
 
   if (!mounted) {
     return (
