@@ -4,6 +4,53 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
+const PRODUCT_VARIANTS = {
+  ezh: {
+    label: 'Ежовик',
+    powder: {
+      1: { tag: 'ezh100', name: 'Ежовик 100г порошок', price: 1100 },
+      3: { tag: 'ezh300', name: 'Ежовик 300г порошок', price: 3000 },
+    },
+    capsules: {
+      1: { tag: 'ezh120k', name: 'Ежовик 120 капсул', price: 1100 },
+      3: { tag: 'ezh360k', name: 'Ежовик 360 капсул', price: 3000 },
+    },
+  },
+  mhm: {
+    label: 'Мухомор',
+    powder: {
+      1: { tag: 'mhm30', name: 'Мухомор 30г (шляпки)', price: 1400 },
+      3: { tag: 'mhm100', name: 'Мухомор 100г (шляпки)', price: 1800 },
+    },
+    capsules: {
+      1: { tag: 'mhm60k', name: 'Мухомор 60 капсул', price: 1400 },
+      3: { tag: 'mhm180k', name: 'Мухомор 180 капсул', price: 1800 },
+    },
+  },
+  kor: {
+    label: 'Кордицепс',
+    powder: {
+      1: { tag: 'kor50', name: 'Кордицепс 50г', price: 800 },
+      3: { tag: 'kor150', name: 'Кордицепс 150г', price: 2000 },
+    },
+  },
+  ci: {
+    label: 'Цистозира',
+    powder: {
+      1: { tag: 'ci30', name: 'Цистозира 30г', price: 500 },
+      3: { tag: 'ci90', name: 'Цистозира 90г', price: 1350 },
+    },
+  },
+  combo: {
+    label: 'Курс 4 в 1',
+    bundle: {
+      1: { tag: '4v1', name: '4 в 1 (1 месяц)', price: 3300 },
+      3: { tag: '4v1-3', name: '4 в 1 (3 месяца)', price: 9000 },
+      6: { tag: '4v1-6', name: '4 в 1 (6 месяцев)', price: 15000 },
+    },
+  },
+} as const;
+
 function forceAddToCartTag(text: string): string {
   const productMap = [
          // Ежовик
@@ -698,6 +745,57 @@ export async function POST(req: NextRequest) {
   function generateIntelligentFallback(msgs: DialogMessage[], userSummary: string, productsInfo: string): string {
     console.log('[AI API] === FALLBACK FUNCTION CALLED ===');
     const lastMessage = msgs[msgs.length - 1]?.content?.toLowerCase() || '';
+    const normalize = (value?: string) => (value || '').toLowerCase();
+
+    const detectProductKey = (text: string): keyof typeof PRODUCT_VARIANTS | null => {
+      if (text.includes('ежовик') || text.includes('lion')) return 'ezh';
+      if (text.includes('мухомор')) return 'mhm';
+      if (text.includes('кордицепс')) return 'kor';
+      if (text.includes('цистозира')) return 'ci';
+      if (/4\s*в\s*1/.test(text) || text.includes('комплекс')) return 'combo';
+      return null;
+    };
+
+    const detectFormKey = (text: string): 'powder' | 'capsules' | 'bundle' | null => {
+      if (/капсул/.test(text)) return 'capsules';
+      if (/шляпк/.test(text) || /порош/.test(text)) return 'powder';
+      if (/комплекс/.test(text) || /4\s*в\s*1/.test(text)) return 'bundle';
+      return null;
+    };
+
+    const collectUserContext = (messages: DialogMessage[]) => {
+      let product: keyof typeof PRODUCT_VARIANTS | null = null;
+      let form: 'powder' | 'capsules' | 'bundle' | null = null;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role !== 'user') continue;
+        const text = normalize(msg.content);
+        if (!product) {
+          product = detectProductKey(text);
+        }
+        if (!form) {
+          form = detectFormKey(text);
+        }
+        if (product && form) break;
+      }
+      return { product, form };
+    };
+
+    const resolveVariant = (
+      product: keyof typeof PRODUCT_VARIANTS,
+      form: 'powder' | 'capsules' | 'bundle',
+      duration: number
+    ) => {
+      const productData = PRODUCT_VARIANTS[product] as Record<string, Record<number, { tag: string; name: string; price: number }>>;
+      return productData?.[form]?.[duration] ?? null;
+    };
+
+    const formatDuration = (duration: number) => {
+      if (duration === 1) return 'месяц';
+      if (duration === 3) return '3 месяца';
+      if (duration === 6) return '6 месяцев';
+      return `${duration} месяцев`;
+    };
     
     console.log('[AI API] Генерируем интеллектуальный fallback ответ');
     console.log('[AI API] Последнее сообщение:', lastMessage);
@@ -838,21 +936,103 @@ export async function POST(req: NextRequest) {
 Также у вас уже есть опыт приема добавок или начинаете впервые? [add_to_cart:4v11m]`;
     }
     
-    if (lastMessage.includes('порошок') || lastMessage.includes('капсулы')) {
-      // Пользователь уточняет форму - продолжаем диалог
-      return `Отлично! ${lastMessage.includes('порошок') ? 'Порошок' : 'Капсулы'} - хороший выбор!
+    // Обработка выбора формы (порошок/капсулы) БЕЗ указания месяца
+    const isFormSelection = (/порошок|порошк|капсул/i.test(lastMessage) && !/месяц/i.test(lastMessage));
+    if (isFormSelection) {
+      const previousContext = collectUserContext(msgs.slice(0, -1));
+      const productKey = detectProductKey(lastMessage) || previousContext.product;
+      const formKey = detectFormKey(lastMessage);
+      
+      if (productKey && formKey) {
+        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        const formText = formKey === 'powder' ? 'порошок' : 'капсулы';
+        
+        return `Отлично! ${productTitle} (${formText}) - хороший выбор!
 
 Теперь уточните срок:
+
 • Месяц (для начала)
-• 3 месяца (курс, экономично)
-• 6 месяцев (максимальный эффект)`;
+• 3 месяца (курс, экономично)${productKey === 'combo' ? '\n• 6 месяцев (максимальный эффект)' : ''}
+
+Какой срок вам подходит?`;
+      }
     }
     
+    // Обработка выбора месяца после выбора формы
     if (lastMessage.includes('месяц') || lastMessage.includes('3 месяца') || lastMessage.includes('6 месяцев')) {
-      // Пользователь выбрал срок - предлагаем оформить
-      return `Отлично! Вы выбрали ${lastMessage.includes('3 месяца') ? '3 месяца' : lastMessage.includes('6 месяцев') ? '6 месяцев' : 'месяц'}.
+      const duration = lastMessage.includes('3 месяца') ? 3 : lastMessage.includes('6 месяцев') ? 6 : 1;
+      
+      // Собираем контекст из всех предыдущих сообщений
+      const previousMessages = msgs.slice(0, -1);
+      const previousUserContext = collectUserContext(previousMessages);
+      
+      // Пытаемся определить продукт и форму из текущего или предыдущих сообщений
+      let productKey = detectProductKey(lastMessage) || previousUserContext.product;
+      let formKey = detectFormKey(lastMessage) || previousUserContext.form;
+      
+      // Для кордицепса и цистозиры форма всегда порошок
+      if (productKey === 'kor' || productKey === 'ci') {
+        formKey = 'powder';
+      } else if (productKey === 'combo') {
+        formKey = 'bundle';
+      }
 
-Теперь добавлю в корзину и вы сможете оформить заказ!`;
+      // Если продукт не определен - спрашиваем
+      if (!productKey) {
+        return `Отлично! Вы выбрали ${formatDuration(duration)}.
+
+Для какого продукта нужен курс?
+• Ежовик (память и концентрация)
+• Мухомор (сон и стресс)
+• Кордицепс (энергия)
+• Цистозира (щитовидная железа)
+• Комплекс 4 в 1 (все вместе)`;
+      }
+
+      // Если продукт ежовик/мухомор, но форма не указана - спрашиваем форму
+      if ((productKey === 'ezh' || productKey === 'mhm') && !formKey) {
+        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        return `Отлично! Вы выбрали ${formatDuration(duration)} для ${productTitle.toLowerCase()}.
+
+Осталось выбрать форму:
+• Порошок (быстрее эффект)
+• Капсулы (удобнее принимать)
+
+Что предпочитаете?`;
+      }
+
+      // Если форма все еще не определена, устанавливаем дефолт
+      if (!formKey) {
+        if (productKey === 'combo') {
+          formKey = 'bundle';
+        } else {
+          formKey = 'powder';
+        }
+      }
+
+      // Определяем вариант товара
+      const variant = productKey && formKey ? resolveVariant(productKey, formKey, duration) : null;
+
+      // Если вариант не найден - сообщаем об ошибке
+      if (!variant) {
+        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        const availableDurations = productKey === 'combo' ? '1, 3 или 6 месяцев' : '1 или 3 месяца';
+        return `Отлично! Вы выбрали ${productTitle.toLowerCase()} на ${formatDuration(duration)}.
+
+К сожалению, для этого срока сейчас доступны варианты на ${availableDurations}. Выберите подходящий срок, и я добавлю товар в корзину.`;
+      }
+
+      // Формируем ответ с добавлением в корзину
+      const productTitle = PRODUCT_VARIANTS[productKey].label;
+      const formText = formKey === 'powder' ? 'порошок' : formKey === 'capsules' ? 'капсулы' : 'комплекс';
+      
+      return `Отлично! Вы выбрали ${productTitle.toLowerCase()} (${formText}) на ${formatDuration(duration)}.
+
+Добавил **${variant.name}** в корзину за ${variant.price}₽.
+
+[add_to_cart:${variant.tag}]
+
+Продолжайте оформление заказа в Mini App или сообщите, если нужно что-то изменить.`;
     }
     
     // Общий ответ для неопределенных запросов
