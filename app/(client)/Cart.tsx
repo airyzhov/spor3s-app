@@ -757,6 +757,10 @@ export default function Cart({ products = [], setStep }: CartProps) {
                   )}
                 </div>
               );
+              } catch (error) {
+                console.error('🛒 Cart: Ошибка при рендеринге продукта:', error, product);
+                return null;
+              }
             })}
           </div>
           
