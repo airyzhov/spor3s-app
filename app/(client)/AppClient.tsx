@@ -243,6 +243,28 @@ export default function AppClient() {
           zIndex: 1
         }}
       >
+        {/* ТЕСТОВАЯ КНОПКА для проверки работы */}
+        <button
+          onClick={() => {
+            alert('ТЕСТОВАЯ КНОПКА РАБОТАЕТ! Текущий шаг: ' + currentStep);
+            setCurrentStep(2);
+          }}
+          style={{
+            position: 'fixed',
+            top: '10px',
+            right: '10px',
+            zIndex: 99999,
+            background: '#ff00cc',
+            color: 'white',
+            padding: '10px',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          ТЕСТ
+        </button>
+        
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
