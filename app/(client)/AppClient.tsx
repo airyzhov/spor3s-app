@@ -45,6 +45,12 @@ export default function AppClient() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [products, setProducts] = useState<Product[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
   console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
