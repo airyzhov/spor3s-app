@@ -786,8 +786,18 @@ export async function POST(req: NextRequest) {
       form: 'powder' | 'capsules' | 'bundle',
       duration: number
     ) => {
-      const productData = PRODUCT_VARIANTS[product] as Record<string, Record<number, { tag: string; name: string; price: number }>>;
-      return productData?.[form]?.[duration] ?? null;
+      const productData = PRODUCT_VARIANTS[product];
+      if (!productData || typeof productData !== 'object') return null;
+      
+      // Извлекаем форму (powder, capsules, bundle) из productData
+      const formData = (productData as any)[form];
+      if (!formData || typeof formData !== 'object') return null;
+      
+      // Извлекаем вариант по duration
+      const variant = (formData as any)[duration];
+      return variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant
+        ? variant as { tag: string; name: string; price: number }
+        : null;
     };
 
     const formatDuration = (duration: number) => {
