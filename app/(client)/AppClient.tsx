@@ -9,7 +9,7 @@ import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import SCGiftForm from "../../components/SCGiftForm";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -47,6 +47,7 @@ export default function AppClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -128,6 +129,41 @@ export default function AppClient() {
       }
     };
     fetchProducts();
+  }, [mounted]);
+
+  // Привязываем обработчики через addEventListener после монтирования
+  useEffect(() => {
+    if (!mounted || !navRef.current) {
+      console.log('🔘 navRef не готов:', { mounted, navRef: navRef.current });
+      return;
+    }
+    
+    const buttons = navRef.current.querySelectorAll('button[data-step-id]');
+    console.log('🔘 Найдено кнопок навигации:', buttons.length);
+    
+    const handlers: Array<() => void> = [];
+    
+    buttons.forEach((button) => {
+      const stepId = parseInt(button.getAttribute('data-step-id') || '0');
+      const handler = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🔘 КНОПКА КЛИКНУТА через addEventListener:', stepId);
+        setCurrentStep(stepId);
+      };
+      button.addEventListener('click', handler);
+      handlers.push(handler);
+      console.log('🔘 Обработчик addEventListener привязан к кнопке:', stepId);
+    });
+    
+    return () => {
+      buttons.forEach((button, index) => {
+        const handler = handlers[index];
+        if (handler) {
+          button.removeEventListener('click', handler);
+        }
+      });
+    };
   }, [mounted]);
 
   const steps = [
