@@ -138,6 +138,9 @@ export default function AppClient() {
       return;
     }
     
+    let handlers: Array<(e: Event) => void> = [];
+    let buttons: NodeListOf<HTMLButtonElement> | null = null;
+    
     // Небольшая задержка для гарантии, что DOM готов
     const timeoutId = setTimeout(() => {
       if (!navRef.current) {
@@ -145,15 +148,13 @@ export default function AppClient() {
         return;
       }
       
-      const buttons = navRef.current.querySelectorAll('button[data-step-id]');
+      buttons = navRef.current.querySelectorAll('button[data-step-id]');
       console.log('🔘 Найдено кнопок навигации:', buttons.length);
       
       if (buttons.length === 0) {
         console.warn('⚠️ Кнопки навигации не найдены!');
         return;
       }
-      
-      const handlers: Array<(e: Event) => void> = [];
       
       buttons.forEach((button) => {
         const stepId = parseInt(button.getAttribute('data-step-id') || '0');
@@ -167,19 +168,18 @@ export default function AppClient() {
         handlers.push(handler);
         console.log('🔘 Обработчик addEventListener привязан к кнопке:', stepId);
       });
-      
-      return () => {
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (buttons && handlers.length > 0) {
         buttons.forEach((button, index) => {
           const handler = handlers[index];
           if (handler) {
             button.removeEventListener('click', handler, { capture: true });
           }
         });
-      };
-    }, 100);
-    
-    return () => {
-      clearTimeout(timeoutId);
+      }
     };
   }, [mounted]);
 
