@@ -136,15 +136,13 @@ export default function AppClient() {
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
 
-  // Обработчик клика по кнопке навигации
-  const handleStepClick = useCallback((stepId: number) => {
+  // Простой обработчик клика - без useCallback для тестирования
+  const handleStepClick = (stepId: number) => {
     console.log('🔘 handleStepClick вызван:', stepId);
-    setCurrentStep((prevStep) => {
-      console.log('🔘 Текущий шаг до изменения:', prevStep);
-      console.log('🔘 Устанавливаем новый шаг:', stepId);
-      return stepId;
-    });
-  }, []);
+    console.log('🔘 Текущий шаг:', currentStep);
+    setCurrentStep(stepId);
+    console.log('🔘 setCurrentStep вызван с:', stepId);
+  };
 
   if (!mounted) {
     return (
@@ -276,25 +274,16 @@ export default function AppClient() {
           flexWrap: "wrap",
           padding: "0 20px",
           position: "relative",
-          zIndex: 100,
-          pointerEvents: "auto"
+          zIndex: 9999,
+          pointerEvents: "auto",
+          isolation: "isolate"
         }}>
           {steps.map((step) => (
             <button
-              key={step.id}
+              key={`nav-btn-${step.id}`}
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🔘 onClick вызван для:', step.id, step.name);
-                handleStepClick(step.id);
-              }}
-              onMouseDown={(e) => {
-                console.log('🔘 onMouseDown:', step.id);
-              }}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                console.log('🔘 onTouchStart:', step.id);
+              onClick={() => {
+                console.log('🔘 КНОПКА КЛИКНУТА:', step.id, step.name);
                 handleStepClick(step.id);
               }}
               style={{
@@ -321,25 +310,12 @@ export default function AppClient() {
                 gap: 8,
                 pointerEvents: "auto",
                 position: "relative",
-                zIndex: 1000,
+                zIndex: 9999,
                 userSelect: "none",
                 WebkitUserSelect: "none",
                 touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent"
-              }}
-              onMouseOver={(e) => {
-                if (currentStep !== step.id) {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.background = "rgba(255, 255, 255, 0.15)";
-                  target.style.transform = "translateY(-2px)";
-                }
-              }}
-              onMouseOut={(e) => {
-                if (currentStep !== step.id) {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.background = "rgba(255, 255, 255, 0.1)";
-                  target.style.transform = "translateY(0)";
-                }
+                WebkitTapHighlightColor: "transparent",
+                isolation: "isolate"
               }}
             >
               <span style={{ fontSize: 18 }}>{step.icon}</span>
