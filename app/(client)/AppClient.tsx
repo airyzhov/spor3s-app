@@ -51,8 +51,11 @@ export default function AppClient() {
 
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
+    if (!mounted) return;
+    
     const initUser = async () => {
       try {
+        setError(null);
         // 1) Telegram WebApp контекст
         const tg = (typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined);
         const tgUser = tg?.initDataUnsafe?.user;
@@ -91,15 +94,19 @@ export default function AppClient() {
         }
       } catch (error) {
         console.error('❌ initUser failed:', error);
+        setError(error instanceof Error ? error.message : 'Ошибка инициализации пользователя');
       }
     };
     initUser();
-  }, []);
+  }, [mounted]);
 
   // Загружаем продукты
   useEffect(() => {
+    if (!mounted) return;
+    
     const fetchProducts = async () => {
       try {
+        setError(null);
         console.log('🛒 AppClient: Загружаем продукты...');
         const response = await fetch('/api/products');
         const data = await response.json();
@@ -111,10 +118,11 @@ export default function AppClient() {
         }
       } catch (error) {
         console.error('🛒 AppClient: Ошибка загрузки продуктов:', error);
+        setError(error instanceof Error ? error.message : 'Ошибка загрузки продуктов');
       }
     };
     fetchProducts();
-  }, []);
+  }, [mounted]);
 
   const steps = [
     { id: 1, name: "AI Консультант", icon: "🤖" },
@@ -122,8 +130,43 @@ export default function AppClient() {
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
 
+  if (!mounted) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px', color: '#fff' }}>
+        <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px', color: '#fff' }}>
+        <div style={{ fontSize: 24, marginBottom: 15, color: '#ff00cc' }}>⚠️</div>
+        <div style={{ marginBottom: 15 }}>Ошибка: {error}</div>
+        <button
+          onClick={() => {
+            setError(null);
+            window.location.reload();
+          }}
+          style={{
+            padding: '10px 20px',
+            background: '#ff00cc',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Перезагрузить
+        </button>
+      </div>
+    );
+  }
+
   const renderContent = () => {
-    switch (currentStep) {
+    try {
+      switch (currentStep) {
       case 1:
         return <Chat products={products} setStep={setCurrentStep} />;
       case 2:
@@ -151,6 +194,29 @@ export default function AppClient() {
         />;
       default:
         return <Chat products={products} setStep={setCurrentStep} />;
+    }
+    } catch (err) {
+      console.error('❌ Ошибка рендеринга контента:', err);
+      return (
+        <div style={{ textAlign: 'center', padding: '50px', color: '#fff' }}>
+          <div style={{ fontSize: 24, marginBottom: 15, color: '#ff00cc' }}>⚠️</div>
+          <div>Ошибка загрузки контента</div>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 15,
+              padding: '10px 20px',
+              background: '#ff00cc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer'
+            }}
+          >
+            Перезагрузить
+          </button>
+        </div>
+      );
     }
   };
 
