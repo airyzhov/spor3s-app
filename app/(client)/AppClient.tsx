@@ -179,6 +179,7 @@ export default function AppClient() {
   }
 
   const renderContent = () => {
+    console.log('🔘 renderContent вызван, currentStep:', currentStep);
     try {
       switch (currentStep) {
       case 1:
