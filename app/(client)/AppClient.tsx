@@ -10,7 +10,6 @@ import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import SCGiftForm from "../../components/SCGiftForm";
 import { useState, useEffect } from "react";
-import { CartProvider } from "../CartContext";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -156,7 +155,6 @@ export default function AppClient() {
   };
 
   return (
-    <CartProvider>
       <div className={styles.page} style={{ background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)' }}>
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
@@ -287,6 +285,5 @@ export default function AppClient() {
   }
 }`}</style>
       </div>
-    </CartProvider>
   );
 } 
