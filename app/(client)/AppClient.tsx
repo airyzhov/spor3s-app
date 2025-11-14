@@ -264,23 +264,18 @@ export default function AppClient() {
               key={step.id}
               type="button"
               onClick={(e) => {
-                e.preventDefault();
                 e.stopPropagation();
-                console.log('🔘 Кнопка нажата:', step.id, step.name);
-                console.log('🔘 Текущий шаг до изменения:', currentStep);
-                try {
-                  setCurrentStep(step.id);
-                  console.log('🔘 setCurrentStep вызван с:', step.id);
-                } catch (err) {
-                  console.error('❌ Ошибка при изменении шага:', err);
-                }
+                console.log('🔘 onClick:', step.id, step.name);
+                console.log('🔘 Текущий шаг:', currentStep);
+                const newStep = step.id;
+                console.log('🔘 Устанавливаем шаг:', newStep);
+                setCurrentStep(newStep);
+                console.log('🔘 setCurrentStep вызван');
               }}
               onMouseDown={(e) => {
-                e.preventDefault();
                 console.log('🔘 onMouseDown:', step.id);
               }}
               onTouchStart={(e) => {
-                e.preventDefault();
                 console.log('🔘 onTouchStart:', step.id);
                 setCurrentStep(step.id);
               }}
@@ -306,13 +301,14 @@ export default function AppClient() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                pointerEvents: "auto",
-                position: "relative",
+                pointerEvents: "auto" as const,
+                position: "relative" as const,
                 zIndex: 1000,
-                userSelect: "none",
-                WebkitUserSelect: "none",
-                touchAction: "manipulation",
-                WebkitTapHighlightColor: "transparent"
+                userSelect: "none" as const,
+                WebkitUserSelect: "none" as const,
+                touchAction: "manipulation" as const,
+                WebkitTapHighlightColor: "transparent",
+                isolation: "isolate" as const
               }}
               onMouseOver={(e) => {
                 if (currentStep !== step.id) {
