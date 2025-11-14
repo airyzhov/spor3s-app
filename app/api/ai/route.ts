@@ -984,12 +984,12 @@ export async function POST(req: NextRequest) {
               console.log('[AI API] User message:', message);
               
       // КРИТИЧНО: Проверяем СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ - если форма НЕ указана, блокируем теги
-      const userMessageLower = message.toLowerCase();
-      const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLower);
-      const userHasForm = /порошок|капсул|порошк|шляпк/i.test(userMessageLower);
-      const userWantsToAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLower);
+      const userMessageLowerCheck = message.toLowerCase();
+      const userHasEzhOrMhm = /ежовик|мухомор/i.test(userMessageLowerCheck);
+      const userHasForm = /порошок|капсул|порошк|шляпк/i.test(userMessageLowerCheck);
+      const userWantsToAdd = /добав|закаж|купи|полож|оформ/i.test(userMessageLowerCheck);
       // КРИТИЧНО: Проверяем, что это НЕ вопрос о наличии
-      const isQuestionAboutAvailability = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLower);
+      const isQuestionAboutAvailability = /есть\s+(ли|у вас)?.*?(ежовик|мухомор)|какие|что\s+есть|расскажи|подскаж|хочу узнать|интересует|можно\s+узнать|есть\?\s*$/i.test(userMessageLowerCheck);
       
       console.log('[AI API] Проверка пользователя:', {
         userHasEzhOrMhm,
