@@ -313,14 +313,13 @@ export default function AppClient() {
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                pointerEvents: "auto" as const,
-                position: "relative" as const,
+                pointerEvents: "auto",
+                position: "relative",
                 zIndex: 1000,
-                userSelect: "none" as const,
-                WebkitUserSelect: "none" as const,
-                touchAction: "manipulation" as const,
-                WebkitTapHighlightColor: "transparent",
-                isolation: "isolate" as const
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent"
               }}
               onMouseOver={(e) => {
                 if (currentStep !== step.id) {
