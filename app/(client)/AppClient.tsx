@@ -133,36 +133,53 @@ export default function AppClient() {
 
   // Привязываем обработчики через addEventListener после монтирования
   useEffect(() => {
-    if (!mounted || !navRef.current) {
-      console.log('🔘 navRef не готов:', { mounted, navRef: navRef.current });
+    if (!mounted) {
+      console.log('🔘 Компонент еще не смонтирован');
       return;
     }
     
-    const buttons = navRef.current.querySelectorAll('button[data-step-id]');
-    console.log('🔘 Найдено кнопок навигации:', buttons.length);
-    
-    const handlers: Array<() => void> = [];
-    
-    buttons.forEach((button) => {
-      const stepId = parseInt(button.getAttribute('data-step-id') || '0');
-      const handler = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('🔘 КНОПКА КЛИКНУТА через addEventListener:', stepId);
-        setCurrentStep(stepId);
+    // Небольшая задержка для гарантии, что DOM готов
+    const timeoutId = setTimeout(() => {
+      if (!navRef.current) {
+        console.log('🔘 navRef.current все еще null');
+        return;
+      }
+      
+      const buttons = navRef.current.querySelectorAll('button[data-step-id]');
+      console.log('🔘 Найдено кнопок навигации:', buttons.length);
+      
+      if (buttons.length === 0) {
+        console.warn('⚠️ Кнопки навигации не найдены!');
+        return;
+      }
+      
+      const handlers: Array<(e: Event) => void> = [];
+      
+      buttons.forEach((button) => {
+        const stepId = parseInt(button.getAttribute('data-step-id') || '0');
+        const handler = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 КНОПКА КЛИКНУТА через addEventListener:', stepId);
+          setCurrentStep(stepId);
+        };
+        button.addEventListener('click', handler, { capture: true });
+        handlers.push(handler);
+        console.log('🔘 Обработчик addEventListener привязан к кнопке:', stepId);
+      });
+      
+      return () => {
+        buttons.forEach((button, index) => {
+          const handler = handlers[index];
+          if (handler) {
+            button.removeEventListener('click', handler, { capture: true });
+          }
+        });
       };
-      button.addEventListener('click', handler);
-      handlers.push(handler);
-      console.log('🔘 Обработчик addEventListener привязан к кнопке:', stepId);
-    });
+    }, 100);
     
     return () => {
-      buttons.forEach((button, index) => {
-        const handler = handlers[index];
-        if (handler) {
-          button.removeEventListener('click', handler);
-        }
-      });
+      clearTimeout(timeoutId);
     };
   }, [mounted]);
 
