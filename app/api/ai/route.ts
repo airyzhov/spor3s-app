@@ -790,13 +790,14 @@ export async function POST(req: NextRequest) {
       if (!productData || typeof productData !== 'object') return null;
       
       // Извлекаем форму (powder, capsules, bundle) из productData
-      const formData = (productData as any)[form];
+      // Используем unknown для безопасного приведения типа
+      const formData = (productData as unknown as Record<string, Record<number, { tag: string; name: string; price: number }>>)[form];
       if (!formData || typeof formData !== 'object') return null;
       
       // Извлекаем вариант по duration
-      const variant = (formData as any)[duration];
+      const variant = formData[duration];
       return variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant
-        ? variant as { tag: string; name: string; price: number }
+        ? variant
         : null;
     };
 
