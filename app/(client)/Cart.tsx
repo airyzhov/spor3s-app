@@ -23,6 +23,13 @@ export default function Cart({ products = [], setStep }: CartProps) {
   const [showVitrina, setShowVitrina] = useState(false);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
+  // Отладочные логи
+  useEffect(() => {
+    console.log('🛒 Cart: Компонент смонтирован');
+    console.log('🛒 Cart: Получены продукты:', products);
+    console.log('🛒 Cart: Текущая корзина:', cart);
+  }, [products, cart]);
+
   // Функция показа уведомлений
   const showNotification = (productName: string, type: 'add' | 'remove' = 'add') => {
     const notification = document.createElement('div');
@@ -75,7 +82,21 @@ export default function Cart({ products = [], setStep }: CartProps) {
 
   // Функция добавления в корзину с уведомлением
   const handleAddToCart = (product: any) => {
-    addToCart(product);
+    console.log('🛒 Cart: handleAddToCart вызвана с продуктом:', product);
+    console.log('🛒 Cart: Текущая корзина до добавления:', cart);
+    
+    if (!product || !product.id || !product.name || product.price === undefined) {
+      console.error('🛒 Cart: Ошибка - продукт неполный:', product);
+      return;
+    }
+    
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price || 0
+    });
+    
+    console.log('🛒 Cart: Продукт добавлен, показываем уведомление');
     showNotification(product.name, 'add');
   };
 

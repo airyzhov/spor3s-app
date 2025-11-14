@@ -94,6 +94,14 @@ jobs:
           echo "📦 Запуск сборки..."
           npm run build
           
+          echo "📁 Проверка public/products..."
+          if [ -d spor3s-app/public/products ]; then
+            echo "📋 Копирование изображений продуктов..."
+            mkdir -p public/products
+            cp -r spor3s-app/public/products/* public/products/ 2>/dev/null || true
+            echo "✅ Изображения скопированы"
+          fi
+          
           echo "🔄 Перезапуск PM2 процессов..."
           # Останавливаем старые процессы
           pm2 delete all || true

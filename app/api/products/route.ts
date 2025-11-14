@@ -27,7 +27,7 @@ const products = [
     name: 'Ежовик 360 капсул',
     price: 3000,
     description: 'Ежовик гребенчатый в капсулах на 3 месяца. Удобно для длительного курса.',
-    image: '/products/ezh120k.jpg'
+    image: '/products/ezh120k3.jpg'
   },
   {
     id: 'ezh500',
@@ -69,7 +69,7 @@ const products = [
     name: 'Мухомор 180 капсул',
     price: 4000,
     description: 'Мухомор красный в капсулах на 3 месяца. Удобно для длительного курса.',
-    image: '/products/mhm60k.JPG'
+    image: '/products/mhm60k3.JPG'
   },
   {
     id: 'ci30',
@@ -97,7 +97,7 @@ const products = [
     name: 'Кордицепс 150г',
     price: 2000,
     description: 'Кордицепс Милитарис плодовые тела на 3 месяца. Для длительного курса.',
-    image: '/products/kor50.JPG'
+    image: '/products/kor50-3.JPG'
   },
   {
     id: '4v1',
