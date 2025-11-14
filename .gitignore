@@ -58,3 +58,6 @@ next-env.d.ts
 
 # exclude test/demo directories
 /my-fresh-app/
+
+# temporary files
+temp-*.ts
