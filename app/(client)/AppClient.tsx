@@ -289,26 +289,30 @@ export default function AppClient() {
         </header>
 
         {/* Навигация */}
-        <nav style={{
-          display: "flex",
-          justifyContent: "center",
-          marginBottom: 30,
-          gap: 10,
-          flexWrap: "wrap",
-          padding: "0 20px",
-          position: "relative",
-          zIndex: 9999,
-          pointerEvents: "auto",
-          isolation: "isolate"
-        }}>
+        <nav 
+          ref={navRef}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: 30,
+            gap: 10,
+            flexWrap: "wrap",
+            padding: "0 20px",
+            position: "relative",
+            zIndex: 9999,
+            pointerEvents: "auto",
+            isolation: "isolate"
+          }}
+        >
           {steps.map((step) => (
             <button
               key={`nav-btn-${step.id}`}
+              data-step-id={step.id}
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🔘 КНОПКА КЛИКНУТА:', step.id, step.name);
+                console.log('🔘 onClick (React) вызван для:', step.id, step.name);
                 console.log('🔘 Событие:', e);
                 console.log('🔘 Текущий шаг до:', currentStep);
                 setCurrentStep(step.id);
