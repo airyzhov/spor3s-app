@@ -528,31 +528,7 @@ function forceRemoveFromCartTag(text) {
   return fixed;
 }
 
-type ContextMessage = {
-  role?: string;
-  content?: string;
-};
-
-type DialogMessage = {
-  role: string;
-  content: string;
-};
-
-type ProductRecord = {
-  id?: string;
-  name?: string;
-  price?: number;
-  description?: string | null;
-};
-
-type AiRequestBody = {
-  message: string;
-  context?: ContextMessage[];
-  source?: string;
-  user_id?: string;
-  products_prompt?: string;
-  telegram_id?: string | number;
-};
+// TypeScript типы удалены - это JavaScript файл
 
 export async function POST(req) {
   let requestBody;
