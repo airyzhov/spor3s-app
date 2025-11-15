@@ -786,21 +786,30 @@ export async function POST(req: NextRequest) {
       product: keyof typeof PRODUCT_VARIANTS,
       form: 'powder' | 'capsules' | 'bundle',
       duration: number
-    ) => {
-      const productData = PRODUCT_VARIANTS[product];
-      if (!productData || typeof productData !== 'object') return null;
-      
-      // Извлекаем форму (powder, capsules, bundle) из productData
-      // Используем any для обхода строгой проверки типов TypeScript
-      // @ts-ignore - PRODUCT_VARIANTS имеет сложную структуру, которую TypeScript не может правильно вывести
-      const formData: any = productData[form];
-      if (!formData || typeof formData !== 'object') return null;
-      
-      // Извлекаем вариант по duration
-      const variant: any = formData[duration];
-      return variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant
-        ? variant as { tag: string; name: string; price: number }
-        : null;
+    ): { tag: string; name: string; price: number } | null => {
+      try {
+        // Используем JSON для обхода проблем с типами
+        const productDataStr = JSON.stringify(PRODUCT_VARIANTS[product]);
+        const productData: any = JSON.parse(productDataStr);
+        
+        if (!productData || typeof productData !== 'object') return null;
+        
+        const formData: any = productData[form];
+        if (!formData || typeof formData !== 'object') return null;
+        
+        const variant: any = formData[duration];
+        if (variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant) {
+          return {
+            tag: String(variant.tag),
+            name: String(variant.name),
+            price: Number(variant.price)
+          };
+        }
+        return null;
+      } catch (error) {
+        console.error('Error in resolveVariant:', error);
+        return null;
+      }
     };
 
     const formatDuration = (duration: number) => {
