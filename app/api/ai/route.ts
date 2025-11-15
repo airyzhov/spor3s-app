@@ -966,7 +966,9 @@ export async function POST(req: NextRequest) {
       const formKey = detectFormKey(lastMessage);
       
       if (productKey && formKey) {
-        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
+        const productData: any = JSON.parse(productDataStr);
+        const productTitle = productData.label || 'продукт';
         const formText = formKey === 'powder' ? 'порошок' : 'капсулы';
         
         return `Отлично! ${productTitle} (${formText}) - хороший выбор!
@@ -1013,7 +1015,9 @@ export async function POST(req: NextRequest) {
 
       // Если продукт ежовик/мухомор, но форма не указана - спрашиваем форму
       if ((productKey === 'ezh' || productKey === 'mhm') && !formKey) {
-        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
+        const productData: any = JSON.parse(productDataStr);
+        const productTitle = productData.label || 'продукт';
         return `Отлично! Вы выбрали ${formatDuration(duration)} для ${productTitle.toLowerCase()}.
 
 Осталось выбрать форму:
@@ -1037,7 +1041,9 @@ export async function POST(req: NextRequest) {
 
       // Если вариант не найден - сообщаем об ошибке
       if (!variant) {
-        const productTitle = PRODUCT_VARIANTS[productKey].label;
+        const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
+        const productData: any = JSON.parse(productDataStr);
+        const productTitle = productData.label || 'продукт';
         const availableDurations = productKey === 'combo' ? '1, 3 или 6 месяцев' : '1 или 3 месяца';
         return `Отлично! Вы выбрали ${productTitle.toLowerCase()} на ${formatDuration(duration)}.
 
@@ -1045,7 +1051,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Формируем ответ с добавлением в корзину
-      const productTitle = PRODUCT_VARIANTS[productKey].label;
+      const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
+      const productData: any = JSON.parse(productDataStr);
+      const productTitle = productData.label || 'продукт';
       const formText = formKey === 'powder' ? 'порошок' : formKey === 'capsules' ? 'капсулы' : 'комплекс';
       
       return `Отлично! Вы выбрали ${productTitle.toLowerCase()} (${formText}) на ${formatDuration(duration)}.
