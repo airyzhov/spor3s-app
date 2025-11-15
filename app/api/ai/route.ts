@@ -790,13 +790,13 @@ export async function POST(req: NextRequest) {
       if (!productData || typeof productData !== 'object') return null;
       
       // Извлекаем форму (powder, capsules, bundle) из productData
-      // Используем двойное приведение через unknown для безопасного приведения типа
-      const productDataAny = productData as unknown;
-      const productDataTyped = productDataAny as Record<string, Record<number, { tag: string; name: string; price: number }>>;
-      const formData = productDataTyped[form];
+      // Используем any для обхода строгой проверки типов TypeScript
+      // @ts-expect-error - PRODUCT_VARIANTS имеет сложную структуру, которую TypeScript не может правильно вывести
+      const formData = productData[form];
       if (!formData || typeof formData !== 'object') return null;
       
       // Извлекаем вариант по duration
+      // @ts-expect-error - formData имеет индексы-числа, TypeScript не может правильно вывести тип
       const variant = formData[duration];
       return variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant
         ? variant
