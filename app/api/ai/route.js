@@ -52,7 +52,7 @@ const PRODUCT_VARIANTS = {
   },
 };
 
-function forceAddToCartTag(text: string): string {
+function forceAddToCartTag(text) {
   const productMap = [
          // Ежовик
      { keyword: /ежовик.*500.*г/i, id: 'ezh500' },
@@ -452,7 +452,7 @@ function forceAddToCartTag(text: string): string {
   return fixed;
 }
 
-function forceRemoveFromCartTag(text: string): string {
+function forceRemoveFromCartTag(text) {
   const productMap = [
     // Ежовик
     { keyword: /ежовик.*500.*г/i, id: 'ezh500' },
@@ -554,8 +554,8 @@ type AiRequestBody = {
   telegram_id?: string | number;
 };
 
-export async function POST(req: NextRequest) {
-  let requestBody: AiRequestBody;
+export async function POST(req) {
+  let requestBody;
   
   try {
     const bodyText = await req.text();
@@ -565,7 +565,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ response: "Пустой запрос", error: 'EMPTY_REQUEST' }, { status: 400 });
     }
     
-    requestBody = JSON.parse(bodyText) as AiRequestBody;
+    requestBody = JSON.parse(bodyText);
   } catch (error) {
     console.error('[AI API] JSON parse error:', error);
     return NextResponse.json({ response: "Ошибка парсинга JSON", error: 'JSON_PARSE_ERROR' }, { status: 400 });
@@ -602,7 +602,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Автоопределение user_id по telegram_id, если не передан
-  let resolvedUserId: string | null = user_id || null;
+  let resolvedUserId = user_id || null;
   if (!resolvedUserId && telegram_id) {
     try {
       const tid = String(telegram_id);
@@ -649,7 +649,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Формируем сообщения для AI
-  const messages: DialogMessage[] = [];
+  const messages = [];
   
   // Добавляем контекст если есть (сначала контекст, потом текущее сообщение)
   if (context && context.length > 0) {
@@ -743,12 +743,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Интеллектуальный fallback ответ на основе RAG
-  function generateIntelligentFallback(msgs: DialogMessage[], userSummary: string, productsInfo: string): string {
+  function generateIntelligentFallback(msgs, userSummary, productsInfo) {
     console.log('[AI API] === FALLBACK FUNCTION CALLED ===');
     const lastMessage = msgs[msgs.length - 1]?.content?.toLowerCase() || '';
     const normalize = (value?: string) => (value || '').toLowerCase();
 
-    const detectProductKey = (text: string): any => {
+    const detectProductKey = (text) => {
       if (text.includes('ежовик') || text.includes('lion')) return 'ezh';
       if (text.includes('мухомор')) return 'mhm';
       if (text.includes('кордицепс')) return 'kor';
@@ -757,14 +757,14 @@ export async function POST(req: NextRequest) {
       return null;
     };
 
-    const detectFormKey = (text: string): 'powder' | 'capsules' | 'bundle' | null => {
+    const detectFormKey = (text) => {
       if (/капсул/.test(text)) return 'capsules';
       if (/шляпк/.test(text) || /порош/.test(text)) return 'powder';
       if (/комплекс/.test(text) || /4\s*в\s*1/.test(text)) return 'bundle';
       return null;
     };
 
-    const collectUserContext = (messages: DialogMessage[]) => {
+    const collectUserContext = (messages) => {
       let product: any = null;
       let form: 'powder' | 'capsules' | 'bundle' | null = null;
       for (let i = messages.length - 1; i >= 0; i--) {
@@ -809,7 +809,7 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    const formatDuration = (duration: number) => {
+    const formatDuration = (duration) => {
       if (duration === 1) return 'месяц';
       if (duration === 3) return '3 месяца';
       if (duration === 6) return '6 месяцев';
@@ -1076,7 +1076,7 @@ export async function POST(req: NextRequest) {
 Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!`;
   }
 
-  async function fetchCompletion(msgs: DialogMessage[]): Promise<string | null> {
+  async function fetchCompletion(msgs) {
     try {
       // Используем переданные цены от Telegram бота или получаем из БД
       let productsInfo = '';
