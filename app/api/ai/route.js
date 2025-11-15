@@ -783,24 +783,19 @@ export async function POST(req: NextRequest) {
       return { product, form };
     };
 
-    const resolveVariant = (
-      product: any,
-      form: any,
-      duration: any
-    ): any => {
+    const resolveVariant = (product, form, duration) => {
       try {
         // Используем JSON для обхода проблем с типами
-        // Приводим PRODUCT_VARIANTS к any перед stringify
         const productVariantsAny = PRODUCT_VARIANTS;
         const productDataStr = JSON.stringify(productVariantsAny[product]);
-        const productData: any = JSON.parse(productDataStr);
+        const productData = JSON.parse(productDataStr);
         
         if (!productData || typeof productData !== 'object') return null;
         
-        const formData: any = productData[form];
+        const formData = productData[form];
         if (!formData || typeof formData !== 'object') return null;
         
-        const variant: any = formData[duration];
+        const variant = formData[duration];
         if (variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant) {
           return {
             tag: String(variant.tag),
