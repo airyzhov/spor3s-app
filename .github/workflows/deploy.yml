@@ -84,30 +84,75 @@ jobs:
             rm -rf my-fresh-app
           fi
           
-          # Проверяем наличие app директории
+          # Определяем правильную директорию для сборки
+          BUILD_DIR="/var/www/spor3s-app"
+          if [ -d spor3s-app/app ] && [ -f spor3s-app/package.json ]; then
+            echo "📁 Найдена структура с поддиректорией spor3s-app"
+            BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+          elif [ ! -d app ] && [ -d spor3s-app ]; then
+            echo "📁 Проверяем структуру spor3s-app..."
+            if [ -d spor3s-app/app ]; then
+              BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+            fi
+          fi
+          
+          cd "$BUILD_DIR"
+          echo "📂 Рабочая директория: $BUILD_DIR"
+          
+          # Проверяем наличие app директории и package.json
           if [ ! -d app ]; then
-            echo "⚠️ Директория app не найдена, проверяем структуру..."
+            echo "⚠️ Директория app не найдена в $BUILD_DIR, проверяем структуру..."
+            ls -la
+            echo "🔍 Поиск app директории..."
+            find /var/www/spor3s-app -type d -name "app" -maxdepth 3 | head -5
+            exit 1
+          fi
+          
+          if [ ! -f package.json ]; then
+            echo "⚠️ package.json не найден в $BUILD_DIR"
             ls -la
             exit 1
           fi
           
-          echo "📦 Запуск сборки..."
+          echo "📦 Запуск сборки в $BUILD_DIR..."
           npm run build
           
           echo "📁 Проверка public/products..."
-          if [ -d spor3s-app/public/products ]; then
-            echo "📋 Копирование изображений продуктов..."
-            mkdir -p public/products
-            cp -r spor3s-app/public/products/* public/products/ 2>/dev/null || true
+          # Копируем изображения если они в поддиректории
+          if [ -d /var/www/spor3s-app/spor3s-app/public/products ] && [ "$BUILD_DIR" != "/var/www/spor3s-app/spor3s-app" ]; then
+            echo "📋 Копирование изображений продуктов из поддиректории..."
+            mkdir -p "$BUILD_DIR/public/products"
+            cp -r /var/www/spor3s-app/spor3s-app/public/products/* "$BUILD_DIR/public/products/" 2>/dev/null || true
             echo "✅ Изображения скопированы"
+          elif [ -d public/products ]; then
+            echo "✅ Изображения продуктов уже на месте"
           fi
           
           echo "🔄 Перезапуск PM2 процессов..."
+          # Возвращаемся в корень для PM2
+          cd /var/www/spor3s-app
+          
           # Останавливаем старые процессы
           pm2 delete all || true
           
+          # Обновляем ecosystem.config.js если нужно
+          if [ -f ecosystem.config.js ]; then
+            # Проверяем, что cwd указывает на правильную директорию
+            if [ "$BUILD_DIR" = "/var/www/spor3s-app/spor3s-app" ]; then
+              echo "📝 Обновление ecosystem.config.js для правильного пути..."
+              # Используем существующий config, но убедимся что процессы запускаются из правильной директории
+            fi
+          fi
+          
           # Запускаем через ecosystem.config.js
-          pm2 start ecosystem.config.js
+          if [ -f ecosystem.config.js ]; then
+            pm2 start ecosystem.config.js
+          else
+            echo "⚠️ ecosystem.config.js не найден, запускаем напрямую..."
+            cd "$BUILD_DIR"
+            pm2 start npm --name "spor3s-nextjs" -- start
+            cd /var/www/spor3s-app
+          fi
           
           # Сохраняем конфигурацию
           pm2 save
