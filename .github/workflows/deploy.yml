@@ -92,33 +92,47 @@ jobs:
           
           # Определяем правильную директорию для сборки
           export BUILD_DIR="/var/www/spor3s-app"
+          
+          # Проверяем структуру проекта
+          echo "📁 Проверка структуры проекта..."
+          ls -la /var/www/spor3s-app/ | head -20
+          
           if [ -d spor3s-app/app ] && [ -f spor3s-app/package.json ]; then
             echo "📁 Найдена структура с поддиректорией spor3s-app"
             export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
-          elif [ ! -d app ] && [ -d spor3s-app ]; then
-            echo "📁 Проверяем структуру spor3s-app..."
-            if [ -d spor3s-app/app ]; then
-              export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+          elif [ -d app ] && [ -f package.json ]; then
+            echo "📁 Найдена структура в корне"
+            export BUILD_DIR="/var/www/spor3s-app"
+          else
+            echo "⚠️ Структура проекта не определена, пробуем найти app директорию..."
+            APP_DIR=$(find /var/www/spor3s-app -type d -name "app" -maxdepth 3 | head -1)
+            if [ -n "$APP_DIR" ]; then
+              export BUILD_DIR=$(dirname "$APP_DIR")
+              echo "📁 Найдена app директория в: $BUILD_DIR"
+            else
+              echo "❌ Не удалось найти app директорию"
+              ls -la /var/www/spor3s-app/
+              exit 1
             fi
           fi
           
           cd "$BUILD_DIR"
           echo "📂 Рабочая директория: $BUILD_DIR"
+          echo "📂 Содержимое директории:"
+          ls -la | head -15
           
           # Проверяем наличие app директории и package.json
           if [ ! -d app ]; then
-            echo "⚠️ Директория app не найдена в $BUILD_DIR, проверяем структуру..."
-            ls -la
-            echo "🔍 Поиск app директории..."
-            find /var/www/spor3s-app -type d -name "app" -maxdepth 3 | head -5
+            echo "⚠️ Директория app не найдена в $BUILD_DIR"
             exit 1
           fi
           
           if [ ! -f package.json ]; then
             echo "⚠️ package.json не найден в $BUILD_DIR"
-            ls -la
             exit 1
           fi
+          
+          echo "✅ Структура проекта определена правильно"
           
           echo "📦 Очистка кэша перед сборкой..."
           rm -rf "$BUILD_DIR/.next" 2>/dev/null || true
