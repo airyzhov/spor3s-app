@@ -789,7 +789,9 @@ export async function POST(req: NextRequest) {
     ): { tag: string; name: string; price: number } | null => {
       try {
         // Используем JSON для обхода проблем с типами
-        const productDataStr = JSON.stringify(PRODUCT_VARIANTS[product]);
+        // Приводим PRODUCT_VARIANTS к any перед stringify
+        const productVariantsAny: any = PRODUCT_VARIANTS;
+        const productDataStr = JSON.stringify(productVariantsAny[product]);
         const productData: any = JSON.parse(productDataStr);
         
         if (!productData || typeof productData !== 'object') return null;
