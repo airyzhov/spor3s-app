@@ -791,7 +791,7 @@ export async function POST(req: NextRequest) {
       try {
         // Используем JSON для обхода проблем с типами
         // Приводим PRODUCT_VARIANTS к any перед stringify
-        const productVariantsAny: any = PRODUCT_VARIANTS;
+        const productVariantsAny = PRODUCT_VARIANTS;
         const productDataStr = JSON.stringify(productVariantsAny[product]);
         const productData: any = JSON.parse(productDataStr);
         
