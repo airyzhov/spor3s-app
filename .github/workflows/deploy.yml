@@ -61,6 +61,12 @@ jobs:
           echo "📦 Установка зависимостей основного проекта..."
           npm install
           
+          # Устанавливаем ESLint если его нет
+          if [ ! -d node_modules/eslint ]; then
+            echo "📦 Установка ESLint..."
+            npm install --save-dev eslint eslint-config-next 2>/dev/null || true
+          fi
+          
           echo "📦 Установка зависимостей tg-bot..."
           if [ -f tg-bot/package.json ]; then
             cd /var/www/spor3s-app/tg-bot
@@ -113,6 +119,9 @@ jobs:
             ls -la
             exit 1
           fi
+          
+          echo "📦 Очистка кэша перед сборкой..."
+          rm -rf "$BUILD_DIR/.next" 2>/dev/null || true
           
           echo "📦 Запуск сборки в $BUILD_DIR..."
           npm run build
