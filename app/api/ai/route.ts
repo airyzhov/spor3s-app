@@ -749,7 +749,7 @@ export async function POST(req: NextRequest) {
     const lastMessage = msgs[msgs.length - 1]?.content?.toLowerCase() || '';
     const normalize = (value?: string) => (value || '').toLowerCase();
 
-    const detectProductKey = (text: string): keyof typeof PRODUCT_VARIANTS | null => {
+    const detectProductKey = (text: string): any => {
       if (text.includes('ежовик') || text.includes('lion')) return 'ezh';
       if (text.includes('мухомор')) return 'mhm';
       if (text.includes('кордицепс')) return 'kor';
@@ -766,7 +766,7 @@ export async function POST(req: NextRequest) {
     };
 
     const collectUserContext = (messages: DialogMessage[]) => {
-      let product: keyof typeof PRODUCT_VARIANTS | null = null;
+      let product: any = null;
       let form: 'powder' | 'capsules' | 'bundle' | null = null;
       for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i];
@@ -784,7 +784,7 @@ export async function POST(req: NextRequest) {
     };
 
     const resolveVariant = (
-      product: keyof typeof PRODUCT_VARIANTS,
+      product: any,
       form: 'powder' | 'capsules' | 'bundle',
       duration: number
     ): { tag: string; name: string; price: number } | null => {
