@@ -5,7 +5,8 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
-const PRODUCT_VARIANTS = {
+// @ts-ignore
+const PRODUCT_VARIANTS: any = {
   ezh: {
     label: 'Ежовик',
     powder: {
