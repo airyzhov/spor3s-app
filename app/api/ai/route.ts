@@ -49,7 +49,7 @@ const PRODUCT_VARIANTS = {
       6: { tag: '4v1-6', name: '4 в 1 (6 месяцев)', price: 15000 },
     },
   },
-} as const;
+};
 
 function forceAddToCartTag(text: string): string {
   const productMap = [
