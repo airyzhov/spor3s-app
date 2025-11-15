@@ -85,14 +85,14 @@ jobs:
           fi
           
           # Определяем правильную директорию для сборки
-          BUILD_DIR="/var/www/spor3s-app"
+          export BUILD_DIR="/var/www/spor3s-app"
           if [ -d spor3s-app/app ] && [ -f spor3s-app/package.json ]; then
             echo "📁 Найдена структура с поддиректорией spor3s-app"
-            BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+            export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
           elif [ ! -d app ] && [ -d spor3s-app ]; then
             echo "📁 Проверяем структуру spor3s-app..."
             if [ -d spor3s-app/app ]; then
-              BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+              export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
             fi
           fi
           
