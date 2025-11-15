@@ -4,7 +4,7 @@ module.exports = {
       name: 'spor3s-nextjs',
       script: 'npm',
       args: 'start',
-      cwd: '/var/www/spor3s-app',
+      cwd: '/var/www/spor3s-app/spor3s-app',
       env: {
         NODE_ENV: 'production',
         PORT: 3000
