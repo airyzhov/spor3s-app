@@ -791,15 +791,14 @@ export async function POST(req: NextRequest) {
       
       // Извлекаем форму (powder, capsules, bundle) из productData
       // Используем any для обхода строгой проверки типов TypeScript
-      // @ts-expect-error - PRODUCT_VARIANTS имеет сложную структуру, которую TypeScript не может правильно вывести
-      const formData = productData[form];
+      // @ts-ignore - PRODUCT_VARIANTS имеет сложную структуру, которую TypeScript не может правильно вывести
+      const formData: any = productData[form];
       if (!formData || typeof formData !== 'object') return null;
       
       // Извлекаем вариант по duration
-      // @ts-expect-error - formData имеет индексы-числа, TypeScript не может правильно вывести тип
-      const variant = formData[duration];
+      const variant: any = formData[duration];
       return variant && typeof variant === 'object' && 'tag' in variant && 'name' in variant && 'price' in variant
-        ? variant
+        ? variant as { tag: string; name: string; price: number }
         : null;
     };
 
