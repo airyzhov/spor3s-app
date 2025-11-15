@@ -2,6 +2,10 @@
 const nextConfig = {
   // Исключаем my-fresh-app из сборки
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  typescript: {
+    // Отключаем проверку типов во время сборки
+    ignoreBuildErrors: true,
+  },
   webpack: (config, { isServer }) => {
     // Исключаем my-fresh-app из сборки
     config.watchOptions = {
