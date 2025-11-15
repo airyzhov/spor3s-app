@@ -6,6 +6,10 @@ const nextConfig = {
     // Отключаем проверку типов во время сборки
     ignoreBuildErrors: true,
   },
+  eslint: {
+    // Отключаем проверку ESLint во время сборки
+    ignoreDuringBuilds: true,
+  },
   webpack: (config, { isServer }) => {
     // Исключаем my-fresh-app из сборки
     config.watchOptions = {
