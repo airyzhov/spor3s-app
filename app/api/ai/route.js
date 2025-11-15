@@ -1087,13 +1087,13 @@ export async function POST(req: NextRequest) {
         productsInfo = products_prompt;
       } else {
         // Получаем актуальные продукты из базы данных для Mini App
-        const products = (await getProductsServer()) as ProductRecord[];
+        const products = await getProductsServer();
         
         // Формируем строку с актуальными ценами
         productsInfo = "🛍️ АКТУАЛЬНЫЕ ЦЕНЫ И ПРОДУКТЫ:\n\n";
         
         // Группируем продукты по категориям
-        const categories: Record<string, ProductRecord[]> = {
+        const categories = {
           'Ежовик': products.filter(p => (p.name || '').includes('Ежовик')),
           'Мухомор': products.filter(p => (p.name || '').includes('Мухомор')),
           'Кордицепс': products.filter(p => (p.name || '').includes('Кордицепс')),
@@ -1297,7 +1297,7 @@ export async function POST(req: NextRequest) {
        console.error('[AI API] Fetch error:', message);
        
        // Получаем продукты для fallback ответов
-       const products = (await getProductsServer()) as ProductRecord[];
+       const products = await getProductsServer();
      
       // Вспомогательная функция для нормализации названий
       const normalizeName = (value?: string) => (value || '').toLowerCase();
