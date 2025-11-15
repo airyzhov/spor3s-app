@@ -722,7 +722,7 @@ export async function POST(req) {
   function generateIntelligentFallback(msgs, userSummary, productsInfo) {
     console.log('[AI API] === FALLBACK FUNCTION CALLED ===');
     const lastMessage = msgs[msgs.length - 1]?.content?.toLowerCase() || '';
-    const normalize = (value?: string) => (value || '').toLowerCase();
+    const normalize = (value) => (value || '').toLowerCase();
 
     const detectProductKey = (text) => {
       if (text.includes('ежовик') || text.includes('lion')) return 'ezh';
@@ -741,8 +741,8 @@ export async function POST(req) {
     };
 
     const collectUserContext = (messages) => {
-      let product: any = null;
-      let form: 'powder' | 'capsules' | 'bundle' | null = null;
+      let product = null;
+      let form = null;
       for (let i = messages.length - 1; i >= 0; i--) {
         const msg = messages[i];
         if (msg.role !== 'user') continue;
@@ -940,7 +940,7 @@ export async function POST(req) {
       
       if (productKey && formKey) {
         const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
-        const productData: any = JSON.parse(productDataStr);
+        const productData = JSON.parse(productDataStr);
         const productTitle = productData.label || 'продукт';
         const formText = formKey === 'powder' ? 'порошок' : 'капсулы';
         
@@ -989,7 +989,7 @@ export async function POST(req) {
       // Если продукт ежовик/мухомор, но форма не указана - спрашиваем форму
       if ((productKey === 'ezh' || productKey === 'mhm') && !formKey) {
         const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
-        const productData: any = JSON.parse(productDataStr);
+        const productData = JSON.parse(productDataStr);
         const productTitle = productData.label || 'продукт';
         return `Отлично! Вы выбрали ${formatDuration(duration)} для ${productTitle.toLowerCase()}.
 
@@ -1015,7 +1015,7 @@ export async function POST(req) {
       // Если вариант не найден - сообщаем об ошибке
       if (!variant) {
         const productDataStr = JSON.stringify(PRODUCT_VARIANTS[productKey]);
-        const productData: any = JSON.parse(productDataStr);
+        const productData = JSON.parse(productDataStr);
         const productTitle = productData.label || 'продукт';
         const availableDurations = productKey === 'combo' ? '1, 3 или 6 месяцев' : '1 или 3 месяца';
         return `Отлично! Вы выбрали ${productTitle.toLowerCase()} на ${formatDuration(duration)}.
@@ -1275,7 +1275,7 @@ export async function POST(req) {
        const products = await getProductsServer();
      
       // Вспомогательная функция для нормализации названий
-      const normalizeName = (value?: string) => (value || '').toLowerCase();
+      const normalizeName = (value) => (value || '').toLowerCase();
       
              // Fallback ответы в зависимости от запроса
        const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
