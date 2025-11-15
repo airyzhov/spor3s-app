@@ -785,9 +785,9 @@ export async function POST(req: NextRequest) {
 
     const resolveVariant = (
       product: any,
-      form: 'powder' | 'capsules' | 'bundle',
-      duration: number
-    ): { tag: string; name: string; price: number } | null => {
+      form: any,
+      duration: any
+    ): any => {
       try {
         // Используем JSON для обхода проблем с типами
         // Приводим PRODUCT_VARIANTS к any перед stringify
