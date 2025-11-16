@@ -169,6 +169,11 @@ jobs:
           
           # Запускаем через ecosystem.config.js
           if [ -f ecosystem.config.js ]; then
+            # Обновляем cwd в ecosystem.config.js если нужно
+            if [ "$BUILD_DIR" != "/var/www/spor3s-app/spor3s-app" ]; then
+              echo "📝 Обновление cwd в ecosystem.config.js..."
+              sed -i "s|cwd: '/var/www/spor3s-app/spor3s-app'|cwd: '$BUILD_DIR'|g" ecosystem.config.js || true
+            fi
             pm2 start ecosystem.config.js
           else
             echo "⚠️ ecosystem.config.js не найден, запускаем напрямую..."
@@ -176,6 +181,13 @@ jobs:
             pm2 start npm --name "spor3s-nextjs" -- start
             cd /var/www/spor3s-app
           fi
+          
+          # Проверяем, что процесс запущен
+          sleep 3
+          pm2 status
+          echo "📋 Проверка доступности API..."
+          sleep 2
+          curl -f http://localhost:3000/api/health || echo "⚠️ Health check failed"
           
           # Сохраняем конфигурацию
           pm2 save
