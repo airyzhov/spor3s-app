@@ -1270,9 +1270,15 @@ export async function POST(req) {
          } catch (error) {
        const message = error instanceof Error ? error.message : 'Unknown error';
        console.error('[AI API] Fetch error:', message);
+       console.error('[AI API] Error stack:', error instanceof Error ? error.stack : 'No stack');
        
        // Получаем продукты для fallback ответов
-       const products = await getProductsServer();
+       let products = [];
+       try {
+         products = await getProductsServer();
+       } catch (productsError) {
+         console.error('[AI API] Error getting products:', productsError);
+       }
      
       // Вспомогательная функция для нормализации названий
       const normalizeName = (value) => (value || '').toLowerCase();
@@ -1701,7 +1707,14 @@ export async function POST(req) {
     msgs.push({ role: 'assistant', content });
     msgs.push({ role: 'user', content: 'Продолжи.' });
   }
-  let reply = allContent || "Извините, не удалось получить ответ.";
+  // Убеждаемся, что reply всегда определена
+  let reply = "";
+  if (allContent && typeof allContent === 'string' && allContent.trim().length > 0) {
+    reply = allContent;
+  } else {
+    // Fallback ответ если AI не вернул ответ
+    reply = generateIntelligentFallback(messages, userSummary, productsInfo || '');
+  }
   
   // Применяем логику замены тегов к финальному ответу
   // КРИТИЧНО: Для Mini App НЕ добавляем строку "Товар добавлен в корзину" здесь
