@@ -15,6 +15,8 @@ jobs:
     
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       with:
         host: ${{ secrets.VPS_HOST }}
         username: ${{ secrets.VPS_USER }}
@@ -184,7 +186,12 @@ jobs:
           
           # Устанавливаем переменную окружения OPENROUTER_API_KEY из GitHub Secrets
           echo "🔑 Установка OPENROUTER_API_KEY..."
-          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "⚠️ OPENROUTER_API_KEY не установлен в GitHub Secrets!"
+            echo "Установите его в настройках репозитория: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          OPENROUTER_KEY="$OPENROUTER_API_KEY"
           export OPENROUTER_API_KEY="$OPENROUTER_KEY"
           
           # Добавляем в .bashrc для постоянного хранения
