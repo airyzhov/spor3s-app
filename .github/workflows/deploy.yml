@@ -250,6 +250,26 @@ jobs:
           echo "📋 Содержимое .env.local (первые 100 символов):"
           head -c 100 .env.local || echo "Файл пуст или не существует"
           echo ""
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан правильно
+          echo "🔍 Проверка .env.local:"
+          if [ -f .env.local ]; then
+            if grep -q "OPENROUTER_API_KEY" .env.local; then
+              KEY_LENGTH=$(grep "OPENROUTER_API_KEY" .env.local | cut -d'=' -f2 | tr -d ' ' | wc -c)
+              echo "✅ .env.local найден, ключ присутствует (длина: $KEY_LENGTH)"
+            else
+              echo "⚠️ .env.local существует, но ключ не найден, создаем заново..."
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+            fi
+          else
+            echo "⚠️ .env.local не найден, создаем..."
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+          fi
+          
+          # Проверяем что ключ точно записан
+          echo "📋 Финальная проверка .env.local:"
+          cat .env.local | grep OPENROUTER_API_KEY | head -1
+          
           cd /var/www/spor3s-app
           
           echo "🔄 Перезапуск PM2 процессов..."
