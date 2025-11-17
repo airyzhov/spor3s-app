@@ -1,3 +1,31 @@
+// Загружаем переменные из .env.local
+const fs = require('fs');
+const path = require('path');
+
+let envVars = {
+  NODE_ENV: 'production',
+  PORT: 3000
+};
+
+// Загружаем OPENROUTER_API_KEY из .env.local если файл существует
+const envLocalPath = path.join('/var/www/spor3s-app/spor3s-app', '.env.local');
+if (fs.existsSync(envLocalPath)) {
+  try {
+    const envContent = fs.readFileSync(envLocalPath, 'utf8');
+    const lines = envContent.split('\n');
+    for (const line of lines) {
+      const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
+      if (match) {
+        envVars.OPENROUTER_API_KEY = match[1].trim();
+        console.log('[PM2] ✅ OPENROUTER_API_KEY загружен из .env.local');
+        break;
+      }
+    }
+  } catch (error) {
+    console.error('[PM2] ⚠️ Ошибка загрузки .env.local:', error);
+  }
+}
+
 module.exports = {
   apps: [
     {
@@ -5,11 +33,7 @@ module.exports = {
       script: 'npm',
       args: 'start',
       cwd: '/var/www/spor3s-app/spor3s-app',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3000
-      },
-      env_file: '.env.local',
+      env: envVars,
       instances: 1,
       autorestart: true,
       watch: false,
