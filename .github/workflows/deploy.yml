@@ -300,12 +300,38 @@ jobs:
             fi
             # Запускаем PM2 с переменной окружения OPENROUTER_API_KEY
             echo "🚀 Запуск PM2 с OPENROUTER_API_KEY..."
-            OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js
+            echo "📋 OPENROUTER_KEY длина: ${#OPENROUTER_KEY}"
+            OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js --update-env
+            sleep 5
+            echo "📊 Статус PM2:"
+            pm2 list
+            echo "📋 Логи PM2 (последние 20 строк):"
+            pm2 logs spor3s-nextjs --lines 20 --nostream || true
           else
             echo "⚠️ ecosystem.config.js не найден, запускаем напрямую..."
             cd "$BUILD_DIR"
             OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start npm --name "spor3s-nextjs" -- start
             cd /var/www/spor3s-app
+          fi
+          
+          # Ждем запуска приложения
+          echo "⏳ Ожидание запуска приложения (10 секунд)..."
+          sleep 10
+          
+          # Проверяем что приложение запустилось
+          echo "🧪 Проверка API..."
+          API_RESPONSE=$(curl -s -X POST https://ai.spor3s.ru/api/ai \
+            -H "Content-Type: application/json" \
+            -d '{"message":"тест","source":"mini_app"}' \
+            -w "\nHTTP_CODE:%{http_code}" || echo "ERROR")
+          
+          echo "📋 Ответ API:"
+          echo "$API_RESPONSE"
+          
+          if echo "$API_RESPONSE" | grep -q "HTTP_CODE:200\|HTTP_CODE:503"; then
+            echo "✅ API отвечает (может быть ошибка ключа, но сервер работает)"
+          else
+            echo "⚠️ API не отвечает или ошибка подключения"
           fi
           
           # Добавляем в .bashrc для постоянного хранения
