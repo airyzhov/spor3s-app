@@ -222,18 +222,21 @@ jobs:
           # Создаем или обновляем .env.local файл в директории проекта ПЕРЕД перезапуском PM2
           # Next.js автоматически загружает .env.local в production
           cd "$BUILD_DIR"
+          # ВАЖНО: Перезаписываем файл полностью, чтобы убедиться что ключ там есть
+          echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+          echo "✅ Создан/обновлен .env.local файл с OPENROUTER_API_KEY"
+          # Проверяем что файл создан и содержит ключ
           if [ -f .env.local ]; then
+            echo "✅ Файл .env.local существует"
             if grep -q "OPENROUTER_API_KEY" .env.local; then
-              sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env.local
-              echo "✅ OPENROUTER_API_KEY обновлен в .env.local"
+              echo "✅ OPENROUTER_API_KEY найден в .env.local"
+              KEY_LENGTH=$(grep "OPENROUTER_API_KEY" .env.local | cut -d'=' -f2 | wc -c)
+              echo "📏 Длина ключа: $KEY_LENGTH символов"
             else
-              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
-              echo "✅ OPENROUTER_API_KEY добавлен в .env.local"
+              echo "❌ OPENROUTER_API_KEY НЕ найден в .env.local!"
             fi
           else
-            # Создаем .env.local с ключом (если файл не существует, создаем его)
-            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
-            echo "✅ Создан .env.local файл с OPENROUTER_API_KEY"
+            echo "❌ Файл .env.local НЕ создан!"
           fi
           # Также обновляем .env для совместимости
           if [ -f .env ]; then
