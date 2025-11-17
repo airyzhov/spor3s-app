@@ -613,62 +613,82 @@ export async function POST(req) {
   // КРИТИЧНО: ВСЕГДА загружаем ключ из .env.local ПРИ КАЖДОМ запросе
   // Next.js в production НЕ загружает .env.local автоматически
   let OR_TOKEN = null;
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      
-      // Пробуем все возможные пути
-      const envPaths = [
-        path.join('/var/www/spor3s-app/spor3s-app', '.env.local'),
-        path.join('/var/www/spor3s-app', '.env.local'),
-        path.join(process.cwd(), '.env.local'),
-        path.join(process.cwd(), '..', '.env.local'),
-        '.env.local'
-      ];
-      
-      console.log('[AI API] 🔍 Поиск .env.local по путям...');
-      for (const envPath of envPaths) {
-        try {
-          if (fs.existsSync(envPath)) {
-            console.log(`[AI API] ✅ Найден файл: ${envPath}`);
-            const content = fs.readFileSync(envPath, 'utf8');
-            const lines = content.split('\n');
-            for (const line of lines) {
-              // Поддерживаем формат OPENROUTER_API_KEY=value и OPENROUTER_API_KEY="value"
-              const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
-              if (match) {
-                let key = match[1].trim();
-                // Убираем кавычки если есть
-                key = key.replace(/^["']|["']$/g, '');
-                if (key && key.length > 20) {
-                  OR_TOKEN = key;
-                  process.env.OPENROUTER_API_KEY = key;
-                  console.log(`[AI API] ✅✅✅ Ключ загружен из ${envPath} (длина: ${key.length})`);
-                  break;
-                }
+  
+  // Сначала пробуем из process.env (может быть установлен через PM2)
+  if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+    OR_TOKEN = process.env.OPENROUTER_API_KEY;
+    console.log('[AI API] ✅ Ключ найден в process.env');
+  }
+  
+  // ВСЕГДА загружаем из .env.local для надежности
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Пробуем все возможные пути в порядке приоритета
+    const envPaths = [
+      path.join('/var/www/spor3s-app/spor3s-app', '.env.local'),
+      path.join('/var/www/spor3s-app', '.env.local'),
+      path.join(process.cwd(), '.env.local'),
+      path.join(process.cwd(), '..', '.env.local'),
+      '.env.local'
+    ];
+    
+    console.log('[AI API] 🔍 Поиск .env.local по путям...');
+    console.log('[AI API] process.cwd():', process.cwd());
+    
+    for (const envPath of envPaths) {
+      try {
+        if (fs.existsSync(envPath)) {
+          console.log(`[AI API] ✅ Найден файл: ${envPath}`);
+          const content = fs.readFileSync(envPath, 'utf8');
+          console.log(`[AI API] Размер файла: ${content.length} символов`);
+          console.log(`[AI API] Первые 200 символов:`, content.substring(0, 200));
+          const lines = content.split('\n');
+          for (const line of lines) {
+            // Поддерживаем формат OPENROUTER_API_KEY=value и OPENROUTER_API_KEY="value"
+            const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
+            if (match) {
+              let key = match[1].trim();
+              // Убираем кавычки если есть
+              key = key.replace(/^["']|["']$/g, '');
+              if (key && key.length > 20) {
+                OR_TOKEN = key;
+                process.env.OPENROUTER_API_KEY = key;
+                console.log(`[AI API] ✅✅✅ Ключ загружен из ${envPath} (длина: ${key.length})`);
+                console.log(`[AI API] Первые 20 символов ключа: ${key.substring(0, 20)}...`);
+                break;
+              } else {
+                console.log(`[AI API] ⚠️ Ключ слишком короткий: ${key.length} символов`);
               }
             }
-            if (OR_TOKEN && OR_TOKEN.length > 20) break;
-          } else {
-            console.log(`[AI API] ⚠️ Файл не найден: ${envPath}`);
           }
-        } catch (pathError) {
-          console.error(`[AI API] ⚠️ Ошибка проверки ${envPath}:`, pathError.message);
+          if (OR_TOKEN && OR_TOKEN.length > 20) break;
+        } else {
+          console.log(`[AI API] ⚠️ Файл не найден: ${envPath}`);
         }
+      } catch (pathError) {
+        console.error(`[AI API] ⚠️ Ошибка проверки ${envPath}:`, pathError.message);
       }
-      
-      // Если все еще не найден, пробуем loadEnvLocal
-      if (!OR_TOKEN || OR_TOKEN.length < 20) {
-        console.log('[AI API] 🔄 Пробуем loadEnvLocal()...');
-        loadEnvLocal();
+    }
+    
+    // Если все еще не найден, пробуем loadEnvLocal
+    if (!OR_TOKEN || OR_TOKEN.length < 20) {
+      console.log('[AI API] 🔄 Пробуем loadEnvLocal()...');
+      loadEnvLocal();
+      if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
         OR_TOKEN = process.env.OPENROUTER_API_KEY;
       }
-    } catch (e) {
-      console.error("[AI API] ❌ Критическая ошибка загрузки .env.local:", e.message);
-      console.error("[AI API] Stack:", e.stack);
     }
+  } catch (e) {
+    console.error("[AI API] ❌ Критическая ошибка загрузки .env.local:", e.message);
+    console.error("[AI API] Stack:", e.stack);
+  }
+  
+  if (OR_TOKEN && OR_TOKEN.length > 20) {
+    console.log('[AI API] ✅ Ключ успешно загружен, длина:', OR_TOKEN.length);
   } else {
-    console.log('[AI API] ✅ Ключ уже загружен из process.env');
+    console.error('[AI API] ❌ Ключ НЕ загружен!');
   }
   
   console.log("[AI API] ========== DEBUG INFO ==========");
