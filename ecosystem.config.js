@@ -7,7 +7,8 @@ module.exports = {
       cwd: '/var/www/spor3s-app/spor3s-app',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000
+        PORT: 3000,
+        OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || ''
       },
       instances: 1,
       autorestart: true,
