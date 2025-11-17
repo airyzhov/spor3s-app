@@ -50,6 +50,7 @@ if (!keyLoaded && process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_K
 if (!keyLoaded) {
   console.error('[PM2] ⚠️ OPENROUTER_API_KEY не найден ни в .env.local, ни в process.env');
   console.error('[PM2] Проверьте что .env.local создан в:', possiblePaths.join(', '));
+  // НЕ используем fallback - полагаемся на загрузку в route.ts
 }
 
 module.exports = {
