@@ -6,27 +6,49 @@ import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
 // Загружаем переменные окружения из .env.local для production
-if (typeof process !== 'undefined' && process.env && !process.env.OPENROUTER_API_KEY) {
+// Пробуем несколько путей для .env.local
+const loadEnvLocal = () => {
+  if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+    return; // Уже загружен
+  }
+  
   try {
     const fs = require('fs');
     const path = require('path');
-    const envLocalPath = path.join(process.cwd(), '.env.local');
-    if (fs.existsSync(envLocalPath)) {
-      const envContent = fs.readFileSync(envLocalPath, 'utf8');
-      const lines = envContent.split('\n');
-      for (const line of lines) {
-        const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
-        if (match) {
-          process.env.OPENROUTER_API_KEY = match[1].trim();
-          console.log('[AI API] ✅ OPENROUTER_API_KEY загружен из .env.local');
-          break;
+    
+    // Пробуем разные пути
+    const possiblePaths = [
+      path.join(process.cwd(), '.env.local'),
+      path.join('/var/www/spor3s-app/spor3s-app', '.env.local'),
+      path.join(process.cwd(), '..', '.env.local'),
+      '.env.local'
+    ];
+    
+    for (const envLocalPath of possiblePaths) {
+      if (fs.existsSync(envLocalPath)) {
+        const envContent = fs.readFileSync(envLocalPath, 'utf8');
+        const lines = envContent.split('\n');
+        for (const line of lines) {
+          const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
+          if (match) {
+            const key = match[1].trim();
+            if (key && key.length > 20) {
+              process.env.OPENROUTER_API_KEY = key;
+              console.log(`[AI API] ✅ OPENROUTER_API_KEY загружен из ${envLocalPath} (длина: ${key.length})`);
+              return;
+            }
+          }
         }
       }
     }
+    console.error('[AI API] ⚠️ .env.local не найден или не содержит OPENROUTER_API_KEY');
   } catch (error) {
     console.error('[AI API] ⚠️ Ошибка загрузки .env.local:', error);
   }
-}
+};
+
+// Загружаем при инициализации модуля
+loadEnvLocal();
 
 const PRODUCT_VARIANTS = {
   ezh: {
@@ -589,28 +611,41 @@ export async function POST(req) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
+  // Пытаемся загрузить ключ еще раз перед использованием
+  if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 20) {
+    loadEnvLocal();
+  }
+  
   // Используем только переменную окружения (без fallback для безопасности)
   const OR_TOKEN = process.env.OPENROUTER_API_KEY;
   console.log("[AI API] ========== DEBUG INFO ==========");
   console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
   console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
   console.log("[AI API] OR_TOKEN from env:", !!process.env.OPENROUTER_API_KEY);
-  console.log("[AI API] All env vars with OPENROUTER:", Object.keys(process.env).filter(k => k.includes('OPENROUTER')));
+  console.log("[AI API] process.cwd():", process.cwd());
   console.log("[AI API] NODE_ENV:", process.env.NODE_ENV);
   console.log("[AI API] ================================");
   
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
     console.error("[AI API] ⚠️ OpenRouter API ключ не настроен!");
     console.error("[AI API] OR_TOKEN value:", OR_TOKEN || 'undefined');
-    console.error("[AI API] process.env keys:", Object.keys(process.env).slice(0, 20));
-    return NextResponse.json({ 
-      response: "Извините, сервис временно недоступен. Пожалуйста, попробуйте позже.",
-      error: 'OPENROUTER_KEY_MISSING',
-      debug: {
-        tokenLength: OR_TOKEN?.length || 0,
-        hasToken: !!OR_TOKEN,
-        envKeys: Object.keys(process.env).filter(k => k.includes('OPENROUTER'))
+    // Пробуем загрузить из .env напрямую
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.join('/var/www/spor3s-app/spor3s-app', '.env.local');
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        console.error("[AI API] Содержимое .env.local:", content.substring(0, 100));
+      } else {
+        console.error("[AI API] .env.local не найден по пути:", envPath);
       }
+    } catch (e) {
+      console.error("[AI API] Ошибка проверки .env.local:", e.message);
+    }
+    return NextResponse.json({ 
+      response: "Извините, произошла ошибка. Попробуйте еще раз.",
+      error: 'OPENROUTER_KEY_MISSING'
     }, { status: 503 });
   }
 

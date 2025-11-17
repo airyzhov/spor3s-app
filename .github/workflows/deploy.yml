@@ -247,7 +247,20 @@ jobs:
           fi
           echo "📋 Проверка .env.local:"
           grep "OPENROUTER_API_KEY" .env.local | head -1 | sed 's/OPENROUTER_API_KEY=\(.\{20\}\).*/OPENROUTER_API_KEY=\1.../' || echo "⚠️ OPENROUTER_API_KEY не найден в .env.local"
+          echo "📋 Содержимое .env.local (первые 100 символов):"
+          head -c 100 .env.local || echo "Файл пуст или не существует"
+          echo ""
           cd /var/www/spor3s-app
+          
+          # Перезапускаем PM2 чтобы загрузить новый .env.local файл
+          echo "🔄 Перезапуск PM2 для загрузки .env.local..."
+          pm2 restart spor3s-nextjs --update-env || {
+            echo "⚠️ Перезапуск не удался, удаляю и создаю заново..."
+            pm2 delete spor3s-nextjs 2>/dev/null || true
+            cd "$BUILD_DIR"
+            pm2 start npm --name "spor3s-nextjs" -- start
+          }
+          sleep 5
           
           echo "🔄 Перезапуск PM2 процессов..."
           # Возвращаемся в корень для PM2
