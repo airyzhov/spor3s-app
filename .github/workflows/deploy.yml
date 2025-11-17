@@ -182,6 +182,36 @@ jobs:
             cd /var/www/spor3s-app
           fi
           
+          # Устанавливаем переменную окружения OPENROUTER_API_KEY из GitHub Secrets
+          echo "🔑 Установка OPENROUTER_API_KEY..."
+          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
+          export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+          
+          # Добавляем в .bashrc для постоянного хранения
+          if ! grep -q "OPENROUTER_API_KEY" ~/.bashrc 2>/dev/null; then
+            echo "export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"" >> ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY добавлен в ~/.bashrc"
+          else
+            sed -i "s|export OPENROUTER_API_KEY=.*|export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"|g" ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY обновлен в ~/.bashrc"
+          fi
+          
+          # Создаем или обновляем .env файл в директории проекта
+          cd "$BUILD_DIR"
+          if [ -f .env ]; then
+            if grep -q "OPENROUTER_API_KEY" .env; then
+              sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env
+              echo "✅ OPENROUTER_API_KEY обновлен в .env"
+            else
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env
+              echo "✅ OPENROUTER_API_KEY добавлен в .env"
+            fi
+          else
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env
+            echo "✅ Создан .env файл с OPENROUTER_API_KEY"
+          fi
+          cd /var/www/spor3s-app
+          
           # Проверяем, что процесс запущен
           sleep 3
           pm2 status
