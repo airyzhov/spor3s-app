@@ -566,8 +566,8 @@ export async function POST(req) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
-  // Используем переменную окружения или fallback на захардкоженный ключ
-  const OR_TOKEN = process.env.OPENROUTER_API_KEY || "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";
+  // Используем только переменную окружения (без fallback для безопасности)
+  const OR_TOKEN = process.env.OPENROUTER_API_KEY;
   console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
   console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
   console.log("[AI API] OR_TOKEN from env:", !!process.env.OPENROUTER_API_KEY);
