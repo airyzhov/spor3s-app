@@ -610,11 +610,9 @@ export async function POST(req) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
-  // КРИТИЧНО: Загружаем ключ ПРИ КАЖДОМ запросе, так как Next.js не загружает .env.local в production
-  let OR_TOKEN = process.env.OPENROUTER_API_KEY;
-  
-  // Если ключ не найден или слишком короткий, загружаем из .env.local
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+  // КРИТИЧНО: ВСЕГДА загружаем ключ из .env.local ПРИ КАЖДОМ запросе
+  // Next.js в production НЕ загружает .env.local автоматически
+  let OR_TOKEN = null;
     try {
       const fs = require('fs');
       const path = require('path');
