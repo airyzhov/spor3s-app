@@ -252,25 +252,11 @@ jobs:
           echo ""
           cd /var/www/spor3s-app
           
-          # Перезапускаем PM2 чтобы загрузить новый .env.local файл
-          echo "🔄 Перезапуск PM2 для загрузки .env.local..."
-          pm2 restart spor3s-nextjs --update-env || {
-            echo "⚠️ Перезапуск не удался, удаляю и создаю заново..."
-            pm2 delete spor3s-nextjs 2>/dev/null || true
-            cd "$BUILD_DIR"
-            pm2 start npm --name "spor3s-nextjs" -- start
-          }
-          sleep 5
-          
           echo "🔄 Перезапуск PM2 процессов..."
           # Возвращаемся в корень для PM2
           cd /var/www/spor3s-app
           
-          # Устанавливаем переменную окружения OPENROUTER_API_KEY ПЕРЕД запуском PM2
-          echo "🔑 Установка OPENROUTER_API_KEY..."
-          # Используем ключ из env или fallback (для первого деплоя без GitHub Secrets)
-          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
-          echo "✅ OPENROUTER_API_KEY установлен (длина: ${#OPENROUTER_KEY})"
+          # Переменная OPENROUTER_KEY уже установлена выше, экспортируем ее
           export OPENROUTER_API_KEY="$OPENROUTER_KEY"
           
           # Останавливаем старые процессы
