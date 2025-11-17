@@ -138,17 +138,34 @@ jobs:
           
           # Проверяем наличие роута перед сборкой
           echo "🔍 Проверка роута /api/ai..."
+          ROUTE_FILE=""
           if [ -f "$BUILD_DIR/app/api/ai/route.ts" ]; then
-            echo "✅ Роут app/api/ai/route.ts найден"
-            ls -lh "$BUILD_DIR/app/api/ai/route.ts"
-            if grep -q "export async function POST" "$BUILD_DIR/app/api/ai/route.ts"; then
+            ROUTE_FILE="$BUILD_DIR/app/api/ai/route.ts"
+            echo "✅ Роут найден в $BUILD_DIR/app/api/ai/route.ts"
+          else
+            # Ищем роут в других местах
+            FOUND_ROUTE=$(find "$BUILD_DIR" -name "route.ts" -path "*/api/ai/*" 2>/dev/null | head -1)
+            if [ -n "$FOUND_ROUTE" ]; then
+              echo "⚠️ Роут найден в другом месте: $FOUND_ROUTE"
+              echo "📋 Копирую роут в правильное место..."
+              mkdir -p "$BUILD_DIR/app/api/ai"
+              cp "$FOUND_ROUTE" "$BUILD_DIR/app/api/ai/route.ts"
+              ROUTE_FILE="$BUILD_DIR/app/api/ai/route.ts"
+              echo "✅ Роут скопирован в $ROUTE_FILE"
+            else
+              echo "❌ Роут app/api/ai/route.ts НЕ НАЙДЕН нигде!"
+              exit 1
+            fi
+          fi
+          
+          if [ -n "$ROUTE_FILE" ] && [ -f "$ROUTE_FILE" ]; then
+            ls -lh "$ROUTE_FILE"
+            if grep -q "export async function POST" "$ROUTE_FILE"; then
               echo "✅ Функция POST экспортирована"
             else
               echo "❌ Функция POST НЕ экспортирована!"
+              exit 1
             fi
-          else
-            echo "❌ Роут app/api/ai/route.ts НЕ НАЙДЕН!"
-            find "$BUILD_DIR" -name "route.ts" -path "*/api/ai/*" 2>/dev/null || echo "Роут не найден нигде"
           fi
           
           echo "📦 Очистка кэша перед сборкой..."
