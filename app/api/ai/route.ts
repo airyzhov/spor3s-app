@@ -568,15 +568,26 @@ export async function POST(req) {
   
   // Используем только переменную окружения (без fallback для безопасности)
   const OR_TOKEN = process.env.OPENROUTER_API_KEY;
+  console.log("[AI API] ========== DEBUG INFO ==========");
   console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
   console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
   console.log("[AI API] OR_TOKEN from env:", !!process.env.OPENROUTER_API_KEY);
+  console.log("[AI API] All env vars with OPENROUTER:", Object.keys(process.env).filter(k => k.includes('OPENROUTER')));
+  console.log("[AI API] NODE_ENV:", process.env.NODE_ENV);
+  console.log("[AI API] ================================");
   
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
     console.error("[AI API] ⚠️ OpenRouter API ключ не настроен!");
+    console.error("[AI API] OR_TOKEN value:", OR_TOKEN || 'undefined');
+    console.error("[AI API] process.env keys:", Object.keys(process.env).slice(0, 20));
     return NextResponse.json({ 
       response: "Извините, сервис временно недоступен. Пожалуйста, попробуйте позже.",
-      error: 'OPENROUTER_KEY_MISSING' 
+      error: 'OPENROUTER_KEY_MISSING',
+      debug: {
+        tokenLength: OR_TOKEN?.length || 0,
+        hasToken: !!OR_TOKEN,
+        envKeys: Object.keys(process.env).filter(k => k.includes('OPENROUTER'))
+      }
     }, { status: 503 });
   }
 
