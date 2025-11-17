@@ -136,11 +136,44 @@ jobs:
           
           echo "✅ Структура проекта определена правильно"
           
+          # Проверяем наличие роута перед сборкой
+          echo "🔍 Проверка роута /api/ai..."
+          if [ -f "$BUILD_DIR/app/api/ai/route.ts" ]; then
+            echo "✅ Роут app/api/ai/route.ts найден"
+            ls -lh "$BUILD_DIR/app/api/ai/route.ts"
+            if grep -q "export async function POST" "$BUILD_DIR/app/api/ai/route.ts"; then
+              echo "✅ Функция POST экспортирована"
+            else
+              echo "❌ Функция POST НЕ экспортирована!"
+            fi
+          else
+            echo "❌ Роут app/api/ai/route.ts НЕ НАЙДЕН!"
+            find "$BUILD_DIR" -name "route.ts" -path "*/api/ai/*" 2>/dev/null || echo "Роут не найден нигде"
+          fi
+          
           echo "📦 Очистка кэша перед сборкой..."
           rm -rf "$BUILD_DIR/.next" 2>/dev/null || true
+          rm -rf "$BUILD_DIR/node_modules/.cache" 2>/dev/null || true
           
           echo "📦 Запуск сборки в $BUILD_DIR..."
-          npm run build
+          npm run build 2>&1 | tee /tmp/build.log || {
+            echo "❌ Ошибка сборки!"
+            tail -50 /tmp/build.log
+            exit 1
+          }
+          
+          # Проверяем, что роут скомпилировался
+          echo "🔍 Проверка компиляции роута /api/ai..."
+          if [ -d "$BUILD_DIR/.next/server/app/api/ai" ]; then
+            echo "✅ Роут /api/ai скомпилирован в .next/server/app/api/ai"
+            ls -la "$BUILD_DIR/.next/server/app/api/ai/" || echo "Директория пуста"
+          else
+            echo "⚠️ Роут /api/ai НЕ найден в сборке!"
+            echo "Проверяю все API роуты:"
+            find "$BUILD_DIR/.next/server/app/api" -name "route.js" -o -name "route.ts" 2>/dev/null | head -10 || echo "API роуты не найдены"
+            echo "Проверяю логи сборки на ошибки:"
+            grep -i "api/ai\|route.ts\|error\|Error\|failed\|Failed" /tmp/build.log | tail -20 || echo "Ошибок не найдено"
+          fi
           
           echo "📁 Проверка public/products..."
           # Копируем изображения если они в поддиректории
