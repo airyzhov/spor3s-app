@@ -219,20 +219,34 @@ jobs:
             echo "✅ OPENROUTER_API_KEY обновлен в ~/.bashrc"
           fi
           
-          # Создаем или обновляем .env файл в директории проекта ПЕРЕД перезапуском PM2
+          # Создаем или обновляем .env.local файл в директории проекта ПЕРЕД перезапуском PM2
+          # Next.js автоматически загружает .env.local в production
           cd "$BUILD_DIR"
+          if [ -f .env.local ]; then
+            if grep -q "OPENROUTER_API_KEY" .env.local; then
+              sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env.local
+              echo "✅ OPENROUTER_API_KEY обновлен в .env.local"
+            else
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
+              echo "✅ OPENROUTER_API_KEY добавлен в .env.local"
+            fi
+          else
+            # Создаем .env.local с ключом (если файл не существует, создаем его)
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+            echo "✅ Создан .env.local файл с OPENROUTER_API_KEY"
+          fi
+          # Также обновляем .env для совместимости
           if [ -f .env ]; then
             if grep -q "OPENROUTER_API_KEY" .env; then
               sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env
-              echo "✅ OPENROUTER_API_KEY обновлен в .env"
             else
               echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env
-              echo "✅ OPENROUTER_API_KEY добавлен в .env"
             fi
           else
             echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env
-            echo "✅ Создан .env файл с OPENROUTER_API_KEY"
           fi
+          echo "📋 Проверка .env.local:"
+          grep "OPENROUTER_API_KEY" .env.local | head -1 | sed 's/OPENROUTER_API_KEY=\(.\{20\}\).*/OPENROUTER_API_KEY=\1.../' || echo "⚠️ OPENROUTER_API_KEY не найден в .env.local"
           cd /var/www/spor3s-app
           
           echo "🔄 Перезапуск PM2 процессов..."
