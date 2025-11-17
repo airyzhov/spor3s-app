@@ -617,14 +617,23 @@ export async function POST(req) {
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
   
-  // КРИТИЧНО: ВСЕГДА загружаем ключ из .env.local ПРИ КАЖДОМ запросе
-  // Next.js в production НЕ загружает .env.local автоматически
+  // КРИТИЧНО: ВСЕГДА загружаем ключ ПРИ КАЖДОМ запросе
+  // Приоритет: 1) process.env (от PM2), 2) .env.local файл
   let OR_TOKEN = null;
   
-  // Сначала пробуем из process.env (может быть установлен через PM2)
+  // Сначала пробуем из process.env (установлен через PM2 set)
+  console.log('[AI API] 🔍 Проверка process.env.OPENROUTER_API_KEY...');
+  console.log('[AI API] process.env.OPENROUTER_API_KEY существует:', !!process.env.OPENROUTER_API_KEY);
+  if (process.env.OPENROUTER_API_KEY) {
+    console.log('[AI API] Длина ключа из process.env:', process.env.OPENROUTER_API_KEY.length);
+    console.log('[AI API] Первые 25 символов:', process.env.OPENROUTER_API_KEY.substring(0, 25));
+  }
+  
   if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
     OR_TOKEN = process.env.OPENROUTER_API_KEY;
-    console.log('[AI API] ✅ Ключ найден в process.env, длина:', OR_TOKEN.length);
+    console.log('[AI API] ✅✅✅ Ключ загружен из process.env (PM2), длина:', OR_TOKEN.length);
+  } else {
+    console.log('[AI API] ⚠️ Ключ не найден в process.env или слишком короткий');
   }
   
   // ВСЕГДА загружаем из .env.local для надежности (даже если есть в process.env)
