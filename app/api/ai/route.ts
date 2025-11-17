@@ -5,6 +5,30 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
+// КРИТИЧНО: Загружаем переменные окружения при инициализации модуля
+// Пробуем использовать dotenv если доступен, иначе читаем файл напрямую
+let envLoaded = false;
+if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 20) {
+  try {
+    // Пробуем использовать dotenv
+    try {
+      const dotenv = require('dotenv');
+      const path = require('path');
+      const result = dotenv.config({ path: '/var/www/spor3s-app/spor3s-app/.env.local' });
+      if (result.parsed && result.parsed.OPENROUTER_API_KEY) {
+        process.env.OPENROUTER_API_KEY = result.parsed.OPENROUTER_API_KEY;
+        console.log('[AI API] ✅ Ключ загружен через dotenv из .env.local');
+        envLoaded = true;
+      }
+    } catch (dotenvError) {
+      // dotenv не установлен, используем прямое чтение файла
+      console.log('[AI API] dotenv не доступен, используем прямое чтение файла');
+    }
+  } catch (error) {
+    console.error('[AI API] Ошибка загрузки через dotenv:', error);
+  }
+}
+
 // Загружаем переменные окружения из .env.local для production
 const loadEnvLocal = () => {
   try {
