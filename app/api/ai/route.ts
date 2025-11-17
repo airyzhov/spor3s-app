@@ -5,6 +5,29 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
+// Загружаем переменные окружения из .env.local для production
+if (typeof process !== 'undefined' && process.env && !process.env.OPENROUTER_API_KEY) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const envLocalPath = path.join(process.cwd(), '.env.local');
+    if (fs.existsSync(envLocalPath)) {
+      const envContent = fs.readFileSync(envLocalPath, 'utf8');
+      const lines = envContent.split('\n');
+      for (const line of lines) {
+        const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
+        if (match) {
+          process.env.OPENROUTER_API_KEY = match[1].trim();
+          console.log('[AI API] ✅ OPENROUTER_API_KEY загружен из .env.local');
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[AI API] ⚠️ Ошибка загрузки .env.local:', error);
+  }
+}
+
 const PRODUCT_VARIANTS = {
   ezh: {
     label: 'Ежовик',
