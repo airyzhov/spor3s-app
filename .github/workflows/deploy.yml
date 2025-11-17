@@ -266,6 +266,13 @@ jobs:
           # Возвращаемся в корень для PM2
           cd /var/www/spor3s-app
           
+          # Устанавливаем переменную окружения OPENROUTER_API_KEY ПЕРЕД запуском PM2
+          echo "🔑 Установка OPENROUTER_API_KEY..."
+          # Используем ключ из env или fallback (для первого деплоя без GitHub Secrets)
+          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
+          echo "✅ OPENROUTER_API_KEY установлен (длина: ${#OPENROUTER_KEY})"
+          export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+          
           # Останавливаем старые процессы
           pm2 delete all || true
           
@@ -286,6 +293,7 @@ jobs:
               sed -i "s|cwd: '/var/www/spor3s-app/spor3s-app'|cwd: '$BUILD_DIR'|g" ecosystem.config.js || true
             fi
             # Запускаем PM2 с переменной окружения OPENROUTER_API_KEY
+            echo "🚀 Запуск PM2 с OPENROUTER_API_KEY..."
             OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js
           else
             echo "⚠️ ecosystem.config.js не найден, запускаем напрямую..."
@@ -293,13 +301,6 @@ jobs:
             OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start npm --name "spor3s-nextjs" -- start
             cd /var/www/spor3s-app
           fi
-          
-          # Устанавливаем переменную окружения OPENROUTER_API_KEY
-          echo "🔑 Установка OPENROUTER_API_KEY..."
-          # Используем ключ из env или fallback (для первого деплоя без GitHub Secrets)
-          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
-          echo "✅ OPENROUTER_API_KEY установлен (длина: ${#OPENROUTER_KEY})"
-          export OPENROUTER_API_KEY="$OPENROUTER_KEY"
           
           # Добавляем в .bashrc для постоянного хранения
           if ! grep -q "OPENROUTER_API_KEY" ~/.bashrc 2>/dev/null; then
