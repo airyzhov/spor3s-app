@@ -6,7 +6,6 @@ import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
 // Загружаем переменные окружения из .env.local для production
-// Пробуем несколько путей для .env.local
 const loadEnvLocal = () => {
   if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
     return; // Уже загружен
