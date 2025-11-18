@@ -732,24 +732,37 @@ export async function POST(req) {
     console.error("[AI API] Stack:", e.stack);
   }
   
+  // ФИНАЛЬНАЯ ПРОВЕРКА И ЛОГИРОВАНИЕ
+  console.log("[AI API] ========== DEBUG INFO ==========");
+  console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
+  console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
+  console.log("[AI API] process.env.OPENROUTER_API_KEY существует:", !!process.env.OPENROUTER_API_KEY);
+  if (process.env.OPENROUTER_API_KEY) {
+    console.log("[AI API] process.env.OPENROUTER_API_KEY длина:", process.env.OPENROUTER_API_KEY.length);
+  }
+  console.log("[AI API] process.cwd():", process.cwd());
+  console.log("[AI API] NODE_ENV:", process.env.NODE_ENV);
+  console.log("[AI API] Все env переменные с OPENROUTER:", Object.keys(process.env).filter(k => k.includes('OPENROUTER')));
+  console.log("[AI API] ================================");
+  
   if (OR_TOKEN && OR_TOKEN.length > 20) {
     console.log('[AI API] ✅✅✅ Ключ успешно загружен! Длина:', OR_TOKEN.length);
   } else {
     console.error('[AI API] ❌❌❌ Ключ НЕ загружен!');
     console.error('[AI API] OR_TOKEN:', OR_TOKEN ? `длина ${OR_TOKEN.length}` : 'null');
+    console.error('[AI API] Попробуем использовать process.env напрямую...');
+    
+    // ПОСЛЕДНЯЯ ПОПЫТКА: используем process.env напрямую
+    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+      OR_TOKEN = process.env.OPENROUTER_API_KEY;
+      console.log('[AI API] ✅ Ключ найден в process.env напрямую!');
+    }
   }
-  
-  console.log("[AI API] ========== DEBUG INFO ==========");
-  console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
-  console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
-  console.log("[AI API] OR_TOKEN from env:", !!process.env.OPENROUTER_API_KEY);
-  console.log("[AI API] process.cwd():", process.cwd());
-  console.log("[AI API] NODE_ENV:", process.env.NODE_ENV);
-  console.log("[AI API] ================================");
   
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
     console.error("[AI API] ⚠️ OpenRouter API ключ не настроен!");
     console.error("[AI API] OR_TOKEN value:", OR_TOKEN || 'undefined');
+    console.error("[AI API] Проверьте что переменная OPENROUTER_API_KEY установлена в PM2");
     return NextResponse.json({ 
       response: "Извините, произошла ошибка. Попробуйте еще раз.",
       error: 'OPENROUTER_KEY_MISSING'
