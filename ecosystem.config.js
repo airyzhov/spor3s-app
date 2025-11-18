@@ -69,7 +69,11 @@ module.exports = {
       script: 'npm',
       args: 'start',
       cwd: '/var/www/spor3s-app/spor3s-app',
-      env: envVars,
+      env: {
+        ...envVars,
+        // Явно устанавливаем OPENROUTER_API_KEY если он загружен
+        OPENROUTER_API_KEY: envVars.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || ''
+      },
       instances: 1,
       autorestart: true,
       watch: false,
