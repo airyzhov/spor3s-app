@@ -646,11 +646,17 @@ export async function POST(req) {
   let OR_TOKEN = null;
   
   // Сначала пробуем из process.env (установлен через PM2 set)
+  console.log('[AI API] ========== НАЧАЛО ЗАГРУЗКИ КЛЮЧА ==========');
   console.log('[AI API] 🔍 Проверка process.env.OPENROUTER_API_KEY...');
   console.log('[AI API] process.env.OPENROUTER_API_KEY существует:', !!process.env.OPENROUTER_API_KEY);
+  console.log('[AI API] Все env переменные:', Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('ROUTER')).join(', '));
+  
   if (process.env.OPENROUTER_API_KEY) {
     console.log('[AI API] Длина ключа из process.env:', process.env.OPENROUTER_API_KEY.length);
     console.log('[AI API] Первые 25 символов:', process.env.OPENROUTER_API_KEY.substring(0, 25));
+    console.log('[AI API] Последние 10 символов:', process.env.OPENROUTER_API_KEY.substring(process.env.OPENROUTER_API_KEY.length - 10));
+  } else {
+    console.log('[AI API] ⚠️ process.env.OPENROUTER_API_KEY НЕ СУЩЕСТВУЕТ!');
   }
   
   if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
@@ -658,6 +664,7 @@ export async function POST(req) {
     console.log('[AI API] ✅✅✅ Ключ загружен из process.env (PM2), длина:', OR_TOKEN.length);
   } else {
     console.log('[AI API] ⚠️ Ключ не найден в process.env или слишком короткий');
+    console.log('[AI API] Попробуем загрузить из .env.local...');
   }
   
   // ВСЕГДА загружаем из .env.local для надежности (даже если есть в process.env)
@@ -760,14 +767,23 @@ export async function POST(req) {
   }
   
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.error("[AI API] ⚠️ OpenRouter API ключ не настроен!");
+    console.error("[AI API] ❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: OpenRouter API ключ не настроен!");
     console.error("[AI API] OR_TOKEN value:", OR_TOKEN || 'undefined');
+    console.error("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
+    console.error("[AI API] process.env.OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY || 'undefined');
+    console.error("[AI API] process.env.OPENROUTER_API_KEY length:", process.env.OPENROUTER_API_KEY?.length || 0);
     console.error("[AI API] Проверьте что переменная OPENROUTER_API_KEY установлена в PM2");
+    console.error("[AI API] Выполните на сервере: pm2 set spor3s-nextjs:env OPENROUTER_API_KEY <key>");
+    console.error("[AI API] Затем: pm2 restart spor3s-nextjs --update-env");
+    console.error("[AI API] ========== КОНЕЦ ОШИБКИ ==========");
     return NextResponse.json({ 
-      response: "Извините, произошла ошибка. Попробуйте еще раз.",
+      response: "OpenRouter токен не найден.",
       error: 'OPENROUTER_KEY_MISSING'
     }, { status: 503 });
   }
+  
+  console.log("[AI API] ✅✅✅ Ключ успешно загружен! Длина:", OR_TOKEN.length);
+  console.log("[AI API] ========== КОНЕЦ ЗАГРУЗКИ КЛЮЧА ==========");
 
   // Валидация входного сообщения
   if (typeof message !== 'string' || message.trim().length === 0) {
