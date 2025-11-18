@@ -1,3 +1,41 @@
+// КРИТИЧНО: Загружаем переменные окружения из .env.local для production
+try {
+  const fs = require('fs');
+  const path = require('path');
+  
+  // Пробуем разные пути для .env.local
+  const possiblePaths = [
+    '/var/www/spor3s-app/spor3s-app/.env.local',
+    '/var/www/spor3s-app/.env.local',
+    path.join(process.cwd(), '.env.local'),
+    '.env.local'
+  ];
+  
+  for (const envPath of possiblePaths) {
+    if (fs.existsSync(envPath)) {
+      console.log(`[next.config.js] Загружаю переменные из: ${envPath}`);
+      const content = fs.readFileSync(envPath, 'utf8');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const match = line.match(/^([^=]+)=(.+)$/);
+        if (match) {
+          const key = match[1].trim();
+          let value = match[2].trim().replace(/^["']|["']$/g, '');
+          if (key && value && !process.env[key]) {
+            process.env[key] = value;
+            if (key === 'OPENROUTER_API_KEY') {
+              console.log(`[next.config.js] ✅ OPENROUTER_API_KEY загружен (длина: ${value.length})`);
+            }
+          }
+        }
+      }
+      break;
+    }
+  }
+} catch (error) {
+  console.error('[next.config.js] Ошибка загрузки .env.local:', error.message);
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Исключаем my-fresh-app из сборки
