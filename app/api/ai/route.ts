@@ -766,8 +766,8 @@ export async function POST(req) {
     console.error("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
     console.error("[AI API] process.env.OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY || 'undefined');
     console.error("[AI API] process.env.OPENROUTER_API_KEY length:", process.env.OPENROUTER_API_KEY?.length || 0);
-    console.error("[AI API] Проверьте что переменная OPENROUTER_API_KEY установлена в PM2");
-    console.error("[AI API] Выполните на сервере: pm2 set spor3s-nextjs:env OPENROUTER_API_KEY <key>");
+    console.error("[AI API] Проверьте что файл /var/www/spor3s-app/spor3s-app/.env.local существует и содержит OPENROUTER_API_KEY");
+    console.error("[AI API] Выполните на сервере: echo 'OPENROUTER_API_KEY=<key>' > /var/www/spor3s-app/spor3s-app/.env.local");
     console.error("[AI API] Затем: pm2 restart spor3s-nextjs --update-env");
     console.error("[AI API] ========== КОНЕЦ ОШИБКИ ==========");
     return NextResponse.json({ 
