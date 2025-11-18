@@ -787,14 +787,45 @@ export async function POST(req) {
     console.error("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
     console.error("[AI API] process.env.OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY || 'undefined');
     console.error("[AI API] process.env.OPENROUTER_API_KEY length:", process.env.OPENROUTER_API_KEY?.length || 0);
-    console.error("[AI API] Проверьте что файл /var/www/spor3s-app/spor3s-app/.env.local существует и содержит OPENROUTER_API_KEY");
-    console.error("[AI API] Выполните на сервере: echo 'OPENROUTER_API_KEY=<key>' > /var/www/spor3s-app/spor3s-app/.env.local");
-    console.error("[AI API] Затем: pm2 restart spor3s-nextjs --update-env");
-    console.error("[AI API] ========== КОНЕЦ ОШИБКИ ==========");
-    return NextResponse.json({ 
-      response: "OpenRouter токен не найден.",
-      error: 'OPENROUTER_KEY_MISSING'
-    }, { status: 503 });
+    
+    // ПОСЛЕДНЯЯ ПОПЫТКА: читаем файл напрямую прямо сейчас
+    try {
+      const fs = require('fs');
+      const directPath = '/var/www/spor3s-app/spor3s-app/.env.local';
+      console.error("[AI API] 🔄 Последняя попытка: читаю файл напрямую из", directPath);
+      if (fs.existsSync(directPath)) {
+        const content = fs.readFileSync(directPath, 'utf8');
+        console.error("[AI API] Содержимое файла:", content.substring(0, 200));
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+          if (match) {
+            let key = match[1].trim().replace(/^["']|["']$/g, '');
+            if (key && key.length > 20) {
+              OR_TOKEN = key;
+              process.env.OPENROUTER_API_KEY = key;
+              console.error("[AI API] ✅✅✅ КЛЮЧ ЗАГРУЖЕН В ПОСЛЕДНЮЮ СЕКУНДУ! Длина:", key.length);
+              break;
+            }
+          }
+        }
+      } else {
+        console.error("[AI API] Файл НЕ существует:", directPath);
+      }
+    } catch (lastError) {
+      console.error("[AI API] Ошибка последней попытки:", lastError.message);
+    }
+    
+    if (!OR_TOKEN || OR_TOKEN.length < 20) {
+      console.error("[AI API] Проверьте что файл /var/www/spor3s-app/spor3s-app/.env.local существует и содержит OPENROUTER_API_KEY");
+      console.error("[AI API] Выполните на сервере: echo 'OPENROUTER_API_KEY=<key>' > /var/www/spor3s-app/spor3s-app/.env.local");
+      console.error("[AI API] Затем: pm2 restart spor3s-nextjs --update-env");
+      console.error("[AI API] ========== КОНЕЦ ОШИБКИ ==========");
+      return NextResponse.json({ 
+        response: "OpenRouter токен не найден.",
+        error: 'OPENROUTER_KEY_MISSING'
+      }, { status: 503 });
+    }
   }
   
   console.log("[AI API] ✅✅✅ Ключ успешно загружен! Длина:", OR_TOKEN.length);
