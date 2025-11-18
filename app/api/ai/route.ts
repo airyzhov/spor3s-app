@@ -24,6 +24,28 @@ if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 2
       // dotenv не установлен, используем прямое чтение файла
       console.log('[AI API] dotenv не доступен, используем прямое чтение файла');
     }
+    
+    // Если dotenv не сработал, пробуем прямое чтение
+    if (!envLoaded) {
+      const fs = require('fs');
+      const envPath = '/var/www/spor3s-app/spor3s-app/.env.local';
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf8');
+        const lines = content.split('\n');
+        for (const line of lines) {
+          const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+          if (match) {
+            let key = match[1].trim().replace(/^["']|["']$/g, '');
+            if (key && key.length > 20) {
+              process.env.OPENROUTER_API_KEY = key;
+              console.log('[AI API] ✅ Ключ загружен при инициализации модуля из .env.local');
+              envLoaded = true;
+              break;
+            }
+          }
+        }
+      }
+    }
   } catch (error) {
     console.error('[AI API] Ошибка загрузки через dotenv:', error);
   }
