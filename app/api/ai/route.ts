@@ -1,55 +1,59 @@
 // @ts-nocheck
+// КРИТИЧНО: Загружаем переменные окружения ПЕРЕД всеми импортами
+// Это гарантирует что переменные будут доступны во всем модуле
+(function() {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Пробуем разные пути для .env.local
+    const possiblePaths = [
+      '/var/www/spor3s-app/spor3s-app/.env.local',
+      '/var/www/spor3s-app/.env.local',
+      path.join(process.cwd(), '.env.local'),
+      '.env.local'
+    ];
+    
+    for (const envPath of possiblePaths) {
+      try {
+        if (fs.existsSync(envPath)) {
+          console.log(`[AI API] 🔍 Загружаю переменные из: ${envPath}`);
+          const content = fs.readFileSync(envPath, 'utf8');
+          const lines = content.split('\n');
+          for (const line of lines) {
+            const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+            if (match) {
+              let key = match[1].trim().replace(/^["']|["']$/g, '');
+              if (key && key.length > 20) {
+                process.env.OPENROUTER_API_KEY = key;
+                console.log(`[AI API] ✅✅✅ OPENROUTER_API_KEY загружен из ${envPath} (длина: ${key.length})`);
+                console.log(`[AI API] Первые 25 символов: ${key.substring(0, 25)}...`);
+                return; // Выходим после успешной загрузки
+              }
+            }
+          }
+        }
+      } catch (pathError) {
+        // Продолжаем поиск по другим путям
+      }
+    }
+    
+    // Если не загрузили из файла, проверяем process.env
+    if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 20) {
+      console.error('[AI API] ⚠️ OPENROUTER_API_KEY не найден ни в .env.local, ни в process.env');
+    } else {
+      console.log(`[AI API] ✅ OPENROUTER_API_KEY найден в process.env (длина: ${process.env.OPENROUTER_API_KEY.length})`);
+    }
+  } catch (error) {
+    console.error('[AI API] ❌ Критическая ошибка загрузки переменных:', error.message);
+  }
+})();
+
 import { NextRequest, NextResponse } from "next/server";
 import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
 import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
-
-// КРИТИЧНО: Загружаем переменные окружения при инициализации модуля
-// Пробуем использовать dotenv если доступен, иначе читаем файл напрямую
-let envLoaded = false;
-if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 20) {
-  try {
-    // Пробуем использовать dotenv
-    try {
-      const dotenv = require('dotenv');
-      const path = require('path');
-      const result = dotenv.config({ path: '/var/www/spor3s-app/spor3s-app/.env.local' });
-      if (result.parsed && result.parsed.OPENROUTER_API_KEY) {
-        process.env.OPENROUTER_API_KEY = result.parsed.OPENROUTER_API_KEY;
-        console.log('[AI API] ✅ Ключ загружен через dotenv из .env.local');
-        envLoaded = true;
-      }
-    } catch (dotenvError) {
-      // dotenv не установлен, используем прямое чтение файла
-      console.log('[AI API] dotenv не доступен, используем прямое чтение файла');
-    }
-    
-    // Если dotenv не сработал, пробуем прямое чтение
-    if (!envLoaded) {
-      const fs = require('fs');
-      const envPath = '/var/www/spor3s-app/spor3s-app/.env.local';
-      if (fs.existsSync(envPath)) {
-        const content = fs.readFileSync(envPath, 'utf8');
-        const lines = content.split('\n');
-        for (const line of lines) {
-          const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
-          if (match) {
-            let key = match[1].trim().replace(/^["']|["']$/g, '');
-            if (key && key.length > 20) {
-              process.env.OPENROUTER_API_KEY = key;
-              console.log('[AI API] ✅ Ключ загружен при инициализации модуля из .env.local');
-              envLoaded = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[AI API] Ошибка загрузки через dotenv:', error);
-  }
-}
 
 // Загружаем переменные окружения из .env.local для production
 const loadEnvLocal = () => {
