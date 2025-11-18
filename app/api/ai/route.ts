@@ -668,29 +668,59 @@ export async function POST(req) {
   const messageSource = source || 'mini_app';
   
   // КРИТИЧНО: ВСЕГДА загружаем ключ ПРИ КАЖДОМ запросе
-  // Приоритет: 1) process.env (от PM2), 2) .env.local файл
+  // Приоритет: 1) .env.local файл (надежнее), 2) process.env (от PM2)
   let OR_TOKEN = null;
   
-  // Сначала пробуем из process.env (установлен через PM2 set)
   console.log('[AI API] ========== НАЧАЛО ЗАГРУЗКИ КЛЮЧА ==========');
-  console.log('[AI API] 🔍 Проверка process.env.OPENROUTER_API_KEY...');
-  console.log('[AI API] process.env.OPENROUTER_API_KEY существует:', !!process.env.OPENROUTER_API_KEY);
-  console.log('[AI API] Все env переменные:', Object.keys(process.env).filter(k => k.includes('OPEN') || k.includes('ROUTER')).join(', '));
   
-  if (process.env.OPENROUTER_API_KEY) {
-    console.log('[AI API] Длина ключа из process.env:', process.env.OPENROUTER_API_KEY.length);
-    console.log('[AI API] Первые 25 символов:', process.env.OPENROUTER_API_KEY.substring(0, 25));
-    console.log('[AI API] Последние 10 символов:', process.env.OPENROUTER_API_KEY.substring(process.env.OPENROUTER_API_KEY.length - 10));
-  } else {
-    console.log('[AI API] ⚠️ process.env.OPENROUTER_API_KEY НЕ СУЩЕСТВУЕТ!');
+  // ПЕРВЫМ ДЕЛОМ: загружаем из .env.local файла (самый надежный способ)
+  try {
+    const fs = require('fs');
+    const envPath = '/var/www/spor3s-app/spor3s-app/.env.local';
+    console.log(`[AI API] 🔍 Пытаюсь загрузить из: ${envPath}`);
+    
+    if (fs.existsSync(envPath)) {
+      console.log(`[AI API] ✅ Файл существует!`);
+      const content = fs.readFileSync(envPath, 'utf8');
+      console.log(`[AI API] Размер файла: ${content.length} символов`);
+      
+      const lines = content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('#')) continue;
+        
+        const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+        if (match) {
+          let key = match[1].trim().replace(/^["']|["']$/g, '');
+          console.log(`[AI API] Найден ключ на строке ${i+1}, длина: ${key.length}`);
+          if (key && key.length > 20) {
+            OR_TOKEN = key;
+            process.env.OPENROUTER_API_KEY = key;
+            console.log(`[AI API] ✅✅✅ Ключ загружен из .env.local! Длина: ${key.length}`);
+            console.log(`[AI API] Первые 25 символов: ${key.substring(0, 25)}...`);
+            break;
+          }
+        }
+      }
+    } else {
+      console.log(`[AI API] ⚠️ Файл НЕ существует: ${envPath}`);
+    }
+  } catch (fileError) {
+    console.error(`[AI API] ⚠️ Ошибка чтения .env.local:`, fileError.message);
   }
   
-  if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
-    OR_TOKEN = process.env.OPENROUTER_API_KEY;
-    console.log('[AI API] ✅✅✅ Ключ загружен из process.env (PM2), длина:', OR_TOKEN.length);
-  } else {
-    console.log('[AI API] ⚠️ Ключ не найден в process.env или слишком короткий');
-    console.log('[AI API] Попробуем загрузить из .env.local...');
+  // Если не загрузили из файла, пробуем process.env
+  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+    console.log('[AI API] 🔍 Проверка process.env.OPENROUTER_API_KEY...');
+    console.log('[AI API] process.env.OPENROUTER_API_KEY существует:', !!process.env.OPENROUTER_API_KEY);
+    
+    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+      OR_TOKEN = process.env.OPENROUTER_API_KEY;
+      console.log('[AI API] ✅✅✅ Ключ загружен из process.env (PM2), длина:', OR_TOKEN.length);
+      console.log('[AI API] Первые 25 символов:', OR_TOKEN.substring(0, 25));
+    } else {
+      console.log('[AI API] ⚠️ Ключ не найден в process.env или слишком короткий');
+    }
   }
   
   // ВСЕГДА загружаем из .env.local для надежности (даже если есть в process.env)
