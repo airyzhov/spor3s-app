@@ -1903,5 +1903,15 @@ export async function POST(req: NextRequest) {
     }
   }
   
-  return NextResponse.json({ response: reply });
+  // КРИТИЧНО: Обработка ошибок перед возвратом ответа
+  try {
+    return NextResponse.json({ response: reply });
+  } catch (error) {
+    console.error('[AI API] Ошибка при формировании ответа:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ 
+      response: "Извините, произошла ошибка при обработке запроса.",
+      error: errorMessage
+    }, { status: 500 });
+  }
 } 
