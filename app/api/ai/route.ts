@@ -1,66 +1,9 @@
 // @ts-nocheck
-// КРИТИЧНО: Загружаем переменные окружения ПЕРЕД всеми импортами
-// Это гарантирует что переменные будут доступны во всем модуле
-(function() {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    
-    // Пробуем разные пути для .env.local в порядке приоритета
-    const possiblePaths = [
-      '/var/www/spor3s-app/spor3s-app/.env.local',
-      '/var/www/spor3s-app/.env.local',
-      path.join(process.cwd(), '.env.local'),
-      path.join(process.cwd(), '..', '.env.local'),
-      '.env.local'
-    ];
-    
-    console.log('[AI API] 🔍 Инициализация модуля: поиск OPENROUTER_API_KEY...');
-    console.log('[AI API] process.cwd():', process.cwd());
-    
-    for (const envPath of possiblePaths) {
-      try {
-        if (fs.existsSync(envPath)) {
-          console.log(`[AI API] ✅ Файл найден: ${envPath}`);
-          const content = fs.readFileSync(envPath, 'utf8');
-          console.log(`[AI API] Размер файла: ${content.length} символов`);
-          const lines = content.split('\n');
-          for (const line of lines) {
-            const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
-            if (match) {
-              let key = match[1].trim().replace(/^["']|["']$/g, '');
-              if (key && key.length > 20) {
-                process.env.OPENROUTER_API_KEY = key;
-                console.log(`[AI API] ✅✅✅ OPENROUTER_API_KEY загружен из ${envPath} (длина: ${key.length})`);
-                console.log(`[AI API] Первые 25 символов: ${key.substring(0, 25)}...`);
-                return; // Выходим после успешной загрузки
-              }
-            }
-          }
-        }
-      } catch (pathError) {
-        console.error(`[AI API] ⚠️ Ошибка проверки ${envPath}:`, pathError.message);
-      }
-    }
-    
-    // Если не загрузили из файла, проверяем process.env
-    if (!process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY.length < 20) {
-      console.error('[AI API] ⚠️ OPENROUTER_API_KEY не найден ни в .env.local, ни в process.env при инициализации');
-      console.error('[AI API] Будет попытка загрузки при каждом запросе');
-    } else {
-      console.log(`[AI API] ✅ OPENROUTER_API_KEY найден в process.env (длина: ${process.env.OPENROUTER_API_KEY.length})`);
-    }
-  } catch (error) {
-    console.error('[AI API] ❌ Критическая ошибка загрузки переменных:', error.message);
-    console.error('[AI API] Stack:', error.stack);
-  }
-})();
-
 import { NextRequest, NextResponse } from "next/server";
 import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
 import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
-import { ContentManager } from "../../../../lib/contentManager";
+import { ContentManager } from "../../../lib/contentManager";
 
 // Загружаем переменные окружения из .env.local для production
 const loadEnvLocal = () => {
