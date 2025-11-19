@@ -70,6 +70,11 @@ const nextConfig = {
       use: 'ignore-loader',
     });
     
+    // Исправляем проблему с циклическими зависимостями
+    config.resolve = config.resolve || {};
+    config.resolve.symlinks = false;
+    config.resolve.cacheWithContext = false;
+    
     return config;
   },
   async headers() {
