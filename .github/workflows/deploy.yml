@@ -377,7 +377,9 @@ jobs:
           fi
           
           # Останавливаем старые процессы
+          echo "🛑 Остановка старых процессов PM2..."
           pm2 delete all || true
+          sleep 2
           
           # Обновляем ecosystem.config.js если нужно
           if [ -f ecosystem.config.js ]; then
@@ -398,7 +400,13 @@ jobs:
             # Запускаем PM2 с переменной окружения OPENROUTER_API_KEY
             echo "🚀 Запуск PM2 с OPENROUTER_API_KEY..."
             echo "📋 OPENROUTER_KEY длина: ${#OPENROUTER_KEY}"
-            OPENROUTER_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js --update-env
+            # Убеждаемся что .env.local существует перед запуском
+            if [ ! -f "$NEXTJS_DIR/.env.local" ]; then
+              echo "⚠️ .env.local не найден, создаем..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            fi
+            OPENROUTER_API_KEY="$OPENROUTER_KEY" OPENAI_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js --update-env
             sleep 5
             echo "📊 Статус PM2:"
             pm2 list

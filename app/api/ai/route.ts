@@ -666,8 +666,6 @@ export async function POST(req: NextRequest) {
   console.log('[AI API] ✅✅✅ Ключ успешно загружен! Длина:', OR_TOKEN.length);
   console.log('[AI API] ========== КОНЕЦ ЗАГРУЗКИ КЛЮЧА ==========');
   
-  console.log("[AI API] ✅ Ключ загружен! Длина:", OR_TOKEN.length);
-  
   let requestBody;
   
   try {
