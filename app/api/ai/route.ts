@@ -582,6 +582,56 @@ function forceRemoveFromCartTag(text) {
 // TypeScript типы удалены - это JavaScript файл
 
 export async function POST(req) {
+  // КРИТИЧНО: Загружаем ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
+  let OR_TOKEN = null;
+  
+  try {
+    const fs = require('fs');
+    const envPath = '/var/www/spor3s-app/spor3s-app/.env.local';
+    console.log('[AI API] 🔍 Загрузка ключа из:', envPath);
+    if (fs.existsSync(envPath)) {
+      console.log('[AI API] ✅ Файл существует');
+      const content = fs.readFileSync(envPath, 'utf8');
+      console.log('[AI API] Размер файла:', content.length, 'символов');
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+        if (match) {
+          let key = match[1].trim().replace(/^["']|["']$/g, '');
+          if (key && key.length > 20) {
+            OR_TOKEN = key;
+            process.env.OPENROUTER_API_KEY = key;
+            console.log('[AI API] ✅✅✅ Ключ загружен! Длина:', key.length);
+            break;
+          }
+        }
+      }
+    } else {
+      console.log('[AI API] ⚠️ Файл НЕ существует:', envPath);
+    }
+  } catch (e) {
+    console.error('[AI API] Ошибка загрузки ключа:', e.message);
+  }
+  
+  // Если не загрузили из файла, пробуем process.env
+  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+      OR_TOKEN = process.env.OPENROUTER_API_KEY;
+      console.log('[AI API] ✅ Ключ загружен из process.env');
+    }
+  }
+  
+  // Если ключ все еще не найден, возвращаем ошибку СРАЗУ
+  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+    console.error('[AI API] ❌ Ключ НЕ найден!');
+    return NextResponse.json({ 
+      response: "OpenRouter токен не найден.",
+      error: 'OPENROUTER_KEY_MISSING'
+    }, { status: 503 });
+  }
+  
+  console.log("[AI API] ✅ Ключ загружен! Длина:", OR_TOKEN.length);
+  
   let requestBody;
   
   try {
@@ -607,7 +657,6 @@ export async function POST(req) {
     telegram_id,
   } = requestBody;
   const context = Array.isArray(rawContext) ? rawContext : [];
-  console.log("[AI API] OR_TOKEN:", process.env.OPENROUTER_API_KEY);
   console.log("[AI API] user_id:", user_id);
   if (telegram_id) console.log("[AI API] telegram_id:", telegram_id);
   console.log("[AI API] message:", message);
@@ -616,56 +665,6 @@ export async function POST(req) {
   
   // Определяем источник для сохранения в БД
   const messageSource = source || 'mini_app';
-  
-  // КРИТИЧНО: ВСЕГДА загружаем ключ ПРИ КАЖДОМ запросе
-  // Приоритет: 1) .env.local файл (надежнее), 2) process.env (от PM2)
-  let OR_TOKEN = null;
-  
-  // Дополнительная проверка и загрузка ключа если еще не загружен
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.log('[AI API] 🔍 Дополнительная проверка ключа...');
-    // Пробуем еще раз загрузить из файла
-    try {
-      const fs = require('fs');
-      const possiblePaths = [
-        '/var/www/spor3s-app/spor3s-app/.env.local',
-        '/var/www/spor3s-app/.env.local',
-        '.env.local'
-      ];
-      for (const envPath of possiblePaths) {
-        if (fs.existsSync(envPath)) {
-          const content = fs.readFileSync(envPath, 'utf8');
-          const lines = content.split('\n');
-          for (const line of lines) {
-            const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
-            if (match) {
-              let key = match[1].trim().replace(/^["']|["']$/g, '');
-              if (key && key.length > 20) {
-                OR_TOKEN = key;
-                process.env.OPENROUTER_API_KEY = key;
-                console.log(`[AI API] ✅ Ключ загружен из ${envPath}`);
-                break;
-              }
-            }
-          }
-          if (OR_TOKEN) break;
-        }
-      }
-    } catch (e) {
-      console.error('[AI API] Ошибка дополнительной загрузки:', e.message);
-    }
-    
-    // Если все еще не загружен, возвращаем ошибку
-    if (!OR_TOKEN || OR_TOKEN.length < 20) {
-      console.error("[AI API] ❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: OpenRouter API ключ не найден!");
-      return NextResponse.json({ 
-        response: "OpenRouter токен не найден.",
-        error: 'OPENROUTER_KEY_MISSING'
-      }, { status: 503 });
-    }
-  }
-  
-  console.log("[AI API] ✅ Ключ загружен! Длина:", OR_TOKEN.length);
 
   // Валидация входного сообщения
   if (typeof message !== 'string' || message.trim().length === 0) {
