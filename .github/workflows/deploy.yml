@@ -180,12 +180,37 @@ jobs:
           rm -rf "$BUILD_DIR/.next" 2>/dev/null || true
           rm -rf "$BUILD_DIR/node_modules/.cache" 2>/dev/null || true
           
+          # КРИТИЧНО: Проверяем что роут существует перед сборкой
+          if [ ! -f "$BUILD_DIR/app/api/ai/route.ts" ]; then
+            echo "❌ Роут $BUILD_DIR/app/api/ai/route.ts НЕ НАЙДЕН!"
+            exit 1
+          fi
+          
+          echo "✅ Роут найден, проверяем экспорт POST функции..."
+          if ! grep -q "export async function POST" "$BUILD_DIR/app/api/ai/route.ts"; then
+            echo "❌ Функция POST не экспортирована в route.ts!"
+            exit 1
+          fi
+          
           echo "📦 Запуск сборки в $BUILD_DIR..."
+          cd "$BUILD_DIR"
           npm run build 2>&1 | tee /tmp/build.log || {
             echo "❌ Ошибка сборки!"
-            tail -50 /tmp/build.log
+            tail -100 /tmp/build.log
             exit 1
           }
+          
+          # КРИТИЧНО: Проверяем что роут скомпилировался
+          echo "🔍 Проверка компиляции роута /api/ai..."
+          if [ ! -d "$BUILD_DIR/.next/server/app/api/ai" ]; then
+            echo "❌ Роут /api/ai НЕ скомпилирован!"
+            echo "📋 Проверяем ошибки сборки..."
+            grep -i "error\|fail\|route" /tmp/build.log | tail -20 || true
+            exit 1
+          else
+            echo "✅ Роут /api/ai успешно скомпилирован!"
+            ls -la "$BUILD_DIR/.next/server/app/api/ai/" || true
+          fi
           
           # Проверяем, что роут скомпилировался
           echo "🔍 Проверка компиляции роута /api/ai..."

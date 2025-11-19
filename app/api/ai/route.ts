@@ -581,7 +581,7 @@ function forceRemoveFromCartTag(text) {
 
 // TypeScript типы удалены - это JavaScript файл
 
-export async function POST(req) {
+export async function POST(req: NextRequest) {
   // КРИТИЧНО: Загружаем ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
   let OR_TOKEN = null;
   
