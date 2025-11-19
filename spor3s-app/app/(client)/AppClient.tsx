@@ -128,20 +128,6 @@ export default function AppClient() {
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
 
-  if (!mounted) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh',
-        color: '#fff'
-      }}>
-        <div>Загрузка...</div>
-      </div>
-    );
-  }
-
   const renderContent = () => {
     switch (currentStep) {
       case 1:
