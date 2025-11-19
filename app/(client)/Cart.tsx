@@ -148,7 +148,14 @@ export default function Cart({ products = [], setStep }: CartProps) {
   const handleOrderClick = () => {
     if (setStep) {
       // Сохраняем данные корзины в localStorage для передачи в форму заказа
-      localStorage.setItem('spor3s_cart_items', JSON.stringify(cart));
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('spor3s_cart_items', JSON.stringify(cart));
+        }
+      } catch (e) {
+        console.warn('⚠️ localStorage недоступен (возможно инкогнито):', e);
+        // Продолжаем работу без сохранения в localStorage
+      }
       setStep(10); // Переход к оформлению заказа (специальный шаг)
     } else {
       console.log('Переход к оформлению заказа - setStep не передан');
@@ -609,12 +616,12 @@ export default function Cart({ products = [], setStep }: CartProps) {
               }
               
               try {
-                const cartItem = getCartItem(product.id);
-                const shortDesc = product.description && product.description.length > 90
-                  ? product.description.slice(0, 90) + "…"
-                  : product.description;
+              const cartItem = getCartItem(product.id);
+              const shortDesc = product.description && product.description.length > 90
+                ? product.description.slice(0, 90) + "…"
+                : product.description;
 
-                return (
+              return (
                 <div key={product.id} className="product-card" style={{ 
                   background: "rgba(255, 255, 255, 0.15)", 
                   borderRadius: 16, 
@@ -656,14 +663,14 @@ export default function Cart({ products = [], setStep }: CartProps) {
                         }}
                         onError={(e) => {
                           try {
-                            const target = e.currentTarget as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.parentNode instanceof HTMLElement) {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.style.display = 'none';
+                          if (target.parentNode instanceof HTMLElement) {
                               const placeholder = document.createElement('div');
                               placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 24px;';
                               placeholder.textContent = '🍄';
                               target.parentNode.appendChild(placeholder);
-                            }
+                          }
                           } catch (error) {
                             console.error('🛒 Cart: Ошибка обработки изображения:', error);
                           }
@@ -861,14 +868,14 @@ export default function Cart({ products = [], setStep }: CartProps) {
                       style={{ objectFit: "cover", width: "100%", height: "100%" }}
                       onError={(e) => {
                         try {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.style.display = 'none';
-                          if (target.parentNode instanceof HTMLElement) {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.style.display = 'none';
+                        if (target.parentNode instanceof HTMLElement) {
                             const placeholder = document.createElement('div');
                             placeholder.style.cssText = 'display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; background: #f0f0f0; color: #999; font-size: 48px;';
                             placeholder.textContent = '🍄';
                             target.parentNode.appendChild(placeholder);
-                          }
+                        }
                         } catch (error) {
                           console.error('🛒 Cart: Ошибка обработки изображения в модалке:', error);
                         }

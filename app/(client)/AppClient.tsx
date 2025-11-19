@@ -64,44 +64,66 @@ export default function AppClient() {
       try {
         setError(null);
         // 1) Telegram WebApp контекст
-        const tg = (typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined);
+        let tg;
+        try {
+          tg = (typeof window !== 'undefined' && window.Telegram?.WebApp) ? window.Telegram.WebApp : undefined;
+        } catch (e) {
+          console.warn('⚠️ Telegram WebApp недоступен:', e);
+          tg = undefined;
+        }
+        
         const tgUser = tg?.initDataUnsafe?.user;
         if (tgUser?.id) {
           const telegramId = String(tgUser.id);
-          const response = await fetch('/api/init-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegram_id: telegramId })
-          });
-          const data = await response.json();
-          if (response.ok && data?.id) {
-            setUser({
-              id: data.id,
-              telegram_id: telegramId,
-              username: tgUser.username,
-              first_name: tgUser.first_name,
-              last_name: tgUser.last_name
+          try {
+            const response = await fetch('/api/init-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ telegram_id: telegramId })
             });
-            console.log('✅ Telegram user initialized:', data.id);
-            return;
+            const data = await response.json();
+            if (response.ok && data?.id) {
+              setUser({
+                id: data.id,
+                telegram_id: telegramId,
+                username: tgUser.username,
+                first_name: tgUser.first_name,
+                last_name: tgUser.last_name
+              });
+              console.log('✅ Telegram user initialized:', data.id);
+              return;
+            }
+          } catch (fetchError) {
+            console.error('❌ Ошибка fetch при инициализации пользователя:', fetchError);
+            // Продолжаем с dev-фоллбеком
           }
         }
 
         // 2) DEV-фоллбек (только если нет Telegram окружения)
-        const devId = `dev-${Date.now()}`;
-        const resp = await fetch('/api/init-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegram_id: devId })
-        });
-        const resData = await resp.json();
-        if (resp.ok && resData?.id) {
-          setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
-          console.log('⚙️ Dev user initialized:', resData.id);
+        try {
+          const devId = `dev-${Date.now()}`;
+          const resp = await fetch('/api/init-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ telegram_id: devId })
+          });
+          const resData = await resp.json();
+          if (resp.ok && resData?.id) {
+            setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
+            console.log('⚙️ Dev user initialized:', resData.id);
+          }
+        } catch (devError) {
+          console.error('❌ Ошибка dev-фоллбека:', devError);
+          // Устанавливаем минимальный пользователь для работы приложения
+          setUser({ id: 'temp-user', telegram_id: 'temp', username: 'temp-user' });
         }
       } catch (error) {
         console.error('❌ initUser failed:', error);
-        setError(error instanceof Error ? error.message : 'Ошибка инициализации пользователя');
+        // Не устанавливаем критическую ошибку, позволяем приложению работать
+        const errorMessage = error instanceof Error ? error.message : 'Ошибка инициализации пользователя';
+        console.warn('⚠️ Продолжаем работу с ограниченной функциональностью:', errorMessage);
+        // Устанавливаем временного пользователя для работы приложения
+        setUser({ id: 'temp-user', telegram_id: 'temp', username: 'temp-user' });
       }
     };
     initUser();
@@ -116,16 +138,17 @@ export default function AppClient() {
         setError(null);
         console.log('🛒 AppClient: Загружаем продукты...');
         const response = await fetch('/api/products');
-        const data = await response.json();
-        if (response.ok) {
-          console.log('🛒 AppClient: Продукты загружены:', data.products);
-          setProducts(data.products || []);
-        } else {
-          console.error('🛒 AppClient: Ошибка загрузки продуктов:', response.status);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+        const data = await response.json();
+        console.log('🛒 AppClient: Продукты загружены:', data.products);
+        setProducts(data.products || []);
       } catch (error) {
         console.error('🛒 AppClient: Ошибка загрузки продуктов:', error);
-        setError(error instanceof Error ? error.message : 'Ошибка загрузки продуктов');
+        // Не устанавливаем критическую ошибку, используем пустой массив
+        setProducts([]);
+        console.warn('⚠️ Продолжаем работу без продуктов');
       }
     };
     fetchProducts();
