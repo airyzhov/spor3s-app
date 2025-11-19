@@ -305,8 +305,9 @@ jobs:
               echo "✅ .env.local найден в $NEXTJS_DIR, ключ присутствует (длина: $KEY_LENGTH)"
             else
               echo "⚠️ .env.local существует, но ключ не найден, создаем заново..."
-              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
-              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "✅ Создан .env.local с OPENAI_API_KEY и OPENROUTER_API_KEY"
             fi
           else
             echo "⚠️ .env.local не найден в $NEXTJS_DIR, создаем..."
@@ -334,8 +335,9 @@ jobs:
             # Проверяем содержимое
             if ! grep -q "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local" || ! grep -q "$OPENROUTER_KEY" "$NEXTJS_DIR/.env.local"; then
               echo "⚠️ .env.local существует, но ключ неверный, обновляем..."
-              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
-              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "✅ Создан .env.local с OPENAI_API_KEY и OPENROUTER_API_KEY"
               echo "✅ .env.local обновлен"
             else
               echo "✅ .env.local содержит правильный ключ"
