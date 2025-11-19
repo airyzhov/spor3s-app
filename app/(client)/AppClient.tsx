@@ -132,56 +132,7 @@ export default function AppClient() {
   }, [mounted]);
 
   // Привязываем обработчики через addEventListener после монтирования
-  useEffect(() => {
-    if (!mounted) {
-      console.log('🔘 Компонент еще не смонтирован');
-      return;
-    }
-    
-    let handlers: Array<(e: Event) => void> = [];
-    let buttons: NodeListOf<HTMLButtonElement> | null = null;
-    
-    // Небольшая задержка для гарантии, что DOM готов
-    const timeoutId = setTimeout(() => {
-      if (!navRef.current) {
-        console.log('🔘 navRef.current все еще null');
-        return;
-      }
-      
-      buttons = navRef.current.querySelectorAll('button[data-step-id]');
-      console.log('🔘 Найдено кнопок навигации:', buttons.length);
-      
-      if (buttons.length === 0) {
-        console.warn('⚠️ Кнопки навигации не найдены!');
-        return;
-      }
-      
-      buttons.forEach((button) => {
-        const stepId = parseInt(button.getAttribute('data-step-id') || '0');
-        const handler = (e: Event) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('🔘 КНОПКА КЛИКНУТА через addEventListener:', stepId);
-          setCurrentStep(stepId);
-        };
-        button.addEventListener('click', handler, { capture: true });
-        handlers.push(handler);
-        console.log('🔘 Обработчик addEventListener привязан к кнопке:', stepId);
-      });
-    }, 100);
-    
-    return () => {
-      clearTimeout(timeoutId);
-      if (buttons && handlers.length > 0) {
-        buttons.forEach((button, index) => {
-          const handler = handlers[index];
-          if (handler) {
-            button.removeEventListener('click', handler, { capture: true });
-          }
-        });
-      }
-    };
-  }, [mounted]);
+  // Fallback механизм удален - используем только onClick
 
   const steps = [
     { id: 1, name: "AI Консультант", icon: "🤖" },
@@ -189,13 +140,7 @@ export default function AppClient() {
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
 
-  // Простой обработчик клика - без useCallback для тестирования
-  const handleStepClick = (stepId: number) => {
-    console.log('🔘 handleStepClick вызван:', stepId);
-    console.log('🔘 Текущий шаг:', currentStep);
-    setCurrentStep(stepId);
-    console.log('🔘 setCurrentStep вызван с:', stepId);
-  };
+  // Обработчик клика (не используется, оставлен для совместимости)
 
   if (!mounted) {
     return (
@@ -297,28 +242,6 @@ export default function AppClient() {
           zIndex: 1
         }}
       >
-        {/* ТЕСТОВАЯ КНОПКА для проверки работы */}
-        <button
-          onClick={() => {
-            alert('ТЕСТОВАЯ КНОПКА РАБОТАЕТ! Текущий шаг: ' + currentStep);
-            setCurrentStep(2);
-          }}
-          style={{
-            position: 'fixed',
-            top: '10px',
-            right: '10px',
-            zIndex: 99999,
-            background: '#ff00cc',
-            color: 'white',
-            padding: '10px',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}
-        >
-          ТЕСТ
-        </button>
-        
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
