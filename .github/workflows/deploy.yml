@@ -144,6 +144,12 @@ jobs:
           
           echo "✅ Структура проекта определена правильно"
           
+          # КРИТИЧНО: Обновляем код из git перед сборкой
+          echo "🔄 Обновление кода из git..."
+          cd "$BUILD_DIR"
+          git pull origin main || echo "⚠️ git pull не выполнен (возможно, уже актуально)"
+          echo "✅ Код обновлен"
+          
           # Проверяем наличие роута перед сборкой
           echo "🔍 Проверка роута /api/ai..."
           ROUTE_FILE=""
@@ -190,6 +196,31 @@ jobs:
           if ! grep -q "export async function POST" "$BUILD_DIR/app/api/ai/route.ts"; then
             echo "❌ Функция POST не экспортирована в route.ts!"
             exit 1
+          fi
+          
+          # КРИТИЧНО: Проверяем что код содержит новую логику загрузки ключа
+          echo "🔍 Проверка версии кода..."
+          if ! grep -q "OPENAI_API_KEY" "$BUILD_DIR/app/api/ai/route.ts"; then
+            echo "⚠️ Код не содержит OPENAI_API_KEY, возможно старая версия!"
+            echo "📋 Пробуем обновить код..."
+            cd "$BUILD_DIR"
+            git pull origin main || true
+          fi
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан ПЕРЕД сборкой
+          echo "🔑 Проверка .env.local перед сборкой..."
+          if [ ! -f "$BUILD_DIR/.env.local" ]; then
+            echo "⚠️ .env.local не существует, создаем..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$BUILD_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$BUILD_DIR/.env.local"
+            echo "✅ .env.local создан"
+          else
+            # Проверяем содержимое
+            if ! grep -q "OPENAI_API_KEY" "$BUILD_DIR/.env.local"; then
+              echo "⚠️ .env.local существует, но не содержит OPENAI_API_KEY, обновляем..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$BUILD_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$BUILD_DIR/.env.local"
+            fi
           fi
           
           echo "📦 Запуск сборки в $BUILD_DIR..."
