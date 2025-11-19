@@ -204,22 +204,22 @@ export default function AppClient() {
     try {
       switch (currentStep) {
       case 1:
-        return <Chat products={products} setStep={setCurrentStep} />;
+        return <Chat products={products || []} setStep={setCurrentStep} />;
       case 2:
-        return <Cart products={products} setStep={setCurrentStep} />;
+        return <Cart products={products || []} setStep={setCurrentStep} />;
       case 3:
         return <RoadMap user={{ 
-          id: user?.id,
-          telegram_id: user?.telegram_id,
+          id: user?.id || 'temp-user',
+          telegram_id: user?.telegram_id || 'temp',
           telegram_username: user?.username,
           first_name: user?.first_name,
           last_name: user?.last_name
         }} />;
       case 10:
         return <OrderForm 
-          products={products} 
+          products={products || []} 
           setStep={setCurrentStep} 
-          userId={user?.id}
+          userId={user?.id || 'temp-user'}
           telegramUser={user ? { 
             telegram_id: user.telegram_id, 
             first_name: user.first_name, 
@@ -229,7 +229,7 @@ export default function AppClient() {
           cartItems={[]} // Добавляем пустой массив cartItems
         />;
       default:
-        return <Chat products={products} setStep={setCurrentStep} />;
+        return <Chat products={products || []} setStep={setCurrentStep} />;
     }
     } catch (err) {
       console.error('❌ Ошибка рендеринга контента:', err);
