@@ -347,6 +347,9 @@ export default function AppClient() {
           style={{
             display: "flex",
             justifyContent: "center",
+            position: "relative",
+            zIndex: 10000,
+            pointerEvents: "auto"
             marginBottom: 30,
             gap: 10,
             flexWrap: "wrap",
