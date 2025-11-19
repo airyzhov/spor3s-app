@@ -43,9 +43,14 @@ interface TelegramWebApp {
 // Type declaration moved to global.d.ts to avoid conflicts
 
 export default function AppClient() {
+  const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
   console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -123,6 +128,20 @@ export default function AppClient() {
     { id: 3, name: "Ваш прогресс", icon: "📊" }
   ];
 
+  if (!mounted) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        color: '#fff'
+      }}>
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
+
   const renderContent = () => {
     switch (currentStep) {
       case 1:
@@ -182,7 +201,13 @@ export default function AppClient() {
           {steps.map((step) => (
             <button
               key={step.id}
-              onClick={() => setCurrentStep(step.id)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔘 Кнопка нажата:', step.id, step.name);
+                setCurrentStep(step.id);
+              }}
               style={{
                 background: currentStep === step.id 
                   ? "linear-gradient(45deg, #ff00cc, #3333ff)"
@@ -204,7 +229,10 @@ export default function AppClient() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8
+                gap: 8,
+                pointerEvents: "auto",
+                zIndex: 10,
+                position: "relative"
               }}
               onMouseOver={(e) => {
                 if (currentStep !== step.id) {
@@ -241,7 +269,11 @@ export default function AppClient() {
         
         {/* Стрелка вверх */}
         <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
           style={{
             position: "fixed",
             bottom: "20px",
