@@ -1406,8 +1406,9 @@ export async function POST(req: NextRequest) {
         orderNowMatches: [...aiResponse.matchAll(/\[order_now:([\w-]+)\]/g)].map(m => m[1])
       });
 
-                  reply = finalResponse;
-         } catch (error) {
+        reply = finalResponse;
+      }
+    } catch (error) {
        const message = error instanceof Error ? error.message : 'Unknown error';
        console.error('[AI API] Fetch error:', message);
        console.error('[AI API] Error stack:', error instanceof Error ? error.stack : 'No stack');
@@ -1822,9 +1823,9 @@ export async function POST(req: NextRequest) {
       } else if (userMessage.includes('заказ') || userMessage.includes('корзин')) {
         return 'Для оформления заказа выберите нужные товары и перейдите в корзину. Если нужна консультация по продуктам - задавайте вопросы!';
       } else if (userMessage.includes('монет') || userMessage.includes('sc') || userMessage.includes('coin')) {
-        return 'Spor3s Coins (SC) — это внутренняя валюта платформы. Зарабатываете за активности и можете тратить на скидки до 30% от суммы заказа. Проверьте свой баланс в разделе "Прогресс"!';
-             } else if (userMessage.includes('как дела') || userMessage.includes('как ты')) {
-         return 'Хорошо, спасибо! Готов помочь с выбором добавок. Что вас интересует?';
+        reply = 'Spor3s Coins (SC) — это внутренняя валюта платформы. Зарабатываете за активности и можете тратить на скидки до 30% от суммы заказа. Проверьте свой баланс в разделе "Прогресс"!';
+      } else if (userMessage.includes('как дела') || userMessage.includes('как ты')) {
+        reply = 'Хорошо, спасибо! Готов помочь с выбором добавок. Что вас интересует?';
       } else {
         reply = 'Здравствуйте! Я ваш персональный консультант по грибным добавкам spor3s. Расскажите, что вас беспокоит или какие цели хотите достичь? Помогу подобрать подходящие продукты.';
       }
