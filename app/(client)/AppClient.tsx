@@ -365,21 +365,10 @@ export default function AppClient() {
               key={`nav-btn-${step.id}`}
               data-step-id={step.id}
               type="button"
-              onClick={(e) => {
-                console.log('🔘 onClick (React) вызван для:', step.id, step.name);
-                console.log('🔘 Текущий шаг до:', currentStep);
+              onClick={() => {
+                console.log('🔘 onClick вызван для:', step.id, step.name);
                 setCurrentStep(step.id);
-                console.log('🔘 setCurrentStep вызван напрямую с:', step.id);
               }}
-              onMouseDown={(e) => {
-                // Не блокируем событие, только логируем
-                console.log('🔘 onMouseDown для:', step.id);
-              }}
-              onTouchStart={(e) => {
-                // Не блокируем событие, только логируем
-                console.log('🔘 onTouchStart для:', step.id);
-              }}
-              type="button"
               style={{
                 background: currentStep === step.id 
                   ? "linear-gradient(45deg, #ff00cc, #3333ff)"
