@@ -29,13 +29,15 @@ const loadEnvLocal = () => {
           console.log(`[AI API] Размер файла: ${envContent.length} символов`);
           const lines = envContent.split('\n');
           for (const line of lines) {
-            const match = line.match(/^OPENROUTER_API_KEY=(.+)$/);
+            // Пробуем оба варианта: OPENAI_API_KEY и OPENROUTER_API_KEY (для совместимости)
+            const match = line.match(/^(OPENAI_API_KEY|OPENROUTER_API_KEY)=(.+)$/);
             if (match) {
-              let key = match[1].trim();
+              let key = match[2].trim();
               key = key.replace(/^["']|["']$/g, ''); // Убираем кавычки
               if (key && key.length > 20) {
-                process.env.OPENROUTER_API_KEY = key;
-                console.log(`[AI API] ✅✅✅ OPENROUTER_API_KEY загружен из ${envLocalPath} (длина: ${key.length})`);
+                process.env.OPENAI_API_KEY = key;
+                process.env.OPENROUTER_API_KEY = key; // Для совместимости
+                console.log(`[AI API] ✅✅✅ Ключ загружен из ${envLocalPath} (длина: ${key.length})`);
                 return true;
               }
             }
@@ -45,7 +47,7 @@ const loadEnvLocal = () => {
         console.error(`[AI API] ⚠️ Ошибка проверки ${envLocalPath}:`, pathError.message);
       }
     }
-    console.error('[AI API] ⚠️ .env.local не найден или не содержит OPENROUTER_API_KEY');
+    console.error('[AI API] ⚠️ .env.local не найден или не содержит OPENAI_API_KEY или OPENROUTER_API_KEY');
     return false;
   } catch (error) {
     console.error('[AI API] ⚠️ Ошибка загрузки .env.local:', error);

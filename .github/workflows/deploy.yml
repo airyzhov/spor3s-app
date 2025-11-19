@@ -73,13 +73,13 @@ jobs:
           if [ -f tg-bot/package.json ]; then
             cd /var/www/spor3s-app/tg-bot
             npm install
-            cd /var/www/spor3s-app
+          cd /var/www/spor3s-app
           fi
           
           echo "📦 Установка зависимостей tg-client..."
           if [ -f tg-client/package.json ]; then
             cd /var/www/spor3s-app/tg-client
-            npm install
+          npm install
             cd /var/www/spor3s-app
           fi
           
@@ -258,11 +258,13 @@ jobs:
           NEXTJS_DIR="/var/www/spor3s-app/spor3s-app"
           if [ -d "$NEXTJS_DIR" ]; then
             cd "$NEXTJS_DIR"
-            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
             echo "✅ Создан/обновлен .env.local в $NEXTJS_DIR"
           else
             cd "$BUILD_DIR"
-            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env.local
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
             echo "✅ Создан/обновлен .env.local в $BUILD_DIR"
           fi
           echo "✅ Создан/обновлен .env.local файл с OPENROUTER_API_KEY"
@@ -303,7 +305,8 @@ jobs:
               echo "✅ .env.local найден в $NEXTJS_DIR, ключ присутствует (длина: $KEY_LENGTH)"
             else
               echo "⚠️ .env.local существует, но ключ не найден, создаем заново..."
-              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
             fi
           else
             echo "⚠️ .env.local не найден в $NEXTJS_DIR, создаем..."
@@ -331,7 +334,8 @@ jobs:
             # Проверяем содержимое
             if ! grep -q "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local" || ! grep -q "$OPENROUTER_KEY" "$NEXTJS_DIR/.env.local"; then
               echo "⚠️ .env.local существует, но ключ неверный, обновляем..."
-              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
               echo "✅ .env.local обновлен"
             else
               echo "✅ .env.local содержит правильный ключ"
