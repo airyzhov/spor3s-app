@@ -621,149 +621,43 @@ export async function POST(req) {
   // Приоритет: 1) .env.local файл (надежнее), 2) process.env (от PM2)
   let OR_TOKEN = null;
   
-  console.log('[AI API] ========== НАЧАЛО ЗАГРУЗКИ КЛЮЧА ==========');
-  
-  // ПЕРВЫМ ДЕЛОМ: загружаем из .env.local файла (самый надежный способ)
-  // Пробуем несколько путей
-  const possibleEnvPaths = [
-    '/var/www/spor3s-app/spor3s-app/.env.local',
-    '/var/www/spor3s-app/.env.local',
-    '.env.local'
-  ];
-  
-  for (const envPath of possibleEnvPaths) {
+  // Дополнительная проверка и загрузка ключа если еще не загружен
+  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+    console.log('[AI API] 🔍 Дополнительная проверка ключа...');
+    // Пробуем еще раз загрузить из файла
     try {
       const fs = require('fs');
-      console.log(`[AI API] 🔍 Пытаюсь загрузить из: ${envPath}`);
-      
-      if (fs.existsSync(envPath)) {
-        console.log(`[AI API] ✅ Файл существует: ${envPath}`);
-        const content = fs.readFileSync(envPath, 'utf8');
-        console.log(`[AI API] Размер файла: ${content.length} символов`);
-        console.log(`[AI API] Содержимое (первые 200 символов): ${content.substring(0, 200)}`);
-        
-        const lines = content.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line || line.startsWith('#')) continue;
-          
-          // Поддерживаем разные форматы: OPENROUTER_API_KEY=value и OPENROUTER_API_KEY="value"
-          const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
-          if (match) {
-            let key = match[1].trim().replace(/^["']|["']$/g, '');
-            console.log(`[AI API] Найден ключ на строке ${i+1}, длина: ${key.length}`);
-            if (key && key.length > 20) {
-              OR_TOKEN = key;
-              process.env.OPENROUTER_API_KEY = key;
-              console.log(`[AI API] ✅✅✅ Ключ загружен из ${envPath}! Длина: ${key.length}`);
-              console.log(`[AI API] Первые 25 символов: ${key.substring(0, 25)}...`);
-              break;
-            } else {
-              console.log(`[AI API] ⚠️ Ключ слишком короткий: ${key.length} символов`);
+      const possiblePaths = [
+        '/var/www/spor3s-app/spor3s-app/.env.local',
+        '/var/www/spor3s-app/.env.local',
+        '.env.local'
+      ];
+      for (const envPath of possiblePaths) {
+        if (fs.existsSync(envPath)) {
+          const content = fs.readFileSync(envPath, 'utf8');
+          const lines = content.split('\n');
+          for (const line of lines) {
+            const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+            if (match) {
+              let key = match[1].trim().replace(/^["']|["']$/g, '');
+              if (key && key.length > 20) {
+                OR_TOKEN = key;
+                process.env.OPENROUTER_API_KEY = key;
+                console.log(`[AI API] ✅ Ключ загружен из ${envPath}`);
+                break;
+              }
             }
           }
+          if (OR_TOKEN) break;
         }
-        if (OR_TOKEN && OR_TOKEN.length > 20) break;
-      } else {
-        console.log(`[AI API] ⚠️ Файл НЕ существует: ${envPath}`);
       }
-    } catch (fileError) {
-      console.error(`[AI API] ⚠️ Ошибка чтения ${envPath}:`, fileError.message);
-      console.error(`[AI API] Stack:`, fileError.stack);
-    }
-  }
-  
-  // Если не загрузили из файла, пробуем process.env
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.log('[AI API] 🔍 Проверка process.env.OPENROUTER_API_KEY...');
-    console.log('[AI API] process.env.OPENROUTER_API_KEY существует:', !!process.env.OPENROUTER_API_KEY);
-    
-    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
-      OR_TOKEN = process.env.OPENROUTER_API_KEY;
-      console.log('[AI API] ✅✅✅ Ключ загружен из process.env (PM2), длина:', OR_TOKEN.length);
-      console.log('[AI API] Первые 25 символов:', OR_TOKEN.substring(0, 25));
-    } else {
-      console.log('[AI API] ⚠️ Ключ не найден в process.env или слишком короткий');
-    }
-  }
-  
-  // Если все еще не загрузили, пробуем loadEnvLocal как последнюю попытку
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.log('[AI API] 🔄 Последняя попытка: loadEnvLocal()...');
-    const loaded = loadEnvLocal();
-    if (loaded && process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
-      OR_TOKEN = process.env.OPENROUTER_API_KEY;
-      console.log('[AI API] ✅ Ключ загружен через loadEnvLocal()');
-    }
-  }
-  
-  // ФИНАЛЬНАЯ ПРОВЕРКА И ЛОГИРОВАНИЕ
-  console.log("[AI API] ========== DEBUG INFO ==========");
-  console.log("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
-  console.log("[AI API] OR_TOKEN starts with:", OR_TOKEN?.substring(0, 10) || 'undefined');
-  console.log("[AI API] process.env.OPENROUTER_API_KEY существует:", !!process.env.OPENROUTER_API_KEY);
-  if (process.env.OPENROUTER_API_KEY) {
-    console.log("[AI API] process.env.OPENROUTER_API_KEY длина:", process.env.OPENROUTER_API_KEY.length);
-  }
-  console.log("[AI API] process.cwd():", process.cwd());
-  console.log("[AI API] NODE_ENV:", process.env.NODE_ENV);
-  console.log("[AI API] Все env переменные с OPENROUTER:", Object.keys(process.env).filter(k => k.includes('OPENROUTER')));
-  console.log("[AI API] ================================");
-  
-  if (OR_TOKEN && OR_TOKEN.length > 20) {
-    console.log('[AI API] ✅✅✅ Ключ успешно загружен! Длина:', OR_TOKEN.length);
-  } else {
-    console.error('[AI API] ❌❌❌ Ключ НЕ загружен!');
-    console.error('[AI API] OR_TOKEN:', OR_TOKEN ? `длина ${OR_TOKEN.length}` : 'null');
-    console.error('[AI API] Попробуем использовать process.env напрямую...');
-    
-    // ПОСЛЕДНЯЯ ПОПЫТКА: используем process.env напрямую
-    if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
-      OR_TOKEN = process.env.OPENROUTER_API_KEY;
-      console.log('[AI API] ✅ Ключ найден в process.env напрямую!');
-    }
-  }
-  
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.error("[AI API] ❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: OpenRouter API ключ не настроен!");
-    console.error("[AI API] OR_TOKEN value:", OR_TOKEN || 'undefined');
-    console.error("[AI API] OR_TOKEN length:", OR_TOKEN?.length || 0);
-    console.error("[AI API] process.env.OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY || 'undefined');
-    console.error("[AI API] process.env.OPENROUTER_API_KEY length:", process.env.OPENROUTER_API_KEY?.length || 0);
-    
-    // ПОСЛЕДНЯЯ ПОПЫТКА: читаем файл напрямую прямо сейчас
-    try {
-      const fs = require('fs');
-      const directPath = '/var/www/spor3s-app/spor3s-app/.env.local';
-      console.error("[AI API] 🔄 Последняя попытка: читаю файл напрямую из", directPath);
-      if (fs.existsSync(directPath)) {
-        const content = fs.readFileSync(directPath, 'utf8');
-        console.error("[AI API] Содержимое файла:", content.substring(0, 200));
-        const lines = content.split('\n');
-        for (const line of lines) {
-          const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
-          if (match) {
-            let key = match[1].trim().replace(/^["']|["']$/g, '');
-            if (key && key.length > 20) {
-              OR_TOKEN = key;
-              process.env.OPENROUTER_API_KEY = key;
-              console.error("[AI API] ✅✅✅ КЛЮЧ ЗАГРУЖЕН В ПОСЛЕДНЮЮ СЕКУНДУ! Длина:", key.length);
-              break;
-            }
-          }
-        }
-      } else {
-        console.error("[AI API] Файл НЕ существует:", directPath);
-      }
-    } catch (lastError) {
-      console.error("[AI API] Ошибка последней попытки:", lastError.message);
+    } catch (e) {
+      console.error('[AI API] Ошибка дополнительной загрузки:', e.message);
     }
     
+    // Если все еще не загружен, возвращаем ошибку
     if (!OR_TOKEN || OR_TOKEN.length < 20) {
-      console.error("[AI API] Проверьте что файл /var/www/spor3s-app/spor3s-app/.env.local существует и содержит OPENROUTER_API_KEY");
-      console.error("[AI API] Выполните на сервере: echo 'OPENROUTER_API_KEY=<key>' > /var/www/spor3s-app/spor3s-app/.env.local");
-      console.error("[AI API] Затем: pm2 restart spor3s-nextjs --update-env");
-      console.error("[AI API] ========== КОНЕЦ ОШИБКИ ==========");
+      console.error("[AI API] ❌❌❌ КРИТИЧЕСКАЯ ОШИБКА: OpenRouter API ключ не найден!");
       return NextResponse.json({ 
         response: "OpenRouter токен не найден.",
         error: 'OPENROUTER_KEY_MISSING'
@@ -771,8 +665,7 @@ export async function POST(req) {
     }
   }
   
-  console.log("[AI API] ✅✅✅ Ключ успешно загружен! Длина:", OR_TOKEN.length);
-  console.log("[AI API] ========== КОНЕЦ ЗАГРУЗКИ КЛЮЧА ==========");
+  console.log("[AI API] ✅ Ключ загружен! Длина:", OR_TOKEN.length);
 
   // Валидация входного сообщения
   if (typeof message !== 'string' || message.trim().length === 0) {
