@@ -73,8 +73,18 @@ export default function Chat({ products, setStep }: ChatProps) {
     const initializeUser = async () => {
       try {
         // Проверяем, доступен ли Telegram WebApp
-        if (window.Telegram && window.Telegram.WebApp) {
-          const webApp = window.Telegram.WebApp;
+        let webApp;
+        try {
+          if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+            webApp = window.Telegram.WebApp;
+          }
+        } catch (e) {
+          console.warn('⚠️ Telegram WebApp недоступен:', e);
+          setMounted(true);
+          return; // Выходим, если Telegram недоступен
+        }
+        
+        if (webApp) {
           const initData = webApp.initDataUnsafe;
           
           if (initData && initData.user) {
@@ -100,7 +110,8 @@ export default function Chat({ products, setStep }: ChatProps) {
                 console.error('❌ Ошибка инициализации пользователя:', response.status);
               }
             } catch (error) {
-              console.error('❌ Ошибка инициализации пользователя:', error);
+              console.error('❌ Ошибка при запросе инициализации пользователя:', error);
+              // Продолжаем работу без инициализации пользователя
             }
           } else {
             console.log('⚠️ Telegram пользователь не найден, используем тестовый ID');
@@ -110,11 +121,13 @@ export default function Chat({ products, setStep }: ChatProps) {
         }
       } catch (error) {
         console.error('❌ Ошибка инициализации Telegram WebApp:', error);
+        // Продолжаем работу без инициализации пользователя
+      } finally {
+        setMounted(true);
       }
     };
 
     initializeUser();
-    setMounted(true);
   }, []);
 
   // Убрана автопрокрутка чата - пользователь сам контролирует позицию просмотра

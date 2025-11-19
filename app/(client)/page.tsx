@@ -41,19 +41,35 @@ export default function MainApp() {
     
     // Проверяем реферальную ссылку
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const ref = urlParams.get('ref');
-      if (ref) {
-        setReferralCode(ref);
-        localStorage.setItem('spor3s_referral', ref);
-        console.log('🎯 Реферальный код найден:', ref);
-      } else {
-        // Проверяем localStorage на случай, если пользователь уже был на сайте
-        const savedRef = localStorage.getItem('spor3s_referral');
-        if (savedRef) {
-          setReferralCode(savedRef);
-          console.log('🎯 Реферальный код из localStorage:', savedRef);
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        if (ref) {
+          setReferralCode(ref);
+          try {
+            if (window.localStorage) {
+              localStorage.setItem('spor3s_referral', ref);
+            }
+          } catch (e) {
+            console.warn('⚠️ localStorage недоступен для сохранения реферального кода:', e);
+          }
+          console.log('🎯 Реферальный код найден:', ref);
+        } else {
+          // Проверяем localStorage на случай, если пользователь уже был на сайте
+          try {
+            if (window.localStorage) {
+              const savedRef = localStorage.getItem('spor3s_referral');
+              if (savedRef) {
+                setReferralCode(savedRef);
+                console.log('🎯 Реферальный код из localStorage:', savedRef);
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ localStorage недоступен для чтения реферального кода:', e);
+          }
         }
+      } catch (e) {
+        console.warn('⚠️ Ошибка обработки реферального кода:', e);
       }
     }
   }, []);
