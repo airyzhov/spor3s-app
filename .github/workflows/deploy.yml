@@ -295,6 +295,29 @@ jobs:
           rm -rf "$NEXTJS_DIR/node_modules/.cache"
           echo "✅ Кэш очищен"
           
+          # КРИТИЧНО: Убеждаемся что .env.local создан и содержит правильный ключ
+          echo "🔑 Проверка и создание .env.local..."
+          if [ ! -f "$NEXTJS_DIR/.env.local" ]; then
+            echo "⚠️ .env.local не существует, создаем..."
+            mkdir -p "$NEXTJS_DIR"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "✅ .env.local создан"
+          else
+            # Проверяем содержимое
+            if ! grep -q "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local" || ! grep -q "$OPENROUTER_KEY" "$NEXTJS_DIR/.env.local"; then
+              echo "⚠️ .env.local существует, но ключ неверный, обновляем..."
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "✅ .env.local обновлен"
+            else
+              echo "✅ .env.local содержит правильный ключ"
+            fi
+          fi
+          
+          # Проверяем права доступа
+          chmod 644 "$NEXTJS_DIR/.env.local" || true
+          echo "📋 Содержимое .env.local:"
+          cat "$NEXTJS_DIR/.env.local" | head -1
+          
           cd /var/www/spor3s-app
           
           echo "🔄 Перезапуск PM2 процессов..."
