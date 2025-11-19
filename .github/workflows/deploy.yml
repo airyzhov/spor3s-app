@@ -92,8 +92,16 @@ jobs:
             rm -rf my-fresh-app
           fi
           
+          # КРИТИЧНО: Очищаем кэш Next.js перед сборкой
+          echo "🧹 Очистка кэша Next.js..."
+          rm -rf spor3s-app/.next
+          rm -rf spor3s-app/node_modules/.cache
+          rm -rf .next
+          rm -rf node_modules/.cache
+          echo "✅ Кэш очищен"
+          
           # Определяем правильную директорию для сборки
-          export BUILD_DIR="/var/www/spor3s-app"
+          export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
           
           # Проверяем структуру проекта
           echo "📁 Проверка структуры проекта..."
