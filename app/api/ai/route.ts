@@ -60,7 +60,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, getUserSurveysServer, getProductsServer, saveMessageServer, getUserProfileServer } from "../../supabaseServerHelpers";
 import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
-import { ContentManager } from "../../../lib/contentManager";
+import { ContentManager } from "../../../../lib/contentManager";
 
 // Загружаем переменные окружения из .env.local для production
 const loadEnvLocal = () => {
