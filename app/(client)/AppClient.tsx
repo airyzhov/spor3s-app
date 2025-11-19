@@ -348,14 +348,14 @@ export default function AppClient() {
             display: "flex",
             justifyContent: "center",
             position: "relative",
-            zIndex: 10000,
-            pointerEvents: "auto"
+            zIndex: 1000,
+            pointerEvents: "auto",
             marginBottom: 30,
             gap: 10,
             flexWrap: "wrap",
             padding: "0 20px",
             position: "relative",
-            zIndex: 9999,
+            zIndex: 10000,
             pointerEvents: "auto",
             isolation: "isolate"
           }}
@@ -366,18 +366,33 @@ export default function AppClient() {
               data-step-id={step.id}
               type="button"
               onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
                 console.log('🔘 onClick (React) вызван для:', step.id, step.name);
-                console.log('🔘 Событие:', e);
                 console.log('🔘 Текущий шаг до:', currentStep);
                 setCurrentStep(step.id);
                 console.log('🔘 setCurrentStep вызван напрямую с:', step.id);
               }}
+              onMouseDown={(e) => {
+                // Не блокируем событие, только логируем
+                console.log('🔘 onMouseDown для:', step.id);
+              }}
+              onTouchStart={(e) => {
+                // Не блокируем событие, только логируем
+                console.log('🔘 onTouchStart для:', step.id);
+              }}
+              type="button"
               style={{
                 background: currentStep === step.id 
                   ? "linear-gradient(45deg, #ff00cc, #3333ff)"
                   : "rgba(255, 255, 255, 0.1)",
+                cursor: "pointer",
+                pointerEvents: "auto",
+                position: "relative",
+                zIndex: 1001,
+                userSelect: "none",
+                WebkitUserSelect: "none",
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+                isolation: "isolate",
                 color: "#fff",
                 border: currentStep === step.id 
                   ? "2px solid transparent" 
