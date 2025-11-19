@@ -587,71 +587,84 @@ export async function POST(req: NextRequest) {
   // КРИТИЧНО: Загружаем OpenAI ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
   let OR_TOKEN = null;
   
-  // Приоритет 1: process.env (от PM2 или Next.js) - пробуем оба варианта для совместимости
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20) {
-    OR_TOKEN = process.env.OPENAI_API_KEY;
-    console.log('[AI API] ✅ Ключ загружен из process.env.OPENAI_API_KEY, длина:', OR_TOKEN.length);
-  } else if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
-    OR_TOKEN = process.env.OPENROUTER_API_KEY;
-    console.log('[AI API] ✅ Ключ загружен из process.env.OPENROUTER_API_KEY (совместимость), длина:', OR_TOKEN.length);
-  }
+  console.log('[AI API] ========== НАЧАЛО ЗАГРУЗКИ КЛЮЧА ==========');
+  console.log('[AI API] process.cwd():', process.cwd());
   
-  // Приоритет 2: .env.local файл (если process.env пуст)
-  if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      
-      // Пробуем несколько путей
-      const possiblePaths = [
-        '/var/www/spor3s-app/spor3s-app/.env.local',
-        '/var/www/spor3s-app/.env.local',
-        path.join(process.cwd(), '.env.local'),
-        '.env.local'
-      ];
-      
-      for (const envPath of possiblePaths) {
-        try {
-          if (fs.existsSync(envPath)) {
-            console.log('[AI API] 🔍 Пробую загрузить из:', envPath);
-            const content = fs.readFileSync(envPath, 'utf8');
-            const lines = content.split('\n');
-            for (const line of lines) {
-              // Пробуем оба варианта: OPENAI_API_KEY и OPENROUTER_API_KEY (для совместимости)
-              const match = line.match(/^(OPENAI_API_KEY|OPENROUTER_API_KEY)\s*=\s*(.+)$/);
-              if (match) {
-                let key = match[2].trim().replace(/^["']|["']$/g, '');
-                if (key && key.length > 20) {
-                  OR_TOKEN = key;
-                  process.env.OPENAI_API_KEY = key;
-                  process.env.OPENROUTER_API_KEY = key; // Для совместимости
-                  console.log('[AI API] ✅✅✅ Ключ загружен из', envPath, 'длина:', key.length);
-                  break;
-                }
+  // Приоритет 1: .env.local файл (самый надежный способ)
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const possiblePaths = [
+      '/var/www/spor3s-app/spor3s-app/.env.local',
+      '/var/www/spor3s-app/.env.local',
+      path.join(process.cwd(), '.env.local'),
+      '.env.local'
+    ];
+    
+    for (const envPath of possiblePaths) {
+      try {
+        if (fs.existsSync(envPath)) {
+          console.log('[AI API] 🔍 Файл найден:', envPath);
+          const content = fs.readFileSync(envPath, 'utf8');
+          console.log('[AI API] Размер файла:', content.length, 'символов');
+          const lines = content.split('\n');
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine || trimmedLine.startsWith('#')) continue;
+            
+            // Пробуем оба варианта
+            const match = trimmedLine.match(/^(OPENAI_API_KEY|OPENROUTER_API_KEY)\s*=\s*(.+)$/);
+            if (match) {
+              let key = match[2].trim().replace(/^["']|["']$/g, '');
+              if (key && key.length > 20) {
+                OR_TOKEN = key;
+                process.env.OPENAI_API_KEY = key;
+                process.env.OPENROUTER_API_KEY = key;
+                console.log('[AI API] ✅✅✅ Ключ загружен из', envPath);
+                console.log('[AI API] Длина ключа:', key.length);
+                console.log('[AI API] Первые 20 символов:', key.substring(0, 20) + '...');
+                break;
               }
             }
-            if (OR_TOKEN && OR_TOKEN.length > 20) break;
           }
-        } catch (pathError) {
-          console.error('[AI API] Ошибка чтения', envPath, ':', pathError.message);
+          if (OR_TOKEN && OR_TOKEN.length > 20) break;
+        } else {
+          console.log('[AI API] ⚠️ Файл НЕ существует:', envPath);
         }
+      } catch (pathError) {
+        console.error('[AI API] Ошибка чтения', envPath, ':', pathError.message);
       }
-    } catch (e) {
-      console.error('[AI API] Общая ошибка загрузки ключа:', e.message);
+    }
+  } catch (e) {
+    console.error('[AI API] Общая ошибка загрузки из файла:', e.message);
+  }
+  
+  // Приоритет 2: process.env (от PM2 или Next.js)
+  if (!OR_TOKEN || OR_TOKEN.length < 20) {
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20) {
+      OR_TOKEN = process.env.OPENAI_API_KEY;
+      console.log('[AI API] ✅ Ключ загружен из process.env.OPENAI_API_KEY');
+    } else if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+      OR_TOKEN = process.env.OPENROUTER_API_KEY;
+      console.log('[AI API] ✅ Ключ загружен из process.env.OPENROUTER_API_KEY');
     }
   }
   
   // Если ключ все еще не найден, возвращаем ошибку СРАЗУ
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
-    console.error('[AI API] ❌ Ключ НЕ найден!');
+    console.error('[AI API] ❌❌❌ Ключ НЕ найден!');
     console.error('[AI API] process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `существует (длина: ${process.env.OPENAI_API_KEY.length})` : 'не существует');
     console.error('[AI API] process.env.OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? `существует (длина: ${process.env.OPENROUTER_API_KEY.length})` : 'не существует');
-    console.error('[AI API] process.cwd():', process.cwd());
+    console.error('[AI API] ========== КОНЕЦ ОШИБКИ ==========');
     return NextResponse.json({ 
-      response: "OpenAI токен не найден.",
+      response: "OpenAI токен не найден. Проверьте настройки сервера.",
       error: 'OPENAI_KEY_MISSING'
     }, { status: 503 });
   }
+  
+  console.log('[AI API] ✅✅✅ Ключ успешно загружен! Длина:', OR_TOKEN.length);
+  console.log('[AI API] ========== КОНЕЦ ЗАГРУЗКИ КЛЮЧА ==========');
   
   console.log("[AI API] ✅ Ключ загружен! Длина:", OR_TOKEN.length);
   

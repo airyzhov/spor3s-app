@@ -357,6 +357,24 @@ jobs:
           
           # Переменная OPENROUTER_KEY уже установлена выше, экспортируем ее
           export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+          export OPENAI_API_KEY="$OPENROUTER_KEY"
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан ПЕРЕД перезапуском
+          echo "🔑 Финальная проверка .env.local перед перезапуском PM2..."
+          if [ -f "$NEXTJS_DIR/.env.local" ]; then
+            echo "✅ .env.local существует"
+            if grep -q "OPENAI_API_KEY" "$NEXTJS_DIR/.env.local"; then
+              echo "✅ OPENAI_API_KEY найден в .env.local"
+            else
+              echo "⚠️ OPENAI_API_KEY НЕ найден, создаем заново..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            fi
+          else
+            echo "⚠️ .env.local НЕ существует, создаем..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+          fi
           
           # Останавливаем старые процессы
           pm2 delete all || true
