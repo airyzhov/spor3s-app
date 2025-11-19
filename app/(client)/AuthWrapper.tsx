@@ -34,6 +34,11 @@ function AdminOrders({ user }: { user: AdminUser }) {
 
   useEffect(() => {
     async function fetchOrders() {
+      if (!supabase) {
+        setError('Supabase не инициализирован');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       const { data, error } = await supabase
@@ -101,6 +106,11 @@ function UserOrders({ user }: { user: any }) {
 
   useEffect(() => {
     async function fetchOrders() {
+      if (!supabase) {
+        setError('Supabase не инициализирован');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       const { data, error } = await supabase
@@ -120,7 +130,7 @@ function UserOrders({ user }: { user: any }) {
 
   // Проверяем, был ли чек-ин сегодня для активного заказа
   useEffect(() => {
-    if (!activeOrder) return;
+    if (!activeOrder || !supabase) return;
     async function checkCheckinToday() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -236,7 +246,7 @@ export default function AuthWrapper({ showAuth, setShowAuth, user, setUser }: { 
   const [hasOrders, setHasOrders] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !supabase) return;
     async function fetchBalanceAndCode() {
       const { data } = await supabase
         .from("orders")
