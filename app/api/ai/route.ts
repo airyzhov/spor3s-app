@@ -1181,6 +1181,7 @@ export async function POST(req: NextRequest) {
   }
 
   async function fetchCompletion(msgs) {
+    let reply = ""; // Инициализируем reply в начале функции
     try {
       // Используем переданные цены от Telegram бота или получаем из БД
       let productsInfo = '';
@@ -1256,10 +1257,15 @@ export async function POST(req: NextRequest) {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.error('[AI API] HTTP Error:', response.status, response.statusText);
+        const errorText = await response.text().catch(() => 'Не удалось прочитать ошибку');
+        console.error('[AI API] ❌ HTTP Error от OpenAI:', response.status, response.statusText);
+        console.error('[AI API] ❌ Error details:', errorText);
+        console.error('[AI API] ❌ Используемый токен (первые 20 символов):', OR_TOKEN ? OR_TOKEN.substring(0, 20) + '...' : 'НЕ НАЙДЕН');
+        console.error('[AI API] ❌ URL запроса: https://api.openai.com/v1/chat/completions');
+        console.error('[AI API] ❌ Модель: gpt-4o-mini');
         
         // FALLBACK: Если OpenAI не работает, используем интеллектуальный ответ
-        console.log('[AI API] OpenAI недоступен, используем fallback ответ');
+        console.log('[AI API] ⚠️ OpenAI недоступен, используем fallback ответ');
         let fallbackResponse = generateIntelligentFallback(msgs, userSummary, productsInfo);
         
         // КРИТИЧНО: Применяем те же проверки к fallback ответу!
@@ -1275,17 +1281,27 @@ export async function POST(req: NextRequest) {
           fallbackResponse = fallbackResponse.replace(/✅\s*Товар\s+добавлен\s+в\s+корзин[уа]!?\s*Что\s+еще\s+добавить\?/gi, '').trim();
         }
         
-        return fallbackResponse;
-      }
-
-             const data = await response.json();
+        // КРИТИЧНО: Возвращаем через NextResponse.json, а не строку!
+        reply = fallbackResponse;
+        // Продолжаем выполнение, чтобы сохранить сообщение и вернуть правильный формат
+      } else {
+        console.log('[AI API] ✅ OpenAI ответил успешно, статус:', response.status);
+        
+        const data = await response.json();
+        console.log('[AI API] ✅ Получен ответ от OpenAI, структура:', {
+          hasChoices: !!data.choices,
+          choicesLength: data.choices?.length || 0,
+          hasMessage: !!data.choices?.[0]?.message,
+          hasContent: !!data.choices?.[0]?.message?.content
+        });
        
-       if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-         console.error('[AI API] Invalid response structure:', data);
-         throw new Error('Invalid AI response structure');
-       }
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+          console.error('[AI API] ❌ Invalid response structure:', JSON.stringify(data, null, 2));
+          throw new Error('Invalid AI response structure');
+        }
 
-              let aiResponse = data.choices[0].message.content;
+        let aiResponse = data.choices[0].message.content;
+        console.log('[AI API] ✅ AI Response получен, длина:', aiResponse?.length || 0);
               console.log('[AI API] ============================================');
               console.log('[AI API] Original AI Response:', aiResponse);
               console.log('[AI API] User message:', message);
@@ -1390,7 +1406,7 @@ export async function POST(req: NextRequest) {
         orderNowMatches: [...aiResponse.matchAll(/\[order_now:([\w-]+)\]/g)].map(m => m[1])
       });
 
-                  return finalResponse;
+                  reply = finalResponse;
          } catch (error) {
        const message = error instanceof Error ? error.message : 'Unknown error';
        console.error('[AI API] Fetch error:', message);
@@ -1810,8 +1826,13 @@ export async function POST(req: NextRequest) {
              } else if (userMessage.includes('как дела') || userMessage.includes('как ты')) {
          return 'Хорошо, спасибо! Готов помочь с выбором добавок. Что вас интересует?';
       } else {
-        return 'Здравствуйте! Я ваш персональный консультант по грибным добавкам spor3s. Расскажите, что вас беспокоит или какие цели хотите достичь? Помогу подобрать подходящие продукты.';
+        reply = 'Здравствуйте! Я ваш персональный консультант по грибным добавкам spor3s. Расскажите, что вас беспокоит или какие цели хотите достичь? Помогу подобрать подходящие продукты.';
       }
+    }
+    
+    // КРИТИЧНО: Возвращаем reply, если она установлена, иначе fallback
+    if (reply && reply.trim().length > 0) {
+      return reply;
     }
     return null; // fallback return
   }
