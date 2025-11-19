@@ -582,13 +582,16 @@ function forceRemoveFromCartTag(text) {
 // TypeScript типы удалены - это JavaScript файл
 
 export async function POST(req: NextRequest) {
-  // КРИТИЧНО: Загружаем ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
+  // КРИТИЧНО: Загружаем OpenAI ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
   let OR_TOKEN = null;
   
-  // Приоритет 1: process.env (от PM2 или Next.js)
-  if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
+  // Приоритет 1: process.env (от PM2 или Next.js) - пробуем оба варианта для совместимости
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.length > 20) {
+    OR_TOKEN = process.env.OPENAI_API_KEY;
+    console.log('[AI API] ✅ Ключ загружен из process.env.OPENAI_API_KEY, длина:', OR_TOKEN.length);
+  } else if (process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.length > 20) {
     OR_TOKEN = process.env.OPENROUTER_API_KEY;
-    console.log('[AI API] ✅ Ключ загружен из process.env, длина:', OR_TOKEN.length);
+    console.log('[AI API] ✅ Ключ загружен из process.env.OPENROUTER_API_KEY (совместимость), длина:', OR_TOKEN.length);
   }
   
   // Приоритет 2: .env.local файл (если process.env пуст)
@@ -612,12 +615,14 @@ export async function POST(req: NextRequest) {
             const content = fs.readFileSync(envPath, 'utf8');
             const lines = content.split('\n');
             for (const line of lines) {
-              const match = line.match(/^OPENROUTER_API_KEY\s*=\s*(.+)$/);
+              // Пробуем оба варианта: OPENAI_API_KEY и OPENROUTER_API_KEY (для совместимости)
+              const match = line.match(/^(OPENAI_API_KEY|OPENROUTER_API_KEY)\s*=\s*(.+)$/);
               if (match) {
-                let key = match[1].trim().replace(/^["']|["']$/g, '');
+                let key = match[2].trim().replace(/^["']|["']$/g, '');
                 if (key && key.length > 20) {
                   OR_TOKEN = key;
-                  process.env.OPENROUTER_API_KEY = key;
+                  process.env.OPENAI_API_KEY = key;
+                  process.env.OPENROUTER_API_KEY = key; // Для совместимости
                   console.log('[AI API] ✅✅✅ Ключ загружен из', envPath, 'длина:', key.length);
                   break;
                 }
@@ -637,11 +642,12 @@ export async function POST(req: NextRequest) {
   // Если ключ все еще не найден, возвращаем ошибку СРАЗУ
   if (!OR_TOKEN || OR_TOKEN.length < 20) {
     console.error('[AI API] ❌ Ключ НЕ найден!');
+    console.error('[AI API] process.env.OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `существует (длина: ${process.env.OPENAI_API_KEY.length})` : 'не существует');
     console.error('[AI API] process.env.OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? `существует (длина: ${process.env.OPENROUTER_API_KEY.length})` : 'не существует');
     console.error('[AI API] process.cwd():', process.cwd());
     return NextResponse.json({ 
-      response: "OpenRouter токен не найден.",
-      error: 'OPENROUTER_KEY_MISSING'
+      response: "OpenAI токен не найден.",
+      error: 'OPENAI_KEY_MISSING'
     }, { status: 503 });
   }
   
@@ -1061,7 +1067,7 @@ export async function POST(req: NextRequest) {
 • 3 месяца (курс, экономично)${productKey === 'combo' ? '\n• 6 месяцев (максимальный эффект)' : ''}
 
 Какой срок вам подходит?`;
-      }
+    }
     }
     
     // Обработка выбора месяца после выбора формы
@@ -1215,19 +1221,15 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
        
-      // Пробуем OpenRouter с улучшенными заголовками
-       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      // Используем OpenAI API напрямую
+       const response = await fetch("https://api.openai.com/v1/chat/completions", {
          method: "POST",
          headers: {
            "Authorization": `Bearer ${OR_TOKEN}`,
            "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Accept": "application/json",
-          "HTTP-Referer": "https://ai.spor3s.ru",
-          "X-Title": "Spor3s AI"
          },
          body: JSON.stringify({
-           model: "openai/gpt-4o-mini",
+           model: "gpt-4o-mini",
            messages: [
              { role: "system", content: aiPrompt },
             ...msgs  // Передаем всю историю диалога
@@ -1243,8 +1245,8 @@ export async function POST(req: NextRequest) {
       if (!response.ok) {
         console.error('[AI API] HTTP Error:', response.status, response.statusText);
         
-        // FALLBACK: Если OpenRouter не работает, используем интеллектуальный ответ
-        console.log('[AI API] OpenRouter недоступен, используем fallback ответ');
+        // FALLBACK: Если OpenAI не работает, используем интеллектуальный ответ
+        console.log('[AI API] OpenAI недоступен, используем fallback ответ');
         let fallbackResponse = generateIntelligentFallback(msgs, userSummary, productsInfo);
         
         // КРИТИЧНО: Применяем те же проверки к fallback ответу!
