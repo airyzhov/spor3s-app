@@ -70,57 +70,79 @@ export default function MainApp() {
   // Авторизация пользователя
   useEffect(() => {
     const initUser = async () => {
-      if (!telegramUser?.telegram_id) {
-        // Если Telegram данных нет, используем тестового пользователя
-        const testUserId = `test-user-${Date.now()}`;
-        try {
-          const response = await fetch('/api/init-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              telegram_id: testUserId,
-              referral_code: referralCode 
-            }),
-          });
-          
-          const data = await response.json();
-          if (data.id) {
-            setUserId(data.id);
-            console.log('✅ Test user initialized:', data.id);
-          }
-        } catch (error) {
-          console.error('❌ Test user init failed:', error);
-        }
-      } else {
-        // Реальная авторизация через Telegram
-        try {
-          const response = await fetch('/api/init-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              telegram_id: telegramUser.telegram_id,
-              referral_code: referralCode 
-            }),
-          });
-          
-          const data = await response.json();
-          if (data.id) {
-            setUserId(data.id);
-            console.log('✅ Telegram user authenticated:', {
-              telegram_id: telegramUser.telegram_id,
-              user_id: data.id,
-              name: telegramUser.first_name
-            });
-          }
-        } catch (error) {
-          console.error('❌ Telegram auth failed:', error);
-        }
+      // Таймаут для авторизации 15 секунд
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth timeout')), 15000)
+      );
+
+      try {
+        // Оборачиваем логику в Promise.race с таймаутом
+        await Promise.race([
+          (async () => {
+            if (!telegramUser?.telegram_id) {
+              // Если Telegram данных нет, используем тестового пользователя
+              // Но в браузере лучше пропустить этот шаг, чтобы не спамить тестовыми юзерами
+              // Или сохранить в localStorage
+              let testUserId = '';
+              if (typeof window !== 'undefined') {
+                 testUserId = localStorage.getItem('spor3s_test_user_id') || `test-user-${Date.now()}`;
+                 localStorage.setItem('spor3s_test_user_id', testUserId);
+              } else {
+                 testUserId = `test-user-${Date.now()}`;
+              }
+              
+              try {
+                const response = await fetch('/api/init-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    telegram_id: testUserId,
+                    referral_code: referralCode 
+                  }),
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.id) {
+                    setUserId(data.id);
+                    console.log('✅ Test user initialized:', data.id);
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Test user init failed:', error);
+              }
+            } else {
+              // Реальная авторизация через Telegram
+              try {
+                const response = await fetch('/api/init-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                    telegram_id: telegramUser.telegram_id,
+                    referral_code: referralCode 
+                  }),
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.id) {
+                    setUserId(data.id);
+                    console.log('✅ Telegram user authenticated:', data.id);
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Telegram auth failed:', error);
+              }
+            }
+          })(),
+          timeoutPromise
+        ]);
+      } catch (error) {
+        console.error('⚠️ Auth timed out or failed:', error);
+      } finally {
+        // Всегда убираем загрузку, даже при ошибке
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     };
 
     if (mounted) {
@@ -130,7 +152,15 @@ export default function MainApp() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
+      // Добавляем таймаут 10 секунд
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch('/api/products', { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error(`HTTP status ${response.status}`);
+      
       const data = await response.json();
       
       if (data.success && data.products) {
@@ -145,7 +175,7 @@ export default function MainApp() {
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      // Fallback products
+      // Fallback products on error
       setProducts([
         { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
         { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
