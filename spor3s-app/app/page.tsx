@@ -1,7 +1,6 @@
 import dynamic from 'next/dynamic';
 
 const AppClient = dynamic(() => import('./(client)/AppClient'), {
-  ssr: false,
   loading: () => (
     <div style={{ 
       display: 'flex', 
