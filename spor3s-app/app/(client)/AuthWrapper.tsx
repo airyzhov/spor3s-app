@@ -36,6 +36,11 @@ function AdminOrders({ user }: { user: AdminUser }) {
     async function fetchOrders() {
       setLoading(true);
       setError(null);
+      if (!supabase) {
+        setError("Supabase client not initialized");
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -103,6 +108,11 @@ function UserOrders({ user }: { user: any }) {
     async function fetchOrders() {
       setLoading(true);
       setError(null);
+      if (!supabase) {
+        setError("Supabase client not initialized");
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -126,6 +136,7 @@ function UserOrders({ user }: { user: any }) {
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
+      if (!supabase) return;
       const { data, error } = await supabase
         .from("daily_checkins")
         .select("id, date")
@@ -238,6 +249,7 @@ export default function AuthWrapper({ showAuth, setShowAuth, user, setUser }: { 
   useEffect(() => {
     if (!user) return;
     async function fetchBalanceAndCode() {
+      if (!supabase) return;
       const { data } = await supabase
         .from("orders")
         .select("spores_coin, referral_code")
