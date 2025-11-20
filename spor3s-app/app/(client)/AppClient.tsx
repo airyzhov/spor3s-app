@@ -58,45 +58,63 @@ export default function AppClient() {
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
     const initUser = async () => {
-      try {
-        // 1) Telegram WebApp контекст
-        const tg = (typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined);
-        const tgUser = tg?.initDataUnsafe?.user;
-        if (tgUser?.id) {
-          const telegramId = String(tgUser.id);
-          const response = await fetch('/api/init-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegram_id: telegramId })
-          });
-          const data = await response.json();
-          if (response.ok && data?.id) {
-            setUser({
-              id: data.id,
-              telegram_id: telegramId,
-              username: tgUser.username,
-              first_name: tgUser.first_name,
-              last_name: tgUser.last_name
-            });
-            console.log('✅ Telegram user initialized:', data.id);
-            return;
-          }
-        }
+      // Таймаут для авторизации 15 секунд
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth timeout')), 15000)
+      );
 
-        // 2) DEV-фоллбек (только если нет Telegram окружения)
-        const devId = `dev-${Date.now()}`;
-        const resp = await fetch('/api/init-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegram_id: devId })
-        });
-        const resData = await resp.json();
-        if (resp.ok && resData?.id) {
-          setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
-          console.log('⚙️ Dev user initialized:', resData.id);
-        }
+      try {
+        await Promise.race([
+          (async () => {
+            // 1) Telegram WebApp контекст
+            const tg = (typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined);
+            const tgUser = tg?.initDataUnsafe?.user;
+            if (tgUser?.id) {
+              const telegramId = String(tgUser.id);
+              const response = await fetch('/api/init-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ telegram_id: telegramId })
+              });
+              const data = await response.json();
+              if (response.ok && data?.id) {
+                setUser({
+                  id: data.id,
+                  telegram_id: telegramId,
+                  username: tgUser.username,
+                  first_name: tgUser.first_name,
+                  last_name: tgUser.last_name
+                });
+                console.log('✅ Telegram user initialized:', data.id);
+                return;
+              }
+            }
+
+            // 2) DEV-фоллбек (только если нет Telegram окружения)
+            // Используем localStorage для dev-user
+            let devId = '';
+            if (typeof window !== 'undefined') {
+               devId = localStorage.getItem('spor3s_dev_user_id') || `dev-${Date.now()}`;
+               localStorage.setItem('spor3s_dev_user_id', devId);
+            } else {
+               devId = `dev-${Date.now()}`;
+            }
+            
+            const resp = await fetch('/api/init-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ telegram_id: devId })
+            });
+            const resData = await resp.json();
+            if (resp.ok && resData?.id) {
+              setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
+              console.log('⚙️ Dev user initialized:', resData.id);
+            }
+          })(),
+          timeoutPromise
+        ]);
       } catch (error) {
-        console.error('❌ initUser failed:', error);
+        console.error('❌ initUser failed or timed out:', error);
       }
     };
     initUser();
@@ -107,16 +125,32 @@ export default function AppClient() {
     const fetchProducts = async () => {
       try {
         console.log('🛒 AppClient: Загружаем продукты...');
-        const response = await fetch('/api/products');
+        // Добавляем таймаут 10 секунд
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch('/api/products', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         const data = await response.json();
         if (response.ok) {
           console.log('🛒 AppClient: Продукты загружены:', data.products);
           setProducts(data.products || []);
         } else {
           console.error('🛒 AppClient: Ошибка загрузки продуктов:', response.status);
+          // Fallback products
+          setProducts([
+            { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+            { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+          ]);
         }
       } catch (error) {
         console.error('🛒 AppClient: Ошибка загрузки продуктов:', error);
+        // Fallback products
+        setProducts([
+          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+        ]);
       }
     };
     fetchProducts();
