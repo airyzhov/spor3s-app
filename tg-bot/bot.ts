@@ -104,7 +104,7 @@ async function saveMessage(userId: string, content: string, role: 'user' | 'assi
 // Функция для вызова ИИ API с интеллектуальным fallback
 async function callAI(message: string, context: any[], userId: string, telegramId?: string) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/api/ai`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/ai`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 // Генерация корректной deep-link для Mini App
 async function buildMiniAppLink(telegramId: string): Promise<string> {
   const botUsername = process.env.BOT_USERNAME || 'spor3s_bot';
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
   try {
     const resp = await fetch(`${baseUrl}/api/generate-auth-code`, {
       method: 'POST',

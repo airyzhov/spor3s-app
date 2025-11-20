@@ -6,8 +6,6 @@ import Cart from "./Cart";
 import OrderForm from "../order-form";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap"; // Добавлено: импорт Ваш прогресс
-import MushroomTracker from "../../components/MushroomTracker"; // Добавлено: импорт трекера грибов
-import MushroomTrackerPage from "../../components/MushroomTrackerPage"; // Добавлено: импорт страницы трекера
 import { useTelegramUser } from "../../hooks/useTelegramUser";
 
 type Product = {
@@ -45,11 +43,13 @@ export default function MainApp() {
       const ref = urlParams.get('ref');
       if (ref) {
         setReferralCode(ref);
-        localStorage.setItem('spor3s_referral', ref);
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('spor3s_referral', ref);
+        }
         console.log('🎯 Реферальный код найден:', ref);
       } else {
         // Проверяем localStorage на случай, если пользователь уже был на сайте
-        const savedRef = localStorage.getItem('spor3s_referral');
+        const savedRef = (typeof window !== 'undefined' && window.localStorage) ? localStorage.getItem('spor3s_referral') : null;
         if (savedRef) {
           setReferralCode(savedRef);
           console.log('🎯 Реферальный код из localStorage:', savedRef);
@@ -294,7 +294,7 @@ export default function MainApp() {
               <span style={{ fontSize: "clamp(16px, 3.5vw, 18px)", flexShrink: 0 }}>{step.icon}</span>
               <span style={{ 
                 fontSize: "clamp(11px, 2vw, 13px)",
-                display: window.innerWidth > 500 ? "inline" : "none"
+                display: (typeof window !== 'undefined' && window.innerWidth > 500) ? "inline" : "none"
               }}>
                 {step.shortName}
               </span>

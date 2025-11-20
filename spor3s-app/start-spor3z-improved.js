@@ -23,8 +23,8 @@ console.log('SESSION_STRING:', SESSION_STRING ? '✅' : '❌');
 console.log('SUPABASE_URL:', SUPABASE_URL ? '✅' : '❌');
 console.log('SUPABASE_KEY:', SUPABASE_KEY ? '✅' : '❌');
 
-// Базовый URL для API - используем переменную окружения или localhost
-const BASE_API_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+// Базовый URL для API - используем переменную окружения или production URL
+const BASE_API_URL = process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_API_URL || 'https://ai.spor3s.ru';
 console.log('API_URL:', BASE_API_URL);
 
 if (!API_ID || !API_HASH || !SESSION_STRING) {
@@ -114,30 +114,64 @@ async function getOrCreateUser(telegramId) {
 // Функция для вызова AI API с интеллектуальным fallback
 async function callAI(message, context, userId) {
   try {
-    const response = await axios.post(`${BASE_API_URL}/api/ai`, {
+    console.log('🤖 Вызываем AI API:', `${BASE_API_URL}/api/ai`);
+    console.log('📝 Сообщение:', message);
+    console.log('👤 User ID:', userId);
+    console.log('📋 Контекст:', context.length, 'сообщений');
+    
+    const requestData = {
       message: message,
-      context: context,
+      context: Array.isArray(context) ? context : [],
       source: 'spor3z',
       user_id: userId,
-      telegram_id: userId
-    }, {
-      timeout: 15000,
+      telegram_id: userId.toString()
+    };
+    
+    console.log('📤 Отправляем данные:', JSON.stringify(requestData, null, 2));
+    
+    const response = await axios.post(`${BASE_API_URL}/api/ai`, requestData, {
+      timeout: 60000, // Увеличиваем timeout до 60 секунд
       headers: {
         'Content-Type': 'application/json',
         'ngrok-skip-browser-warning': 'true',
-        'User-Agent': 'spor3z-bot/1.0'
-      }
+        'User-Agent': 'spor3z-bot/1.0',
+        'Connection': 'keep-alive'
+      },
+      validateStatus: () => true // Принимаем любые статусы для обработки
     });
 
-    console.log('✅ AI API ответ получен');
-    return response.data.response || response.data.reply || 'Извините, не удалось получить ответ.';
+    console.log('📊 Статус ответа:', response.status);
+    console.log('📥 Ответ API:', JSON.stringify(response.data).substring(0, 200));
+    
+    if (response.status !== 200) {
+      console.log('❌ API вернул ошибку:', response.status);
+      throw new Error(`API вернул статус ${response.status}`);
+    }
+    
+    const aiResponse = response.data?.response || response.data?.reply || response.data?.message;
+    
+    if (!aiResponse || aiResponse.trim().length === 0) {
+      console.log('⚠️ Пустой ответ от API, используем fallback');
+      return generateIntelligentFallback(message, context);
+    }
+    
+    console.log('✅ AI ответ получен:', aiResponse.substring(0, 100) + '...');
+    
+    return aiResponse;
   } catch (error) {
     console.log('❌ Ошибка AI API:', error.message);
+    console.log('❌ Код ошибки:', error.code);
     if (error.response) {
-      console.log('Детали ошибки:', error.response.data);
+      console.log('📊 Статус ошибки:', error.response.status);
+      console.log('📥 Данные ошибки:', JSON.stringify(error.response.data).substring(0, 200));
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      console.log('⚠️ API недоступен, используем fallback');
     }
     // Используем интеллектуальный fallback
-    return generateIntelligentFallback(message, context);
+    const fallbackResponse = generateIntelligentFallback(message, context);
+    console.log('✅ Fallback ответ сгенерирован:', fallbackResponse.substring(0, 100) + '...');
+    return fallbackResponse;
   }
 }
 
@@ -150,7 +184,7 @@ function generateIntelligentFallback(message, context) {
   
   // Анализируем намерение пользователя
   if (lastMessage.includes('ежовик') || lastMessage.includes('память') || lastMessage.includes('концентрация')) {
-    return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
+    return `Отлично! Я spor3z, твой персональный AI-ассистент. Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
 
 В какой форме предпочитаете:
 • Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
@@ -167,7 +201,7 @@ function generateIntelligentFallback(message, context) {
   }
   
   if (lastMessage.includes('мухомор') || lastMessage.includes('сон') || lastMessage.includes('стресс')) {
-    return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
+    return `Отлично! Я spor3z, твой персональный AI-ассистент. Мухомор красный отлично помогает со сном, стрессом и тревожностью.
 
 В какой форме предпочитаете:
 • Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
@@ -183,7 +217,7 @@ function generateIntelligentFallback(message, context) {
   }
   
   if (lastMessage.includes('кордицепс') || lastMessage.includes('энергия') || lastMessage.includes('выносливость')) {
-    return `Отлично! Кордицепс китайский отлично помогает с энергией, выносливостью и спортивными результатами.
+    return `Отлично! Я spor3z, твой персональный AI-ассистент. Кордицепс китайский отлично помогает с энергией, выносливостью и спортивными результатами.
 
 В какой форме предпочитаете:
 • Порошок (50г на месяц за 800₽)
@@ -195,7 +229,7 @@ function generateIntelligentFallback(message, context) {
   }
   
   if (lastMessage.includes('цистозира') || lastMessage.includes('щитовидка') || lastMessage.includes('йод')) {
-    return `Отлично! Цистозира отлично помогает с щитовидной железой и гормональной системой.
+    return `Отлично! Я spor3z, твой персональный AI-ассистент. Цистозира отлично помогает с щитовидной железой и гормональной системой.
 
 В какой форме предпочитаете:
 • Порошок (30г на месяц за 500₽)
@@ -207,7 +241,7 @@ function generateIntelligentFallback(message, context) {
   }
   
   if (lastMessage.includes('комплекс') || lastMessage.includes('4 в 1') || lastMessage.includes('все вместе')) {
-    return `Отлично! Комплекс 4 в 1 включает все основные добавки для максимального эффекта.
+    return `Отлично! Я spor3z, твой персональный AI-ассистент. Комплекс 4 в 1 включает все основные добавки для максимального эффекта.
 
 Варианты:
 • 4 в 1 (месяц) - 3300₽
@@ -242,7 +276,7 @@ function generateIntelligentFallback(message, context) {
   }
   
   // Общий ответ для неопределенных запросов
-  return `Привет! Я консультант по грибным добавкам СПОРС.
+  return `Привет! Я spor3z, твой персональный AI-ассистент по грибным добавкам SPOR3S.
 
 Помогу подобрать добавки для ваших целей:
 
@@ -285,20 +319,18 @@ async function getUserContext(userId) {
       console.log('❌ Ошибка получения заказов:', ordersError);
     }
 
-    // Формируем контекст
+    // Формируем контекст в правильном формате для API
     const context = [];
     
     if (messages && messages.length > 0) {
-      context.push('Последние сообщения:');
+      // Преобразуем сообщения в формат {role, content}
       messages.reverse().forEach(msg => {
-        context.push(`${msg.role}: ${msg.content}`);
+        if (msg.role && msg.content) {
+          context.push({
+            role: msg.role,
+            content: msg.content
       });
     }
-
-    if (orders && orders.length > 0) {
-      context.push('Последние заказы:');
-      orders.forEach(order => {
-        context.push(`Заказ ${order.id}: ${order.products} - ${order.status}`);
       });
     }
 
@@ -313,50 +345,92 @@ async function getUserContext(userId) {
 async function handleNewMessage(event) {
   try {
     const message = event.message;
+    
+    // Проверяем, что сообщение существует и содержит текст
+    if (!message || !message.message || !message.message.trim()) {
+      console.log('⚠️ Пустое сообщение, пропускаем');
+      return;
+    }
+    
     const sender = await message.getSender();
     
     if (!sender || sender.isSelf) {
+      console.log('⚠️ Сообщение от бота или без отправителя, пропускаем');
       return; // Игнорируем собственные сообщения
     }
 
-    console.log(`📱 Новое сообщение от ${sender.firstName || sender.username}: ${message.message}`);
+    const telegramId = sender.id?.toString();
+    if (!telegramId) {
+      console.log('⚠️ Не удалось получить telegram_id отправителя');
+      return;
+    }
+
+    console.log(`📱 Новое сообщение от ${sender.firstName || sender.username || telegramId}: ${message.message}`);
 
     // Получаем или создаем пользователя
-    const user = await getOrCreateUser(sender.id);
-    console.log('✅ Пользователь получен:', user.id);
+    const user = await getOrCreateUser(telegramId);
+    console.log('✅ Пользователь получен:', user.id, 'telegram_id:', user.telegram_id);
+    
+    // Если user.id временный (temp-*), используем telegram_id для API
+    const userIdForAPI = user.id.startsWith('temp-') ? null : user.id;
 
     // Сохраняем сообщение пользователя (пропускаем ошибки)
+    if (!user.id.startsWith('temp-')) {
     try {
       await saveMessage(user.id, 'user', message.message, 'spor3z');
+        console.log('✅ Сообщение пользователя сохранено');
     } catch (error) {
-      console.log('⚠️ Не удалось сохранить сообщение пользователя');
+        console.log('⚠️ Не удалось сохранить сообщение пользователя:', error.message);
+      }
     }
 
     // Получаем контекст пользователя (пропускаем ошибки)
     let context = [];
+    if (!user.id.startsWith('temp-')) {
     try {
       context = await getUserContext(user.id);
+        console.log('✅ Контекст получен:', context.length, 'сообщений');
     } catch (error) {
-      console.log('⚠️ Не удалось получить контекст пользователя');
+        console.log('⚠️ Не удалось получить контекст пользователя:', error.message);
+      }
     }
 
     // Вызываем AI API
     console.log('🤖 Вызываем AI API...');
-    const aiResponse = await callAI(message.message, context, user.id);
+    console.log('📝 Сообщение пользователя:', message.message);
+    console.log('👤 User ID для API:', userIdForAPI || 'null (используем telegram_id)');
+    console.log('📋 Контекст:', context.length, 'сообщений');
+    
+    const aiResponse = await callAI(message.message, context, userIdForAPI || telegramId);
+    
+    console.log('✅ AI ответ получен:', aiResponse.substring(0, 100) + '...');
 
     // Сохраняем ответ AI (пропускаем ошибки)
+    if (!user.id.startsWith('temp-')) {
     try {
       await saveMessage(user.id, 'assistant', aiResponse, 'spor3z');
+        console.log('✅ Ответ AI сохранен');
     } catch (error) {
-      console.log('⚠️ Не удалось сохранить ответ AI');
+        console.log('⚠️ Не удалось сохранить ответ AI:', error.message);
+      }
     }
 
     // Отправляем ответ
+    try {
     await message.reply({
       message: aiResponse
     });
-
-    console.log('✅ Ответ отправлен');
+      console.log('✅ Ответ отправлен пользователю');
+    } catch (error) {
+      console.log('❌ Ошибка отправки ответа:', error.message);
+      // Пробуем отправить напрямую
+      try {
+        await client.sendMessage(message.chatId, { message: aiResponse });
+        console.log('✅ Ответ отправлен напрямую');
+      } catch (sendError) {
+        console.log('❌ Критическая ошибка отправки:', sendError.message);
+      }
+    }
 
   } catch (error) {
     console.log('❌ Ошибка обработки сообщения:', error.message);

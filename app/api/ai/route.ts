@@ -1377,13 +1377,14 @@ export async function POST(req: NextRequest) {
           if (messageSource === 'mini_app') {
             // В Mini App - теги остаются для обработки приложением
             finalResponse = aiResponse;
-          } else if (messageSource === 'telegram_bot') {
-            // В Telegram Bot - предлагаем перейти в приложение и удаляем теги
-            finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
-            finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot\n\nИли укажите ФИО+телефон+адрес СДЭК для оформления здесь.';
+          } else           if (messageSource === 'telegram_bot') {
+            // В Telegram Bot - оставляем теги для обработки ботом
+            finalResponse = aiResponse;
+            finalResponse += '\n\n(Вы можете оформить заказ здесь или в приложении: 👉 t.me/spor3s_bot)';
           } else {
-            // В Spor3z - удаляем теги (агент их обработает)
+            // В Spor3z - удаляем теги
             finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
+            finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot';
           }
          }
          

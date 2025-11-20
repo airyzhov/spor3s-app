@@ -73,7 +73,7 @@ export default function Chat({ products, setStep }: ChatProps) {
     const initializeUser = async () => {
       try {
         // Проверяем, доступен ли Telegram WebApp
-        if (window.Telegram && window.Telegram.WebApp) {
+        if (typeof window !== 'undefined' && window.Telegram && window.Telegram.WebApp) {
           const webApp = window.Telegram.WebApp;
           const initData = webApp.initDataUnsafe;
           
@@ -486,6 +486,7 @@ export default function Chat({ products, setStep }: ChatProps) {
             console.log(`🛒 Добавлен в корзину: ${product.name}`);
             
             // Показываем уведомление
+            if (typeof document === 'undefined') return;
             const notification = document.createElement('div');
             notification.style.cssText = `
               position: fixed;
@@ -514,7 +515,9 @@ export default function Chat({ products, setStep }: ChatProps) {
                 </div>
               </div>
             `;
-            document.body.appendChild(notification);
+            if (typeof document !== 'undefined' && document.body) {
+              document.body.appendChild(notification);
+            }
             
             setTimeout(() => {
               notification.style.animation = 'slideOutRight 0.4s ease-out';
@@ -643,6 +646,7 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
           console.log(`🗑️ Автоматически удален из корзины: ${product.name}`);
 
           // Показываем уведомление об автоматическом удалении
+          if (typeof document === 'undefined') return;
           const notification = document.createElement('div');
           notification.style.cssText = `
             position: fixed;
@@ -671,7 +675,9 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
               </div>
             </div>
           `;
-          document.body.appendChild(notification);
+          if (typeof document !== 'undefined' && document.body) {
+            document.body.appendChild(notification);
+          }
 
           // Удаляем уведомление через 4 секунды
           setTimeout(() => {
@@ -765,6 +771,7 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
       setMessages(prev => [...prev, cartMessage]);
       
       // Показываем уведомление об успешном добавлении
+      if (typeof document === 'undefined') return;
       const notification = document.createElement('div');
       notification.style.cssText = `
         position: fixed;
@@ -793,13 +800,17 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
           </div>
         </div>
       `;
-      document.body.appendChild(notification);
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.appendChild(notification);
+      }
       
       // Добавляем звуковой эффект (если доступен)
       try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
+        if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+          audio.volume = 0.3;
+          audio.play().catch(() => {});
+        }
       } catch (e) {}
       
       // Удаляем уведомление через 4 секунды
@@ -825,6 +836,7 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
       addToCart(product);
       
       // Показываем уведомление и переходим к заказу
+      if (typeof document === 'undefined') return;
       const notification = document.createElement('div');
       notification.style.cssText = `
         position: fixed;
@@ -853,13 +865,17 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
           </div>
         </div>
       `;
-      document.body.appendChild(notification);
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.appendChild(notification);
+      }
       
       // Добавляем звуковой эффект (если доступен)
       try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
+        if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+          audio.volume = 0.3;
+          audio.play().catch(() => {});
+        }
       } catch (e) {}
       
       // Переходим к оформлению заказа через 1.5 секунды
@@ -1046,7 +1062,7 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
     return null;
   }
 
-          return (
+  return (
     <>
       <style jsx global>{`
         @keyframes slideInRight {

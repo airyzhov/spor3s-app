@@ -49,6 +49,16 @@ fix-*.sql
 *.zip
 *.tar.gz
 
+# Python/Shell scripts for VPS check
+check_*.py
+check_*.sh
+deploy_*.py
+deploy_*.sh
+test_*.py
+setup_*.py
+verify_*.py
+*.sql
+
 # vercel
 .vercel
 
