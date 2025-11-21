@@ -1,5 +1,5 @@
-import ClientEntry from './ClientEntry';
+import AppClient from './(client)/AppClient';
 
 export default function Home() {
-  return <ClientEntry />;
+  return <AppClient />;
 }

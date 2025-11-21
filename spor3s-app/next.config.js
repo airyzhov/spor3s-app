@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   env: {
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
   },
@@ -16,7 +17,12 @@ const nextConfig = {
         ]
       }
     ]
-  }
+  },
+  // Production optimizations
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  swcMinify: true,
 };
 
 module.exports = nextConfig;

@@ -60,63 +60,112 @@ export default function AppClient() {
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
     const initUser = async () => {
+      // Уменьшаем timeout до 5 секунд
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Auth timeout')), 15000)
+        setTimeout(() => reject(new Error('Auth timeout')), 5000)
       );
 
       try {
         await Promise.race([
           (async () => {
-            // 1) Telegram WebApp контекст
-            const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : undefined;
-            const tgUser = tg?.initDataUnsafe?.user;
-            console.log('🔍 TG WebApp check:', { tgAvailable: !!tg, userAvailable: !!tgUser });
-            
-            if (tgUser?.id) {
-              const telegramId = String(tgUser.id);
-              const response = await fetch('/api/init-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegram_id: telegramId })
-              });
-              const data = await response.json();
-              if (response.ok && data?.id) {
-                setUser({
-                  id: data.id,
-                  telegram_id: telegramId,
-                  username: tgUser.username,
-                  first_name: tgUser.first_name,
-                  last_name: tgUser.last_name
-                });
-                console.log('✅ Telegram user initialized:', data.id);
-                return;
+            try {
+              // 1) Telegram WebApp контекст
+              const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : undefined;
+              const tgUser = tg?.initDataUnsafe?.user;
+              console.log('🔍 TG WebApp check:', { tgAvailable: !!tg, userAvailable: !!tgUser });
+              
+              if (tgUser?.id) {
+                const telegramId = String(tgUser.id);
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                
+                try {
+                  const response = await fetch('/api/init-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegram_id: telegramId }),
+                    signal: controller.signal
+                  });
+                  clearTimeout(timeoutId);
+                  
+                  if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                  }
+                  
+                  const data = await response.json();
+                  if (data?.id) {
+                    setUser({
+                      id: data.id,
+                      telegram_id: telegramId,
+                      username: tgUser.username,
+                      first_name: tgUser.first_name,
+                      last_name: tgUser.last_name
+                    });
+                    console.log('✅ Telegram user initialized:', data.id);
+                    return;
+                  }
+                } catch (fetchError: any) {
+                  clearTimeout(timeoutId);
+                  if (fetchError.name === 'AbortError') {
+                    console.warn('⚠️ API timeout, using fallback');
+                  } else {
+                    console.error('❌ API error:', fetchError);
+                  }
+                  throw fetchError;
+                }
               }
-            }
 
-            // 2) DEV-фоллбек (только если нет Telegram окружения)
-            let devId = '';
-            if (typeof window !== 'undefined') {
-               devId = localStorage.getItem('spor3s_dev_user_id') || `dev-${Date.now()}`;
-               localStorage.setItem('spor3s_dev_user_id', devId);
-            } else {
-               devId = `dev-${Date.now()}`;
-            }
-            
-            const resp = await fetch('/api/init-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ telegram_id: devId })
-            });
-            const resData = await resp.json();
-            if (resp.ok && resData?.id) {
-              setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
-              console.log('⚙️ Dev user initialized:', resData.id);
+              // 2) DEV-фоллбек (только если нет Telegram окружения)
+              let devId = '';
+              if (typeof window !== 'undefined') {
+                 devId = localStorage.getItem('spor3s_dev_user_id') || `dev-${Date.now()}`;
+                 localStorage.setItem('spor3s_dev_user_id', devId);
+              } else {
+                 devId = `dev-${Date.now()}`;
+              }
+              
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 4000);
+              
+              try {
+                const resp = await fetch('/api/init-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ telegram_id: devId }),
+                  signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (resp.ok) {
+                  const resData = await resp.json();
+                  if (resData?.id) {
+                    setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
+                    console.log('⚙️ Dev user initialized:', resData.id);
+                    return;
+                  }
+                }
+              } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+                console.error('❌ Dev user init failed:', fetchError);
+              }
+              
+              // Финальный fallback - создаем временного пользователя
+              console.warn('⚠️ Using temporary user');
+              setUser({ id: 'temp-' + Date.now(), telegram_id: devId, username: 'temp-user' });
+            } catch (error) {
+              console.error('❌ User init error:', error);
+              // В случае ошибки создаем временного пользователя
+              const tempId = 'temp-' + Date.now();
+              setUser({ id: tempId, telegram_id: tempId, username: 'temp-user' });
             }
           })(),
           timeoutPromise
         ]);
       } catch (error) {
         console.error('❌ initUser failed or timed out:', error);
+        // В случае таймаута создаем временного пользователя
+        const tempId = 'temp-' + Date.now();
+        setUser({ id: tempId, telegram_id: tempId, username: 'temp-user' });
       } finally {
         setAuthLoading(false);
       }

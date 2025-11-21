@@ -27,13 +27,12 @@ jobs:
           echo "🚀 Начало деплоя spor3s-app"
           
           # Переходим в директорию проекта
-          if [ ! -d /var/www/spor3s-app ]; then
-            echo "📁 Создание директории /var/www/spor3s-app"
-            mkdir -p /var/www/spor3s-app
-            cd /var/www/spor3s-app
+          cd /var/www/spor3s-app
+          if [ ! -d .git ]; then
+            echo "📁 Клонирование репозитория..."
+            rm -rf *
             git clone https://github.com/airyzhov/spor3s-app.git .
           else
-            cd /var/www/spor3s-app
             echo "📦 Обновление кода из GitHub..."
             git fetch origin
             git reset --hard origin/main
@@ -101,8 +100,6 @@ jobs:
           echo "✅ Кэш очищен"
           
           # Определяем правильную директорию для сборки
-          export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
-          
           # Проверяем структуру проекта
           echo "📁 Проверка структуры проекта..."
           ls -la /var/www/spor3s-app/ | head -20
@@ -290,17 +287,39 @@ jobs:
           # Создаем или обновляем .env.local файл в директории проекта ПЕРЕД перезапуском PM2
           # Next.js автоматически загружает .env.local в production
           # КРИТИЧНО: Создаем в правильной директории Next.js приложения
-          NEXTJS_DIR="/var/www/spor3s-app/spor3s-app"
+          NEXTJS_DIR="$BUILD_DIR"
           if [ -d "$NEXTJS_DIR" ]; then
             cd "$NEXTJS_DIR"
-            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
-            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
-            echo "✅ Создан/обновлен .env.local в $NEXTJS_DIR"
-          else
-            cd "$BUILD_DIR"
-            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
-            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
-            echo "✅ Создан/обновлен .env.local в $BUILD_DIR"
+            # Копируем env.local если существует, иначе создаем новый
+            if [ -f env.local ]; then
+              cp env.local .env.local
+              echo "✅ Скопирован env.local в .env.local"
+            else
+              # Создаем базовый .env.local
+              if [ -f .env.local ]; then
+                # Обновляем ключи если файл существует
+                if ! grep -q "OPENROUTER_API_KEY" .env.local; then
+                  echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
+                fi
+                if ! grep -q "OPENAI_API_KEY" .env.local; then
+                  echo "OPENAI_API_KEY=$OPENROUTER_KEY" >> .env.local
+                fi
+              else
+                echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
+                echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
+                echo "✅ Создан новый .env.local в $NEXTJS_DIR"
+              fi
+            fi
+            # Убеждаемся что домен правильный
+            if ! grep -q "NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru" .env.local; then
+              # Обновляем или добавляем URL
+              if grep -q "NEXT_PUBLIC_BASE_URL" .env.local; then
+                sed -i 's|NEXT_PUBLIC_BASE_URL=.*|NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru|g' .env.local
+              else
+                echo "NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru" >> .env.local
+              fi
+              echo "✅ Обновлен NEXT_PUBLIC_BASE_URL в .env.local"
+            fi
           fi
           echo "✅ Создан/обновлен .env.local файл с OPENROUTER_API_KEY"
           # Проверяем что файл создан и содержит ключ

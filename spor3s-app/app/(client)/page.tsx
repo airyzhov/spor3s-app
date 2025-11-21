@@ -70,17 +70,17 @@ export default function MainApp() {
   // Авторизация пользователя
   useEffect(() => {
     const initUser = async () => {
-      // Таймаут для авторизации 15 секунд
+      // Таймаут для авторизации 5 секунд
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Auth timeout')), 15000)
+        setTimeout(() => reject(new Error('Auth timeout')), 5000)
       );
 
       try {
         // Оборачиваем логику в Promise.race с таймаутом
         await Promise.race([
           (async () => {
-            if (!telegramUser?.telegram_id) {
-              // Если Telegram данных нет, используем тестового пользователя
+      if (!telegramUser?.telegram_id) {
+        // Если Telegram данных нет, используем тестового пользователя
               // Но в браузере лучше пропустить этот шаг, чтобы не спамить тестовыми юзерами
               // Или сохранить в localStorage
               let testUserId = '';
@@ -91,54 +91,72 @@ export default function MainApp() {
                  testUserId = `test-user-${Date.now()}`;
               }
               
-              try {
-                const response = await fetch('/api/init-user', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                    telegram_id: testUserId,
-                    referral_code: referralCode 
-                  }),
-                });
-                
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const response = await fetch('/api/init-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              telegram_id: testUserId,
+              referral_code: referralCode 
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
                 if (response.ok) {
-                  const data = await response.json();
-                  if (data.id) {
-                    setUserId(data.id);
-                    console.log('✅ Test user initialized:', data.id);
+          const data = await response.json();
+          if (data.id) {
+            setUserId(data.id);
+            console.log('✅ Test user initialized:', data.id);
                   }
-                }
-              } catch (error) {
-                console.error('❌ Test user init failed:', error);
-              }
-            } else {
-              // Реальная авторизация через Telegram
-              try {
-                const response = await fetch('/api/init-user', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                    telegram_id: telegramUser.telegram_id,
-                    referral_code: referralCode 
-                  }),
-                });
-                
+          }
+        } catch (error) {
+          console.error('❌ Test user init failed:', error);
+          // Fallback: создаем временный ID для работы приложения
+          setUserId('temp-' + Date.now());
+        }
+      } else {
+        // Реальная авторизация через Telegram
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 4000);
+          
+          const response = await fetch('/api/init-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              telegram_id: telegramUser.telegram_id,
+              referral_code: referralCode 
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
                 if (response.ok) {
-                  const data = await response.json();
-                  if (data.id) {
-                    setUserId(data.id);
+          const data = await response.json();
+          if (data.id) {
+            setUserId(data.id);
                     console.log('✅ Telegram user authenticated:', data.id);
                   }
-                }
-              } catch (error) {
-                console.error('❌ Telegram auth failed:', error);
-              }
-            }
+          }
+        } catch (error) {
+          console.error('❌ Telegram auth failed:', error);
+          // Fallback: создаем временный ID для работы приложения
+          setUserId('temp-' + Date.now());
+        }
+      }
           })(),
           timeoutPromise
         ]);
       } catch (error) {
         console.error('⚠️ Auth timed out or failed:', error);
+        // Fallback: создаем временный ID для работы приложения
+        if (!userId) {
+          setUserId('temp-' + Date.now());
+        }
       } finally {
         // Всегда убираем загрузку, даже при ошибке
         setAuthLoading(false);
