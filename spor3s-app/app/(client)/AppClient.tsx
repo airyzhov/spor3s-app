@@ -47,6 +47,8 @@ export default function AppClient() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -58,7 +60,6 @@ export default function AppClient() {
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
     const initUser = async () => {
-      // Таймаут для авторизации 15 секунд
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Auth timeout')), 15000)
       );
@@ -67,8 +68,10 @@ export default function AppClient() {
         await Promise.race([
           (async () => {
             // 1) Telegram WebApp контекст
-            const tg = (typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined);
+            const tg = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : undefined;
             const tgUser = tg?.initDataUnsafe?.user;
+            console.log('🔍 TG WebApp check:', { tgAvailable: !!tg, userAvailable: !!tgUser });
+            
             if (tgUser?.id) {
               const telegramId = String(tgUser.id);
               const response = await fetch('/api/init-user', {
@@ -91,7 +94,6 @@ export default function AppClient() {
             }
 
             // 2) DEV-фоллбек (только если нет Telegram окружения)
-            // Используем localStorage для dev-user
             let devId = '';
             if (typeof window !== 'undefined') {
                devId = localStorage.getItem('spor3s_dev_user_id') || `dev-${Date.now()}`;
@@ -115,6 +117,8 @@ export default function AppClient() {
         ]);
       } catch (error) {
         console.error('❌ initUser failed or timed out:', error);
+      } finally {
+        setAuthLoading(false);
       }
     };
     initUser();
@@ -125,7 +129,6 @@ export default function AppClient() {
     const fetchProducts = async () => {
       try {
         console.log('🛒 AppClient: Загружаем продукты...');
-        // Добавляем таймаут 10 секунд
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
         
@@ -138,7 +141,6 @@ export default function AppClient() {
           setProducts(data.products || []);
         } else {
           console.error('🛒 AppClient: Ошибка загрузки продуктов:', response.status);
-          // Fallback products
           setProducts([
             { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
             { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
@@ -146,11 +148,12 @@ export default function AppClient() {
         }
       } catch (error) {
         console.error('🛒 AppClient: Ошибка загрузки продуктов:', error);
-        // Fallback products
         setProducts([
           { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
           { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
         ]);
+      } finally {
+        setLoading(false);
       }
     };
     fetchProducts();
@@ -163,6 +166,19 @@ export default function AppClient() {
   ];
 
   const renderContent = () => {
+    if (loading || authLoading) {
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "50px",
+          color: "#fff"
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
+          <div>{authLoading ? 'Авторизация...' : 'Загрузка...'}</div>
+        </div>
+      );
+    }
+
     switch (currentStep) {
       case 1:
         return <Chat products={products} setStep={setCurrentStep} />;
@@ -170,7 +186,7 @@ export default function AppClient() {
         return <Cart products={products} setStep={setCurrentStep} />;
       case 3:
         return <RoadMap user={{ 
-          id: user?.id,
+          id: user?.id || 'loading',
           telegram_id: user?.telegram_id,
           telegram_username: user?.username,
           first_name: user?.first_name,
@@ -193,6 +209,21 @@ export default function AppClient() {
         return <Chat products={products} setStep={setCurrentStep} />;
     }
   };
+
+  if (!mounted) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        color: '#fff',
+        background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)'
+      }}>
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <CartProvider>
@@ -276,8 +307,6 @@ export default function AppClient() {
         </nav>
 
         <main className={styles.main}>
-          {/* Управление AI агентом — скрыто на проде */}
-          
           {/* Основной контент */}
           <section className={styles.section}>
             {renderContent()}
@@ -341,4 +370,4 @@ export default function AppClient() {
       </div>
     </CartProvider>
   );
-} 
+}
