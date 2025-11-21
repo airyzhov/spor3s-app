@@ -59,10 +59,20 @@ export default function AppClient() {
 
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
+    // Принудительно снимаем загрузку через 3 секунды максимум
+    const forceTimeout = setTimeout(() => {
+      console.warn('⚠️ Force timeout - stopping auth loading');
+      setAuthLoading(false);
+      if (!user) {
+        // Создаем временного пользователя если авторизация не удалась
+        setUser({ id: 'guest-' + Date.now(), telegram_id: 'guest', username: 'guest' });
+      }
+    }, 3000);
+
     const initUser = async () => {
-      // Уменьшаем timeout до 5 секунд
+      // Уменьшаем timeout до 2 секунд
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Auth timeout')), 5000)
+        setTimeout(() => reject(new Error('Auth timeout')), 2000)
       );
 
       try {
@@ -164,9 +174,12 @@ export default function AppClient() {
       } catch (error) {
         console.error('❌ initUser failed or timed out:', error);
         // В случае таймаута создаем временного пользователя
-        const tempId = 'temp-' + Date.now();
-        setUser({ id: tempId, telegram_id: tempId, username: 'temp-user' });
+        if (!user) {
+          const tempId = 'guest-' + Date.now();
+          setUser({ id: tempId, telegram_id: tempId, username: 'guest' });
+        }
       } finally {
+        clearTimeout(forceTimeout);
         setAuthLoading(false);
       }
     };
@@ -175,17 +188,30 @@ export default function AppClient() {
 
   // Загружаем продукты
   useEffect(() => {
+    // Принудительно снимаем загрузку через 3 секунды
+    const forceTimeout = setTimeout(() => {
+      console.warn('⚠️ Force timeout - stopping products loading');
+      setLoading(false);
+      if (products.length === 0) {
+        // Устанавливаем fallback продукты
+        setProducts([
+          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+        ]);
+      }
+    }, 3000);
+
     const fetchProducts = async () => {
       try {
         console.log('🛒 AppClient: Загружаем продукты...');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
         
         const response = await fetch('/api/products', { signal: controller.signal });
         clearTimeout(timeoutId);
         
         const data = await response.json();
-        if (response.ok) {
+        if (response.ok && data.products) {
           console.log('🛒 AppClient: Продукты загружены:', data.products);
           setProducts(data.products || []);
         } else {
@@ -202,6 +228,7 @@ export default function AppClient() {
           { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
         ]);
       } finally {
+        clearTimeout(forceTimeout);
         setLoading(false);
       }
     };
@@ -215,7 +242,8 @@ export default function AppClient() {
   ];
 
   const renderContent = () => {
-    if (loading || authLoading) {
+    // Показываем контент даже если еще идет загрузка - не блокируем пользователя
+    if (loading && products.length === 0) {
       return (
         <div style={{ 
           textAlign: "center", 
@@ -223,7 +251,21 @@ export default function AppClient() {
           color: "#fff"
         }}>
           <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
-          <div>{authLoading ? 'Авторизация...' : 'Загрузка...'}</div>
+          <div>Загрузка...</div>
+        </div>
+      );
+    }
+    
+    // Если продукты есть, показываем контент даже если authLoading еще true
+    if (authLoading && !user && products.length === 0) {
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "50px",
+          color: "#fff"
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
+          <div>Авторизация...</div>
         </div>
       );
     }

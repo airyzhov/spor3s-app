@@ -69,10 +69,19 @@ export default function MainApp() {
 
   // Авторизация пользователя
   useEffect(() => {
+    // Принудительно снимаем загрузку через 3 секунды максимум
+    const forceTimeout = setTimeout(() => {
+      console.warn('⚠️ Force timeout - stopping auth loading');
+      setAuthLoading(false);
+      if (!userId) {
+        setUserId('guest-' + Date.now());
+      }
+    }, 3000);
+
     const initUser = async () => {
-      // Таймаут для авторизации 5 секунд
+      // Таймаут для авторизации 2 секунды
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Auth timeout')), 5000)
+        setTimeout(() => reject(new Error('Auth timeout')), 2000)
       );
 
       try {
@@ -155,10 +164,11 @@ export default function MainApp() {
         console.error('⚠️ Auth timed out or failed:', error);
         // Fallback: создаем временный ID для работы приложения
         if (!userId) {
-          setUserId('temp-' + Date.now());
+          setUserId('guest-' + Date.now());
         }
       } finally {
         // Всегда убираем загрузку, даже при ошибке
+        clearTimeout(forceTimeout);
         setAuthLoading(false);
       }
     };
@@ -169,10 +179,22 @@ export default function MainApp() {
   }, [mounted, telegramUser]);
 
   const fetchProducts = async () => {
+    // Принудительно снимаем загрузку через 3 секунды
+    const forceTimeout = setTimeout(() => {
+      console.warn('⚠️ Force timeout - stopping products loading');
+      setLoading(false);
+      if (products.length === 0) {
+        setProducts([
+          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+        ]);
+      }
+    }, 3000);
+
     try {
-      // Добавляем таймаут 10 секунд
+      // Уменьшаем таймаут до 2 секунд
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       
       const response = await fetch('/api/products', { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -199,6 +221,7 @@ export default function MainApp() {
         { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
       ]);
     } finally {
+      clearTimeout(forceTimeout);
       setLoading(false);
     }
   };
@@ -215,7 +238,9 @@ export default function MainApp() {
   ];
 
   const renderContent = () => {
-    if (loading || authLoading) {
+    // Показываем контент даже если идет загрузка - не блокируем пользователя
+    // Только показываем загрузку если нет продуктов
+    if (loading && products.length === 0) {
       return (
         <div style={{ 
           textAlign: "center", 
@@ -223,17 +248,21 @@ export default function MainApp() {
           color: "#fff"
         }}>
           <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
-          <div>{authLoading ? 'Авторизация...' : 'Загрузка...'}</div>
-          {telegramUser && (
-            <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
-              👋 Привет, {telegramUser.first_name || 'User'}!
-            </div>
-          )}
-          {userId && (
-            <div style={{ marginTop: 5, fontSize: 12, opacity: 0.6 }}>
-              🆔 ID: {userId.slice(0, 8)}...
-            </div>
-          )}
+          <div>Загрузка...</div>
+        </div>
+      );
+    }
+    
+    // Если продукты есть, показываем контент даже если authLoading еще true
+    if (authLoading && !userId && products.length === 0) {
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "50px",
+          color: "#fff"
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
+          <div>Авторизация...</div>
         </div>
       );
     }
