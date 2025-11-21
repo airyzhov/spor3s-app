@@ -59,13 +59,20 @@ export default function AppClient() {
 
   // Инициализация пользователя: берём реальный Telegram ID из WebApp
   useEffect(() => {
+    if (!mounted) return;
+    
+    let isMounted = true;
+    let userCreated = false;
+
     // Принудительно снимаем загрузку через 3 секунды максимум
     const forceTimeout = setTimeout(() => {
+      if (!isMounted) return;
       console.warn('⚠️ Force timeout - stopping auth loading');
       setAuthLoading(false);
-      if (!user) {
+      if (!userCreated) {
         // Создаем временного пользователя если авторизация не удалась
         setUser({ id: 'guest-' + Date.now(), telegram_id: 'guest', username: 'guest' });
+        userCreated = true;
       }
     }, 3000);
 
@@ -103,7 +110,7 @@ export default function AppClient() {
                   }
                   
                   const data = await response.json();
-                  if (data?.id) {
+                  if (data?.id && isMounted) {
                     setUser({
                       id: data.id,
                       telegram_id: telegramId,
@@ -111,6 +118,7 @@ export default function AppClient() {
                       first_name: tgUser.first_name,
                       last_name: tgUser.last_name
                     });
+                    userCreated = true;
                     console.log('✅ Telegram user initialized:', data.id);
                     return;
                   }
@@ -146,10 +154,11 @@ export default function AppClient() {
                 });
                 clearTimeout(timeoutId);
                 
-                if (resp.ok) {
+                if (resp.ok && isMounted) {
                   const resData = await resp.json();
                   if (resData?.id) {
                     setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
+                    userCreated = true;
                     console.log('⚙️ Dev user initialized:', resData.id);
                     return;
                   }
@@ -160,13 +169,19 @@ export default function AppClient() {
               }
               
               // Финальный fallback - создаем временного пользователя
-              console.warn('⚠️ Using temporary user');
-              setUser({ id: 'temp-' + Date.now(), telegram_id: devId, username: 'temp-user' });
+              if (isMounted && !userCreated) {
+                console.warn('⚠️ Using temporary user');
+                setUser({ id: 'temp-' + Date.now(), telegram_id: devId, username: 'temp-user' });
+                userCreated = true;
+              }
             } catch (error) {
               console.error('❌ User init error:', error);
               // В случае ошибки создаем временного пользователя
-              const tempId = 'temp-' + Date.now();
-              setUser({ id: tempId, telegram_id: tempId, username: 'temp-user' });
+              if (isMounted && !userCreated) {
+                const tempId = 'temp-' + Date.now();
+                setUser({ id: tempId, telegram_id: tempId, username: 'temp-user' });
+                userCreated = true;
+              }
             }
           })(),
           timeoutPromise
@@ -174,30 +189,45 @@ export default function AppClient() {
       } catch (error) {
         console.error('❌ initUser failed or timed out:', error);
         // В случае таймаута создаем временного пользователя
-        if (!user) {
+        if (isMounted && !userCreated) {
           const tempId = 'guest-' + Date.now();
           setUser({ id: tempId, telegram_id: tempId, username: 'guest' });
+          userCreated = true;
         }
       } finally {
         clearTimeout(forceTimeout);
-        setAuthLoading(false);
+        if (isMounted) {
+          setAuthLoading(false);
+        }
       }
     };
     initUser();
-  }, []);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(forceTimeout);
+    };
+  }, [mounted]);
 
   // Загружаем продукты
   useEffect(() => {
+    if (!mounted) return;
+    
+    let isMounted = true;
+    let productsLoaded = false;
+
     // Принудительно снимаем загрузку через 3 секунды
     const forceTimeout = setTimeout(() => {
+      if (!isMounted) return;
       console.warn('⚠️ Force timeout - stopping products loading');
       setLoading(false);
-      if (products.length === 0) {
+      if (!productsLoaded) {
         // Устанавливаем fallback продукты
         setProducts([
           { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
           { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
         ]);
+        productsLoaded = true;
       }
     }, 3000);
 
@@ -211,9 +241,10 @@ export default function AppClient() {
         clearTimeout(timeoutId);
         
         const data = await response.json();
-        if (response.ok && data.products) {
+        if (response.ok && data.products && isMounted) {
           console.log('🛒 AppClient: Продукты загружены:', data.products);
           setProducts(data.products || []);
+          productsLoaded = true;
         } else {
           console.error('🛒 AppClient: Ошибка загрузки продуктов:', response.status);
           setProducts([
@@ -223,17 +254,27 @@ export default function AppClient() {
         }
       } catch (error) {
         console.error('🛒 AppClient: Ошибка загрузки продуктов:', error);
-        setProducts([
-          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
-          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
-        ]);
+        if (isMounted && !productsLoaded) {
+          setProducts([
+            { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+            { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+          ]);
+          productsLoaded = true;
+        }
       } finally {
         clearTimeout(forceTimeout);
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchProducts();
-  }, []);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(forceTimeout);
+    };
+  }, [mounted]);
 
   const steps = [
     { id: 1, name: "AI Консультант", icon: "🤖" },
