@@ -48,6 +48,7 @@ const MushroomTracker: React.FC<MushroomTrackerProps> = ({
     if (!userId || !orderId) return;
     
     async function fetchCheckins() {
+      if (!supabase) return; // Проверка наличия клиента Supabase
       const today = new Date();
       const weekAgo = new Date(today);
       weekAgo.setDate(today.getDate() - 7);
