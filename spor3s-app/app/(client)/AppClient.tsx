@@ -439,10 +439,8 @@ export default function AppClient() {
   ];
   const safeUser = user || { id: 'guest-' + Date.now(), telegram_id: 'guest', username: 'guest' };
 
-  // Оборачиваем весь рендер в try-catch для перехвата ошибок
-  try {
-    return (
-      <CartProvider>
+  return (
+    <CartProvider>
         <div className={styles.page} style={{ background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)' }}>
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
@@ -618,54 +616,5 @@ export default function AppClient() {
 }`}</style>
       </div>
     </CartProvider>
-    );
-  } catch (renderError: any) {
-    console.error('Fatal error in AppClient render:', renderError);
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh',
-        color: '#fff',
-        background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)',
-        padding: '40px'
-      }}>
-        <h2 style={{ color: '#ff00cc', marginBottom: '20px' }}>🚨 Ошибка приложения</h2>
-        <p style={{ marginBottom: '20px', maxWidth: '500px', textAlign: 'center' }}>
-          Произошла критическая ошибка при загрузке приложения.
-        </p>
-        <details style={{ marginBottom: '20px', maxWidth: '600px', textAlign: 'left' }}>
-          <summary style={{ cursor: 'pointer', marginBottom: '10px' }}>
-            Детали ошибки (для разработчика)
-          </summary>
-          <pre style={{ 
-            background: 'rgba(255, 255, 255, 0.1)', 
-            padding: '10px', 
-            borderRadius: '8px',
-            fontSize: '12px',
-            overflow: 'auto'
-          }}>
-            {renderError?.message || 'Неизвестная ошибка'}
-            {renderError?.stack && `\n\nStack trace:\n${renderError.stack}`}
-          </pre>
-        </details>
-        <button 
-          onClick={() => window.location.reload()} 
-          style={{
-            padding: '10px 20px',
-            background: '#ff00cc',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          🔄 Перезагрузить страницу
-        </button>
-      </div>
-    );
-  }
+  );
 }
