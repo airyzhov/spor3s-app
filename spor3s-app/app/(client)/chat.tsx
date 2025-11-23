@@ -15,14 +15,27 @@ interface ChatProps {
   setStep?: (step: number) => void;
 }
 
-export default function Chat({ products, setStep }: ChatProps) {
+export default function Chat({ products = [], setStep }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [userId, setUserId] = useState<string>('test-user-123456789');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { addToCart, removeFromCart } = useCart();
+  
+  // Безопасное использование CartContext
+  let cartContext: { addToCart: (product: { id: string; name: string; price: number }) => void; removeFromCart: (productId: string) => void } | null = null;
+  try {
+    cartContext = useCart();
+  } catch (error) {
+    console.warn('CartContext not available:', error);
+    // Fallback функции
+    cartContext = {
+      addToCart: () => console.warn('Cart not available'),
+      removeFromCart: () => console.warn('Cart not available')
+    };
+  }
+  const { addToCart, removeFromCart } = cartContext || { addToCart: () => {}, removeFromCart: () => {} };
   
   // Кеш для подтверждения добавления товаров
   const [pendingProducts, setPendingProducts] = useState<Array<{id: string, name: string, price: number}>>([]);
