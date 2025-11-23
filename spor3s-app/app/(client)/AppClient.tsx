@@ -283,8 +283,9 @@ export default function AppClient() {
   ];
 
   const renderContent = () => {
-    // Показываем контент даже если еще идет загрузка - не блокируем пользователя
-    if (loading && products.length === 0) {
+    // Показываем загрузку только если ничего не загружено
+    // После 2 секунд показываем контент с fallback данными
+    if (loading && products.length === 0 && authLoading && !user) {
       return (
         <div style={{ 
           textAlign: "center", 
@@ -297,19 +298,8 @@ export default function AppClient() {
       );
     }
     
-    // Если продукты есть, показываем контент даже если authLoading еще true
-    if (authLoading && !user && products.length === 0) {
-      return (
-        <div style={{ 
-          textAlign: "center", 
-          padding: "50px",
-          color: "#fff"
-        }}>
-          <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
-          <div>Авторизация...</div>
-        </div>
-      );
-    }
+    // Если есть хотя бы продукты или пользователь, показываем контент
+    // Не блокируем пользователя ожиданием полной загрузки
 
     switch (currentStep) {
       case 1:
