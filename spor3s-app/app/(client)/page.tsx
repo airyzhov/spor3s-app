@@ -35,7 +35,6 @@ export default function MainApp() {
 
   useEffect(() => {
     setMounted(true);
-    fetchProducts();
     
     // Проверяем реферальную ссылку
     if (typeof window !== 'undefined') {
@@ -57,6 +56,13 @@ export default function MainApp() {
       }
     }
   }, []);
+  
+  // Загружаем продукты отдельно после монтирования
+  useEffect(() => {
+    if (mounted) {
+      fetchProducts();
+    }
+  }, [mounted]);
 
   // Загружаем реферальную статистику
   useEffect(() => {
@@ -69,12 +75,19 @@ export default function MainApp() {
 
   // Авторизация пользователя
   useEffect(() => {
+    if (!mounted) return;
+    
+    let isMounted = true;
+    let userCreated = false;
+
     // Принудительно снимаем загрузку через 3 секунды максимум
     const forceTimeout = setTimeout(() => {
+      if (!isMounted) return;
       console.warn('⚠️ Force timeout - stopping auth loading');
       setAuthLoading(false);
-      if (!userId) {
+      if (!userCreated) {
         setUserId('guest-' + Date.now());
+        userCreated = true;
       }
     }, 3000);
 
@@ -115,17 +128,21 @@ export default function MainApp() {
           });
           clearTimeout(timeoutId);
           
-                if (response.ok) {
+                if (response.ok && isMounted) {
           const data = await response.json();
           if (data.id) {
             setUserId(data.id);
+            userCreated = true;
             console.log('✅ Test user initialized:', data.id);
                   }
           }
         } catch (error) {
           console.error('❌ Test user init failed:', error);
           // Fallback: создаем временный ID для работы приложения
-          setUserId('temp-' + Date.now());
+          if (isMounted && !userCreated) {
+            setUserId('temp-' + Date.now());
+            userCreated = true;
+          }
         }
       } else {
         // Реальная авторизация через Telegram
@@ -144,17 +161,21 @@ export default function MainApp() {
           });
           clearTimeout(timeoutId);
           
-                if (response.ok) {
+                if (response.ok && isMounted) {
           const data = await response.json();
           if (data.id) {
             setUserId(data.id);
+            userCreated = true;
                     console.log('✅ Telegram user authenticated:', data.id);
                   }
           }
         } catch (error) {
           console.error('❌ Telegram auth failed:', error);
           // Fallback: создаем временный ID для работы приложения
-          setUserId('temp-' + Date.now());
+          if (isMounted && !userCreated) {
+            setUserId('temp-' + Date.now());
+            userCreated = true;
+          }
         }
       }
           })(),
@@ -163,31 +184,44 @@ export default function MainApp() {
       } catch (error) {
         console.error('⚠️ Auth timed out or failed:', error);
         // Fallback: создаем временный ID для работы приложения
-        if (!userId) {
+        if (isMounted && !userCreated) {
           setUserId('guest-' + Date.now());
+          userCreated = true;
         }
       } finally {
         // Всегда убираем загрузку, даже при ошибке
         clearTimeout(forceTimeout);
-        setAuthLoading(false);
+        if (isMounted) {
+          setAuthLoading(false);
+        }
       }
     };
 
-    if (mounted) {
-      initUser();
-    }
+    initUser();
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(forceTimeout);
+    };
   }, [mounted, telegramUser]);
 
   const fetchProducts = async () => {
+    if (!mounted) return;
+    
+    let isMounted = true;
+    let productsLoaded = false;
+
     // Принудительно снимаем загрузку через 3 секунды
     const forceTimeout = setTimeout(() => {
+      if (!isMounted) return;
       console.warn('⚠️ Force timeout - stopping products loading');
       setLoading(false);
-      if (products.length === 0) {
+      if (!productsLoaded) {
         setProducts([
           { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
           { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
         ]);
+        productsLoaded = true;
       }
     }, 3000);
 
@@ -203,26 +237,33 @@ export default function MainApp() {
       
       const data = await response.json();
       
-      if (data.success && data.products) {
+      if (data.success && data.products && isMounted) {
         setProducts(data.products);
-      } else {
+        productsLoaded = true;
+      } else if (isMounted && !productsLoaded) {
         console.warn('Products API returned no data, using fallback');
         // Fallback products
         setProducts([
           { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
           { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
         ]);
+        productsLoaded = true;
       }
     } catch (error) {
       console.error('Error fetching products:', error);
       // Fallback products on error
-      setProducts([
-        { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
-        { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
-      ]);
+      if (isMounted && !productsLoaded) {
+        setProducts([
+          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+        ]);
+        productsLoaded = true;
+      }
     } finally {
       clearTimeout(forceTimeout);
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 
