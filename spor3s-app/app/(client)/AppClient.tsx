@@ -301,34 +301,62 @@ export default function AppClient() {
     // Если есть хотя бы продукты или пользователь, показываем контент
     // Не блокируем пользователя ожиданием полной загрузки
 
-    switch (currentStep) {
-      case 1:
-        return <Chat products={products} setStep={setCurrentStep} />;
-      case 2:
-        return <Cart products={products} setStep={setCurrentStep} />;
-      case 3:
-        return <RoadMap user={{ 
-          id: user?.id || 'loading',
-          telegram_id: user?.telegram_id,
-          telegram_username: user?.username,
-          first_name: user?.first_name,
-          last_name: user?.last_name
-        }} />;
-      case 10:
-        return <OrderForm 
-          products={products} 
-          setStep={setCurrentStep} 
-          userId={user?.id}
-          telegramUser={user ? { 
-            telegram_id: user.telegram_id, 
-            first_name: user.first_name, 
-            last_name: user.last_name, 
-            username: user.username 
-          } : null}
-          cartItems={[]} // Добавляем пустой массив cartItems
-        />;
-      default:
-        return <Chat products={products} setStep={setCurrentStep} />;
+    try {
+      switch (currentStep) {
+        case 1:
+          return <Chat products={products || []} setStep={setCurrentStep} />;
+        case 2:
+          return <Cart products={products || []} setStep={setCurrentStep} />;
+        case 3:
+          return <RoadMap user={{ 
+            id: user?.id || 'guest-' + Date.now(),
+            telegram_id: user?.telegram_id || 'guest',
+            telegram_username: user?.username,
+            first_name: user?.first_name,
+            last_name: user?.last_name
+          }} />;
+        case 10:
+          return <OrderForm 
+            products={products || []} 
+            setStep={setCurrentStep} 
+            userId={user?.id || 'guest-' + Date.now()}
+            telegramUser={user ? { 
+              telegram_id: user.telegram_id, 
+              first_name: user.first_name, 
+              last_name: user.last_name, 
+              username: user.username 
+            } : null}
+            cartItems={[]}
+          />;
+        default:
+          return <Chat products={products || []} setStep={setCurrentStep} />;
+      }
+    } catch (error) {
+      console.error('Error rendering content:', error);
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "50px",
+          color: "#fff"
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 15 }}>⚠️</div>
+          <div>Ошибка загрузки компонента</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{
+              marginTop: 20,
+              padding: "10px 20px",
+              background: "#ff00cc",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer"
+            }}
+          >
+            Перезагрузить
+          </button>
+        </div>
+      );
     }
   };
 
@@ -346,6 +374,13 @@ export default function AppClient() {
       </div>
     );
   }
+
+  // Обеспечиваем что есть хотя бы минимальные данные для работы
+  const safeProducts = products.length > 0 ? products : [
+    { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+    { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+  ];
+  const safeUser = user || { id: 'guest-' + Date.now(), telegram_id: 'guest', username: 'guest' };
 
   return (
     <CartProvider>
