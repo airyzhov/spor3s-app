@@ -24,28 +24,22 @@ export default function Chat({ products = [], setStep }: ChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Безопасное использование CartContext
-  let cartContext: { addToCart: (product: { id: string; name: string; price: number }) => void; removeFromCart: (productId: string) => void } | null = null;
+  let addToCart: (product: { id: string; name: string; price: number }) => void;
+  let removeFromCart: (productId: string) => void;
+  
   try {
-    cartContext = useCart();
+    const cartContext = useCart();
+    addToCart = cartContext.addToCart;
+    removeFromCart = cartContext.removeFromCart;
   } catch (error) {
     console.warn('CartContext not available:', error);
     // Fallback функции
-    cartContext = {
-      addToCart: () => console.warn('Cart not available'),
-      removeFromCart: () => console.warn('Cart not available')
-    };
+    addToCart = () => console.warn('Cart not available');
+    removeFromCart = () => console.warn('Cart not available');
   }
-  const { addToCart, removeFromCart } = cartContext || { addToCart: () => {}, removeFromCart: () => {} };
   
   // Кеш для подтверждения добавления товаров
   const [pendingProducts, setPendingProducts] = useState<Array<{id: string, name: string, price: number}>>([]);
-
-  // Проверяем, что CartContext работает
-  useEffect(() => {
-    console.log('🔍 DEBUG: CartContext инициализирован');
-    console.log('🔍 DEBUG: addToCart функция:', typeof addToCart);
-    console.log('🔍 DEBUG: removeFromCart функция:', typeof removeFromCart);
-  }, [addToCart, removeFromCart]);
 
   // Логируем продукты при загрузке компонента
   useEffect(() => {
