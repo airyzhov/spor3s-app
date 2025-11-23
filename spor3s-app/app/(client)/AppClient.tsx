@@ -466,7 +466,40 @@ export default function AppClient() {
         <main className={styles.main}>
           {/* Основной контент */}
           <section className={styles.section}>
-            {renderContent()}
+            {(() => {
+              try {
+                return renderContent();
+              } catch (error: any) {
+                console.error('Error in renderContent:', error);
+                return (
+                  <div style={{ 
+                    textAlign: "center", 
+                    padding: "50px",
+                    color: "#fff"
+                  }}>
+                    <div style={{ fontSize: 24, marginBottom: 15 }}>⚠️</div>
+                    <div>Ошибка загрузки компонента</div>
+                    <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
+                      {error?.message || 'Неизвестная ошибка'}
+                    </div>
+                    <button 
+                      onClick={() => window.location.reload()} 
+                      style={{
+                        marginTop: 20,
+                        padding: "10px 20px",
+                        background: "#ff00cc",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Перезагрузить
+                    </button>
+                  </div>
+                );
+              }
+            })()}
           </section>
         </main>
         <footer className={styles.footer}>
