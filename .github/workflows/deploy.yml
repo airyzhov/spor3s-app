@@ -432,8 +432,13 @@ jobs:
           
           # Останавливаем старые процессы
           echo "🛑 Остановка старых процессов PM2..."
+          # Останавливаем все процессы Next.js
+          pm2 delete spor3s-nextjs || true
+          pm2 delete spor3s-n || true
           pm2 delete all || true
-          sleep 2
+          # Убиваем процессы на порту 3000
+          lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+          sleep 3
           
           # Обновляем ecosystem.config.js если нужно
           if [ -f ecosystem.config.js ]; then
