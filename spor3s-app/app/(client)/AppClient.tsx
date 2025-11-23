@@ -52,9 +52,11 @@ export default function AppClient() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // Устанавливаем mounted сразу при монтировании
     setMounted(true);
     // Логируем только на клиенте
     if (typeof window !== 'undefined') {
+      console.log("✅ AppClient mounted");
       console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
       console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '***' : 'undefined');
     }
