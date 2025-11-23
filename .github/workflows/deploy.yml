@@ -431,14 +431,47 @@ jobs:
           fi
           
           # Останавливаем старые процессы
-          echo "🛑 Остановка старых процессов PM2..."
+          echo "🛑 Агрессивная остановка всех процессов PM2..."
           # Останавливаем все процессы Next.js
+          pm2 stop all || true
           pm2 delete spor3s-nextjs || true
           pm2 delete spor3s-n || true
           pm2 delete all || true
+          pm2 kill || true
+          
+          # Убиваем все процессы Node.js
+          echo "🔪 Убиваем все процессы Node.js..."
+          pkill -9 node || true
+          killall -9 node || true
+          
           # Убиваем процессы на порту 3000
+          echo "🔪 Освобождаем порт 3000..."
+          PID=$(lsof -ti:3000 2>/dev/null || fuser 3000/tcp 2>/dev/null | awk '{print $1}' || netstat -tlnp 2>/dev/null | grep :3000 | awk '{print $7}' | cut -d'/' -f1)
+          if [ -n "$PID" ]; then
+            echo "🔪 Найден процесс на порту 3000: $PID"
+            kill -9 $PID 2>/dev/null || true
+          fi
           lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-          sleep 3
+          
+          # Дополнительная проверка через netstat
+          netstat -tlnp 2>/dev/null | grep :3000 | while read line; do
+            PID=$(echo $line | awk '{print $7}' | cut -d'/' -f1)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              echo "🔪 Убиваем процесс $PID..."
+              kill -9 $PID 2>/dev/null || true
+            fi
+          done
+          
+          sleep 5
+          
+          # Проверяем что порт свободен
+          if lsof -ti:3000 >/dev/null 2>&1 || netstat -tlnp 2>/dev/null | grep -q :3000; then
+            echo "⚠️ Порт 3000 все еще занят, пробуем еще раз..."
+            lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+            sleep 2
+          else
+            echo "✅ Порт 3000 свободен!"
+          fi
           
           # Обновляем ecosystem.config.js если нужно
           if [ -f ecosystem.config.js ]; then
