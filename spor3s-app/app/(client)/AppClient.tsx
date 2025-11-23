@@ -381,43 +381,6 @@ export default function AppClient() {
     }
   };
 
-  // Обработка ошибок на уровне компонента
-  if (error) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh',
-        color: '#fff',
-        background: 'linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%)',
-        padding: '40px'
-      }}>
-        <h2 style={{ color: '#ff00cc', marginBottom: '20px' }}>🚨 Ошибка приложения</h2>
-        <p style={{ marginBottom: '20px', maxWidth: '500px', textAlign: 'center' }}>
-          Произошла ошибка в приложении. Это может быть связано с загрузкой компонентов.
-        </p>
-        <button 
-          onClick={() => {
-            setError(null);
-            window.location.reload();
-          }}
-          style={{
-            padding: '10px 20px',
-            background: '#ff00cc',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          🔄 Попробовать снова
-        </button>
-      </div>
-    );
-  }
 
   if (!mounted) {
     return (
