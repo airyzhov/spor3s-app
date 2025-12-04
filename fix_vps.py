@@ -4,36 +4,55 @@ ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.connect('185.166.197.49', port=2222, username='root', password='qXY.W3,,Be?@gb', timeout=15)
 
-def run_cmd(cmd, timeout=120):
+def run_cmd(cmd, timeout=180):
     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=timeout)
     stdout.channel.recv_exit_status()
     return stdout.read().decode() + stderr.read().decode()
 
-print('=== 1. Добавление товара 4v1-6 через curl ===')
+print('=== 1. Fix TypeScript file directly on VPS ===')
+fix_file = """import { NextRequest, NextResponse } from 'next/server';
 
-# Add product via direct API call using service key
-result = run_cmd('''
-cd /var/www/spor3s-app/spor3s-app && \
-SUPABASE_URL=$(grep NEXT_PUBLIC_SUPABASE_URL .env.local | cut -d= -f2 | tr -d '"' | tr -d "'" | head -1) && \
-SERVICE_KEY=$(grep SUPABASE_SERVICE_ROLE_KEY .env.local | cut -d= -f2 | tr -d '"' | tr -d "'" | head -1) && \
-echo "URL: $SUPABASE_URL" && \
-curl -s -X POST "$SUPABASE_URL/rest/v1/products" \
-  -H "apikey: $SERVICE_KEY" \
-  -H "Authorization: Bearer $SERVICE_KEY" \
-  -H "Content-Type: application/json" \
-  -H "Prefer: return=representation" \
-  -d '{"id":"4v1-6","name":"4 в 1 (6 месяцев)","price":16000,"description":"Комплексный курс на 6 месяцев: Ежовик + Мухомор + Кордицепс + Цистозира. Максимальный эффект!","image":"/products/4v1.jpg"}'
-''')
+export async function GET() {
+  return NextResponse.json({ 
+    status: 'OK', 
+    message: 'AI API test route works!',
+    timestamp: new Date().toISOString()
+  });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    return NextResponse.json({ 
+      status: 'OK', 
+      message: 'AI API test POST works!',
+      received: body,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return NextResponse.json({ 
+      status: 'ERROR', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  }
+}
+"""
+
+# Write fixed file
+run_cmd(f"cat > /var/www/spor3s-app/spor3s-app/app/api/ai/test/route.ts << 'EOFTS'\n{fix_file}\nEOFTS")
+result = run_cmd('cat /var/www/spor3s-app/spor3s-app/app/api/ai/test/route.ts | head -5')
+print('File content:', result)
+
+print('\n=== 2. Rebuild ===')
+result = run_cmd('cd /var/www/spor3s-app/spor3s-app && npm run build 2>&1 | tail -15', timeout=300)
 print(result)
 
-print('\n=== 2. Verify product added ===')
-result = run_cmd('''
-cd /var/www/spor3s-app/spor3s-app && \
-SUPABASE_URL=$(grep NEXT_PUBLIC_SUPABASE_URL .env.local | cut -d= -f2 | tr -d '"' | tr -d "'" | head -1) && \
-ANON_KEY=$(grep NEXT_PUBLIC_SUPABASE_ANON_KEY .env.local | cut -d= -f2 | tr -d '"' | tr -d "'" | head -1) && \
-curl -s "$SUPABASE_URL/rest/v1/products?id=eq.4v1-6" \
-  -H "apikey: $ANON_KEY"
-''')
+print('\n=== 3. Restart PM2 ===')
+result = run_cmd('pm2 restart spor3s-nextjs && sleep 3 && pm2 status | grep spor3s')
+print(result)
+
+print('\n=== 4. Test AI API ===')
+result = run_cmd('curl -s -X POST https://ai.spor3s.ru/api/ai -H "Content-Type: application/json" -d \'{"message":"привет"}\' 2>&1 | head -200')
 print(result)
 
 ssh.close()

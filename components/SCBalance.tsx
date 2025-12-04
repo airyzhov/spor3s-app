@@ -12,9 +12,14 @@ const SCBalance: React.FC<SCBalanceProps> = ({ userId, onExchange, onShowHistory
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !supabase) return;
     setLoading(true);
     async function fetchBalance() {
+      if (!supabase) {
+        setBalance(0);
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('coin_transactions')
         .select('amount, transaction_type')
