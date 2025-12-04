@@ -5,6 +5,10 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
 
+// КРИТИЧНО: Храним ключ в переменной модуля, НЕ в process.env
+// Next.js заменяет process.env.* на литералы при компиляции!
+let LOADED_API_KEY: string | null = null;
+
 // Загружаем переменные окружения из .env.local для production
 const loadEnvLocal = () => {
   try {
@@ -35,23 +39,23 @@ const loadEnvLocal = () => {
               let key = match[2].trim();
               key = key.replace(/^["']|["']$/g, ''); // Убираем кавычки
               if (key && key.length > 20) {
-                process.env.OPENAI_API_KEY = key;
-                process.env.OPENROUTER_API_KEY = key; // Для совместимости
+                // КРИТИЧНО: Сохраняем в локальную переменную, НЕ в process.env!
+                LOADED_API_KEY = key;
                 console.log(`[AI API] ✅✅✅ Ключ загружен из ${envLocalPath} (длина: ${key.length})`);
-                return true;
+                return key; // Возвращаем ключ
               }
             }
           }
         }
-      } catch (pathError) {
+      } catch (pathError: any) {
         console.error(`[AI API] ⚠️ Ошибка проверки ${envLocalPath}:`, pathError.message);
       }
     }
     console.error('[AI API] ⚠️ .env.local не найден или не содержит OPENAI_API_KEY или OPENROUTER_API_KEY');
-    return false;
+    return null;
   } catch (error) {
     console.error('[AI API] ⚠️ Ошибка загрузки .env.local:', error);
-    return false;
+    return null;
   }
 };
 
@@ -100,7 +104,7 @@ const PRODUCT_VARIANTS = {
     bundle: {
       1: { tag: '4v1', name: '4 в 1 (1 месяц)', price: 3300 },
       3: { tag: '4v1-3', name: '4 в 1 (3 месяца)', price: 9000 },
-      6: { tag: '4v1-6', name: '4 в 1 (6 месяцев)', price: 15000 },
+      6: { tag: '4v1-6', name: '4 в 1 (6 месяцев)', price: 16000 },
     },
   },
 };
@@ -584,11 +588,18 @@ function forceRemoveFromCartTag(text) {
 // TypeScript типы удалены - это JavaScript файл
 
 export async function POST(req: NextRequest) {
-  // КРИТИЧНО: Загружаем OpenAI ключ ПЕРВЫМ ДЕЛОМ, ДО всех остальных операций
-  let OR_TOKEN = null;
+  // КРИТИЧНО: Используем ключ из переменной модуля LOADED_API_KEY
+  let OR_TOKEN: string | null = LOADED_API_KEY;
   
   console.log('[AI API] ========== НАЧАЛО ЗАГРУЗКИ КЛЮЧА ==========');
-  console.log('[AI API] process.cwd():', process.cwd());
+  console.log('[AI API] LOADED_API_KEY:', LOADED_API_KEY ? `загружен (${LOADED_API_KEY.length} символов)` : 'не загружен');
+  
+  // Если ключ уже загружен при инициализации - используем его
+  if (OR_TOKEN && OR_TOKEN.length > 20) {
+    console.log('[AI API] ✅ Используем ключ из LOADED_API_KEY');
+  } else {
+    console.log('[AI API] ⚠️ Ключ не загружен, пробуем из файла...');
+  }
   
   // Приоритет 1: .env.local файл (самый надежный способ)
   try {
@@ -619,8 +630,8 @@ export async function POST(req: NextRequest) {
               let key = match[2].trim().replace(/^["']|["']$/g, '');
               if (key && key.length > 20) {
                 OR_TOKEN = key;
-                process.env.OPENAI_API_KEY = key;
-                process.env.OPENROUTER_API_KEY = key;
+                LOADED_API_KEY = key; // Сохраняем в переменную модуля
+                // НЕ присваиваем process.env - Next.js заменяет их на литералы!
                 console.log('[AI API] ✅✅✅ Ключ загружен из', envPath);
                 console.log('[AI API] Длина ключа:', key.length);
                 console.log('[AI API] Первые 20 символов:', key.substring(0, 20) + '...');

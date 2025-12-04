@@ -168,6 +168,83 @@ function normalizeTarget(input) {
   return input;
 }
 
+// Менеджер для уведомлений о заказах
+const MANAGER_USERNAME = process.env.MANAGER_USERNAME || 'ai_ryzhov';
+
+// Функция отправки уведомления о новом заказе менеджеру
+async function notifyManagerAboutOrder(orderData) {
+  try {
+    const items = Array.isArray(orderData.items) 
+      ? orderData.items.map(item => `• ${item.name || item.id} — ${item.price || 0}₽`).join('\n')
+      : 'Товары не указаны';
+
+    const message = `🆕 НОВЫЙ ЗАКАЗ!
+
+📱 Источник: ${orderData.source || 'неизвестен'}
+
+👤 Данные для СДЭК:
+• ФИО: ${orderData.fio || '❌ Не указано'}
+• Телефон: ${orderData.phone || '❌ Не указан'}
+• Адрес ПВЗ: ${orderData.address || '❌ Не указан'}
+
+📦 Товары:
+${items}
+
+💰 Итого: ${orderData.total || 0}₽
+💬 Комментарий: ${orderData.comment || 'нет'}
+
+🕐 ${new Date().toLocaleString('ru-RU')}`;
+
+    const entity = await client.getEntity(MANAGER_USERNAME);
+    await client.sendMessage(entity, { message });
+    log('✅ Order notification sent to @' + MANAGER_USERNAME);
+    return true;
+  } catch (e) {
+    log('❌ Failed to notify manager:', e.message);
+    return false;
+  }
+}
+
+// Слушаем новые заказы из Supabase (realtime)
+async function setupOrderNotifications() {
+  if (!supabase) {
+    log('Supabase not configured, order notifications disabled');
+    return;
+  }
+
+  // Проверяем новые заказы каждые 30 секунд
+  let lastCheckedAt = new Date().toISOString();
+  
+  setInterval(async () => {
+    try {
+      const { data: newOrders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .gt('created_at', lastCheckedAt)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        log('Error checking new orders:', error.message);
+        return;
+      }
+
+      if (newOrders && newOrders.length > 0) {
+        log(`Found ${newOrders.length} new order(s)`);
+        for (const order of newOrders) {
+          await notifyManagerAboutOrder(order);
+        }
+      }
+
+      lastCheckedAt = new Date().toISOString();
+    } catch (e) {
+      log('Error in order check:', e.message);
+    }
+  }, 30000); // каждые 30 секунд
+
+  log('Order notifications setup complete');
+}
+
 (async () => {
   await client.connect();
   if (!(await client.isUserAuthorized())) {
@@ -193,9 +270,25 @@ function normalizeTarget(input) {
     log('manual reminder sent');
     return;
   }
+  if (cmd === 'notify-order') {
+    // Ручная отправка уведомления о заказе
+    // Usage: node client.js notify-order '{"fio":"Иван","phone":"+79991234567","address":"Москва, ПВЗ"}'
+    try {
+      const orderJson = rawTarget || '{}';
+      const orderData = JSON.parse(orderJson);
+      await notifyManagerAboutOrder(orderData);
+    } catch (e) {
+      console.error('Invalid order JSON:', e.message);
+    }
+    return;
+  }
 
   // schedule daily 07:00
   scheduleDailyAt07(runDailyReminders);
+  
+  // setup order notifications
+  await setupOrderNotifications();
+  
   log('Telegram client is running');
   setInterval(() => {}, 1 << 30);
 })().catch((e) => { console.error(e); process.exit(1); });

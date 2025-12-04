@@ -124,10 +124,15 @@ export default function Chat({ products = [], setStep }: ChatProps) {
     setMounted(true);
   }, []);
 
-  // Убрана автопрокрутка чата - пользователь сам контролирует позицию просмотра
-  // const scrollToBottom = () => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // };
+  // Автопрокрутка чата к последнему сообщению
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Прокручиваем вниз при добавлении новых сообщений
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

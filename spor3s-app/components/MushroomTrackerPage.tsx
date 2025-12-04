@@ -23,6 +23,12 @@ const MushroomTrackerPage: React.FC<MushroomTrackerPageProps> = ({
       setLoading(true);
       setError(null);
       
+      if (!supabase) {
+        setError('Ошибка подключения к базе данных');
+        setLoading(false);
+        return;
+      }
+
       try {
         // Получаем самый последний заказ пользователя
         const { data: orders, error: ordersError } = await supabase

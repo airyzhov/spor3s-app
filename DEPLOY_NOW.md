@@ -95,3 +95,4 @@ pm2 logs spor3s-nextjs --lines 30
    systemctl restart nginx
    ```
 
+

@@ -32,6 +32,13 @@ const SCExchangeForm: React.FC<SCExchangeFormProps> = ({ userId, currentBalance,
       return;
     }
     setLoading(true);
+    
+    if (!supabase) {
+      setError('Ошибка подключения к базе данных');
+      setLoading(false);
+      return;
+    }
+
     // Пример: создаём транзакцию "spent" (реальный обмен — доработать под бизнес-логику)
     const { error: txError } = await supabase
       .from('coin_transactions')

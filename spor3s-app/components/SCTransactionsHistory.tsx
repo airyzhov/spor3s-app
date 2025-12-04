@@ -14,6 +14,10 @@ const SCTransactionsHistory: React.FC<SCTransactionsHistoryProps> = ({ userId, o
     if (!userId) return;
     setLoading(true);
     async function fetchTxs() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('coin_transactions')
         .select('*')
