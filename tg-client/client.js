@@ -35,6 +35,24 @@ const WEIGHT_REGEX = /(\d+\s*г[рp]?|\d+\s*капсул)/i;
 const CONFIRM_REGEX = /(хорошо|ок|давай|беру|хочу|буду|порошок|капсул)/i;
 const QUESTION_REGEX = /^\?+$/;
 
+// Хранение состояния диалога для каждого пользователя
+const userStates = new Map();
+
+// Функция получения deep link с товаром
+function getDeepLink(productId) {
+  return `https://t.me/spor3s_bot/app?startapp=cart_${productId}`;
+}
+
+// Обновление состояния пользователя
+function updateUserState(fromId, updates) {
+  const current = userStates.get(String(fromId)) || {};
+  userStates.set(String(fromId), { ...current, ...updates, lastActivity: Date.now() });
+}
+
+function getUserState(fromId) {
+  return userStates.get(String(fromId)) || {};
+}
+
 async function findUserIdByTelegram(telegramId) {
   if (!supabase) return null;
   try {
@@ -164,6 +182,7 @@ client.addEventHandler(async (event) => {
 
     // Память/концентрация → Ежовик
     if (MEMORY_REGEX.test(text) && !EZH_REGEX.test(text) && !replied) {
+      updateUserState(fromId, { product: 'ezh' });
       await client.sendMessage(event.message.peerId, { 
         message: '🧠 Для памяти и концентрации рекомендую Ежовик!\n\n📦 Варианты:\n• 100г порошок или 120 капсул — 1100₽ (месяц)\n• 300г или 360 капсул — 3000₽ (3 месяца)\n\nПорошок или капсулы удобнее?' 
       });
@@ -172,14 +191,16 @@ client.addEventHandler(async (event) => {
 
     // Ежовик
     if (EZH_REGEX.test(text) && !replied) {
+      updateUserState(fromId, { product: 'ezh' });
       await client.sendMessage(event.message.peerId, { 
-        message: '🍄 Ежовик (Hericium) — топ для памяти!\n\n📦 Варианты:\n• 100г порошок — 1100₽\n• 120 капсул — 1100₽\n• 300г порошок — 3000₽ (3 мес)\n• 360 капсул — 3000₽ (3 мес)\n\nКакой срок: месяц или курс 3 месяца?' 
+        message: '🍄 Ежовик (Hericium) — топ для памяти!\n\n📦 Варианты:\n• 100г порошок — 1100₽\n• 120 капсул — 1100₽\n• 300г порошок — 3000₽ (3 мес)\n• 360 капсул — 3000₽ (3 мес)\n\nПорошок или капсулы?' 
       });
       replied = true;
     }
 
     // Мухомор / Сон / Стресс
     if (MHM_REGEX.test(text) && !replied) {
+      updateUserState(fromId, { product: 'mhm' });
       await client.sendMessage(event.message.peerId, { 
         message: '🔴 Мухомор — отлично для сна и снятия стресса!\n\n📦 Варианты:\n• 30г шляпки — 1400₽ (месяц)\n• 60 капсул — 1400₽ (месяц)\n• 100г — 4000₽ (3 мес)\n• 180 капсул — 4000₽ (3 мес)\n\nПорошок или капсулы?' 
       });
@@ -188,16 +209,18 @@ client.addEventHandler(async (event) => {
 
     // Кордицепс / Энергия
     if (KOR_REGEX.test(text) && !replied) {
+      updateUserState(fromId, { product: 'kor' });
       await client.sendMessage(event.message.peerId, { 
-        message: '⚡ Кордицепс — энергия и выносливость!\n\n📦 Варианты:\n• 50г — 800₽ (месяц)\n• 150г — 2000₽ (3 мес)\n\nХочешь добавить?' 
+        message: '⚡ Кордицепс — энергия и выносливость!\n\n📦 Варианты:\n• 50г — 800₽ (месяц)\n• 150г — 2000₽ (3 мес)\n\nНа какой срок: месяц или 3 месяца?' 
       });
       replied = true;
     }
 
     // Цистозира / Щитовидка
     if (CI_REGEX.test(text) && !replied) {
+      updateUserState(fromId, { product: 'ci' });
       await client.sendMessage(event.message.peerId, { 
-        message: '🦋 Цистозира — поддержка щитовидной железы!\n\n📦 Варианты:\n• 30г — 500₽ (месяц)\n• 90г — 1350₽ (3 мес)\n\nДобавить в заказ?' 
+        message: '🦋 Цистозира — поддержка щитовидной железы!\n\n📦 Варианты:\n• 30г — 500₽ (месяц)\n• 90г — 1350₽ (3 мес)\n\nНа какой срок: месяц или 3 месяца?' 
       });
       replied = true;
     }
@@ -210,66 +233,89 @@ client.addEventHandler(async (event) => {
       replied = true;
     }
 
-    // Выбор веса/количества (100г, 300г, капсулы) — ВАЖНО: до DURATION!
-    if (WEIGHT_REGEX.test(text) && !replied) {
-      const weight = text.match(/(\d+)/)?.[1];
-      const isCaps = /капсул/i.test(text);
-      const isPowder = /порош|г[рp]?/i.test(text) || (weight && !isCaps);
+    // Выбор срока (месяц, 3 мес и т.д.)
+    if (DURATION_REGEX.test(text) && !replied) {
+      const state = getUserState(fromId);
+      const is3Month = /3\s*мес|курс/i.test(text);
+      const is6Month = /6\s*мес|полгода/i.test(text);
+      const duration = is6Month ? '6m' : (is3Month ? '3m' : '1m');
+      updateUserState(fromId, { duration });
       
-      // Определяем продукт по весу
-      if (weight === '100' && isPowder) {
+      // Определяем productId на основе продукта и срока
+      let productId = null;
+      const product = state.product;
+      const form = state.form || 'powder';
+      
+      if (product === 'ezh') {
+        if (duration === '6m') productId = 'ezh500';
+        else if (duration === '3m') productId = form === 'caps' ? 'ezh360k' : 'ezh300';
+        else productId = form === 'caps' ? 'ezh120k' : 'ezh100';
+      } else if (product === 'mhm') {
+        if (duration === '3m') productId = form === 'caps' ? 'mhm180k' : 'mhm100';
+        else productId = form === 'caps' ? 'mhm60k' : 'mhm30';
+      } else if (product === 'kor') {
+        productId = duration === '3m' ? 'kor150' : 'kor50';
+      } else if (product === 'ci') {
+        productId = duration === '3m' ? 'ci90' : 'ci30';
+      }
+      
+      if (productId) {
+        const link = getDeepLink(productId);
         await client.sendMessage(event.message.peerId, { 
-          message: '✅ Ежовик 100г порошок — 1100₽ (на месяц)\n\n💡 Рекомендую сразу курс 3 мес (300г) — 3000₽, эффект накопительный!\n\nОформить: 👉 t.me/spor3s_bot' 
+          message: `✅ Отлично! Добавляю в корзину.\n\n👉 Открой для оформления:\n${link}\n\n📦 Заполни ФИО, телефон и адрес ПВЗ СДЭК` 
         });
-      } else if (weight === '300') {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Ежовик 300г порошок — 3000₽ (курс 3 мес)\n\nОтличный выбор! 🎉\n\nОформить: 👉 t.me/spor3s_bot' 
-        });
-      } else if (weight === '30') {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Мухомор 30г — 1400₽ (на месяц)\n\n💡 Рекомендую курс 3 мес (100г) — 4000₽!\n\nОформить: 👉 t.me/spor3s_bot' 
-        });
-      } else if (weight === '50') {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Кордицепс 50г — 800₽ (на месяц)\n\n💡 Курс 3 мес (150г) — 2000₽!\n\nОформить: 👉 t.me/spor3s_bot' 
-        });
-      } else if (weight === '120' && isCaps) {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Ежовик 120 капсул — 1100₽ (на месяц)\n\nОформить: 👉 t.me/spor3s_bot' 
-        });
+        updateUserState(fromId, {}); // Сбрасываем состояние
       } else {
         await client.sendMessage(event.message.peerId, { 
-          message: `✅ Записал: ${text}\n\nДля оформления с доставкой СДЭК:\n👉 t.me/spor3s_bot` 
+          message: '✅ Записал срок! Какой продукт интересует?\n\n🍄 Ежовик — память\n🔴 Мухомор — сон\n⚡ Кордицепс — энергия' 
         });
       }
       replied = true;
     }
 
-    // Выбор срока (месяц, 3 мес и т.д.)
-    if (DURATION_REGEX.test(text) && !replied) {
-      const is3Month = /3\s*мес|курс/i.test(text);
-      const is6Month = /6\s*мес|полгода/i.test(text);
-      if (is6Month) {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Курс на 6 месяцев — максимальный эффект!\n\nОформить с доставкой СДЭК:\n👉 t.me/spor3s_bot' 
-        });
-      } else if (is3Month) {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ Курс 3 месяца — оптимально!\n\nОформить с доставкой СДЭК:\n👉 t.me/spor3s_bot' 
-        });
-      } else {
-        await client.sendMessage(event.message.peerId, { 
-          message: '✅ На месяц — понял!\n\n💡 Курс 3 мес выгоднее и эффективнее!\n\nОформить: 👉 t.me/spor3s_bot' 
-        });
-      }
+    // Выбор веса/количества (100гр, 300гр, капсулы)
+    if (WEIGHT_REGEX.test(text) && !replied) {
+      const state = getUserState(fromId);
+      const isCaps = /капсул/i.test(text);
+      updateUserState(fromId, { form: isCaps ? 'caps' : 'powder' });
+      
+      await client.sendMessage(event.message.peerId, { 
+        message: '✅ Записал!\n\nНа какой срок: месяц или курс 3 месяца?\n\n💡 Курс 3 месяца выгоднее и эффективнее!' 
+      });
       replied = true;
     }
 
     // Подтверждение (хорошо, ок, давай, беру)
     if (CONFIRM_REGEX.test(text) && text.length < 15 && !replied) {
-      await client.sendMessage(event.message.peerId, { 
-        message: '🎉 Отлично!\n\nДля оформления заказа с доставкой СДЭК открой мини-приложение:\n👉 t.me/spor3s_bot\n\nТам заполнишь:\n• ФИО получателя\n• Телефон\n• Адрес ПВЗ СДЭК\n\nИ оплатишь удобным способом 💳' 
-      });
+      const state = getUserState(fromId);
+      const isCaps = /капсул/i.test(text);
+      const isPowder = /порошок/i.test(text);
+      
+      if (isCaps || isPowder) {
+        updateUserState(fromId, { form: isCaps ? 'caps' : 'powder' });
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Записал форму!\n\nНа какой срок: месяц или курс 3 месяца?\n\n💡 Курс 3 месяца выгоднее и эффективнее!' 
+        });
+      } else if (state.product && state.duration) {
+        // У нас уже есть продукт и срок - отправляем deep link
+        let productId = null;
+        const form = state.form || 'powder';
+        if (state.product === 'ezh') {
+          productId = state.duration === '3m' ? (form === 'caps' ? 'ezh360k' : 'ezh300') : (form === 'caps' ? 'ezh120k' : 'ezh100');
+        } else if (state.product === 'mhm') {
+          productId = state.duration === '3m' ? (form === 'caps' ? 'mhm180k' : 'mhm100') : (form === 'caps' ? 'mhm60k' : 'mhm30');
+        }
+        if (productId) {
+          const link = getDeepLink(productId);
+          await client.sendMessage(event.message.peerId, { 
+            message: `🎉 Отлично! Добавляю в корзину.\n\n👉 Открой для оформления:\n${link}\n\n📦 Заполни ФИО, телефон и адрес ПВЗ СДЭК` 
+          });
+        }
+      } else {
+        await client.sendMessage(event.message.peerId, { 
+          message: '🎉 Отлично! Что именно добавляем?\n\n🍄 Ежовик — память\n🔴 Мухомор — сон\n⚡ Кордицепс — энергия' 
+        });
+      }
       replied = true;
     }
 

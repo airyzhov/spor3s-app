@@ -87,6 +87,26 @@ export default function Chat({ products, setStep }: ChatProps) {
         if (webApp) {
           const initData = webApp.initDataUnsafe;
           
+          // Обработка deep link с товаром (cart_<productId>)
+          const startParam = initData?.start_param;
+          if (startParam && startParam.startsWith('cart_')) {
+            const productId = startParam.replace('cart_', '');
+            console.log('🛒 Deep link: добавляем товар в корзину:', productId);
+            
+            // Ищем товар по ID или AI тегу
+            const product = products.find(p => p.id === productId) || findProductByAITag(productId, products);
+            if (product) {
+              setTimeout(() => {
+                addToCart({ id: product.id, name: product.name, price: product.price });
+                console.log('✅ Товар добавлен из deep link:', product.name);
+                // Переходим в каталог
+                if (setStep) setStep(2);
+              }, 500); // Ждём пока CartContext инициализируется
+            } else {
+              console.warn('⚠️ Товар не найден по deep link:', productId);
+            }
+          }
+          
           if (initData && initData.user) {
             const telegramUserId = initData.user.id.toString();
             console.log('🔍 DEBUG: Telegram User ID:', telegramUserId);
