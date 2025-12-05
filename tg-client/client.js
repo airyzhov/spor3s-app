@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '/var/www/spor3s-app/tg-client/.env.local' });
 const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 const { NewMessage } = require('telegram/events');
@@ -24,6 +24,16 @@ if (!API_ID || !API_HASH || !SESSION) {
 const client = new TelegramClient(new StringSession(SESSION), API_ID, API_HASH, { connectionRetries: 5 });
 
 const EZH_REGEX = /(ёж|еж|гребенч|грибо?нч|герици|hericium|lion.?s?.?mane)/i;
+const MHM_REGEX = /(мухомор|amanita|сон|стресс|тревог|бессонниц)/i;
+const KOR_REGEX = /(кордицепс|cordyceps|энерги|выносливост|спорт)/i;
+const CI_REGEX = /(цистозир|щитовид|йод|гормон)/i;
+const ORDER_REGEX = /(заказ|купить|цена|стоимость|сколько стоит|оформить|доставк)/i;
+const GREET_REGEX = /(привет|здравствуй|добрый|хай|hello|hi\b)/i;
+const MEMORY_REGEX = /(память|концентрац|мозг|фокус|внимани|обучени)/i;
+const DURATION_REGEX = /(месяц|3\s*мес|полгода|6\s*мес|курс)/i;
+const WEIGHT_REGEX = /(\d+\s*г[рp]?|\d+\s*капсул)/i;
+const CONFIRM_REGEX = /(хорошо|ок|давай|беру|хочу|буду|порошок|капсул)/i;
+const QUESTION_REGEX = /^\?+$/;
 
 async function findUserIdByTelegram(telegramId) {
   if (!supabase) return null;
@@ -140,11 +150,145 @@ client.addEventHandler(async (event) => {
     const text = msg.toLowerCase();
     const fromId = event.message?.senderId?.userId?.value ?? event.message?.senderId?.value;
     if (!fromId) return;
+    
+    log('MSG:', text.substring(0, 50));
+    let replied = false;
 
-    if (EZH_REGEX.test(text)) {
-      await client.sendMessage(event.message.peerId, { message: 'Да, есть ежовик (Hericium). Подобрать схему под цели: сон/тревога/память/энергия?' });
+    // Приветствие
+    if (GREET_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: 'Привет! 👋 Я помогу с грибными добавками.\n\n🍄 Что тебя интересует?\n• Ежовик — память, концентрация\n• Мухомор — сон, стресс\n• Кордицепс — энергия\n• Цистозира — щитовидка\n\nНапиши, что беспокоит, и подберу курс!' 
+      });
+      replied = true;
     }
 
+    // Память/концентрация → Ежовик
+    if (MEMORY_REGEX.test(text) && !EZH_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🧠 Для памяти и концентрации рекомендую Ежовик!\n\n📦 Варианты:\n• 100г порошок или 120 капсул — 1100₽ (месяц)\n• 300г или 360 капсул — 3000₽ (3 месяца)\n\nПорошок или капсулы удобнее?' 
+      });
+      replied = true;
+    }
+
+    // Ежовик
+    if (EZH_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🍄 Ежовик (Hericium) — топ для памяти!\n\n📦 Варианты:\n• 100г порошок — 1100₽\n• 120 капсул — 1100₽\n• 300г порошок — 3000₽ (3 мес)\n• 360 капсул — 3000₽ (3 мес)\n\nКакой срок: месяц или курс 3 месяца?' 
+      });
+      replied = true;
+    }
+
+    // Мухомор / Сон / Стресс
+    if (MHM_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🔴 Мухомор — отлично для сна и снятия стресса!\n\n📦 Варианты:\n• 30г шляпки — 1400₽ (месяц)\n• 60 капсул — 1400₽ (месяц)\n• 100г — 4000₽ (3 мес)\n• 180 капсул — 4000₽ (3 мес)\n\nПорошок или капсулы?' 
+      });
+      replied = true;
+    }
+
+    // Кордицепс / Энергия
+    if (KOR_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '⚡ Кордицепс — энергия и выносливость!\n\n📦 Варианты:\n• 50г — 800₽ (месяц)\n• 150г — 2000₽ (3 мес)\n\nХочешь добавить?' 
+      });
+      replied = true;
+    }
+
+    // Цистозира / Щитовидка
+    if (CI_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🦋 Цистозира — поддержка щитовидной железы!\n\n📦 Варианты:\n• 30г — 500₽ (месяц)\n• 90г — 1350₽ (3 мес)\n\nДобавить в заказ?' 
+      });
+      replied = true;
+    }
+
+    // Заказ / Цена
+    if (ORDER_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🛒 Для заказа напиши что хочешь, и я помогу!\n\nИли открой мини-приложение: 👉 t.me/spor3s_bot\n\nТам удобнее оформить с доставкой СДЭК 📦' 
+      });
+      replied = true;
+    }
+
+    // Выбор веса/количества (100г, 300г, капсулы) — ВАЖНО: до DURATION!
+    if (WEIGHT_REGEX.test(text) && !replied) {
+      const weight = text.match(/(\d+)/)?.[1];
+      const isCaps = /капсул/i.test(text);
+      const isPowder = /порош|г[рp]?/i.test(text) || (weight && !isCaps);
+      
+      // Определяем продукт по весу
+      if (weight === '100' && isPowder) {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Ежовик 100г порошок — 1100₽ (на месяц)\n\n💡 Рекомендую сразу курс 3 мес (300г) — 3000₽, эффект накопительный!\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      } else if (weight === '300') {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Ежовик 300г порошок — 3000₽ (курс 3 мес)\n\nОтличный выбор! 🎉\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      } else if (weight === '30') {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Мухомор 30г — 1400₽ (на месяц)\n\n💡 Рекомендую курс 3 мес (100г) — 4000₽!\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      } else if (weight === '50') {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Кордицепс 50г — 800₽ (на месяц)\n\n💡 Курс 3 мес (150г) — 2000₽!\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      } else if (weight === '120' && isCaps) {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Ежовик 120 капсул — 1100₽ (на месяц)\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      } else {
+        await client.sendMessage(event.message.peerId, { 
+          message: `✅ Записал: ${text}\n\nДля оформления с доставкой СДЭК:\n👉 t.me/spor3s_bot` 
+        });
+      }
+      replied = true;
+    }
+
+    // Выбор срока (месяц, 3 мес и т.д.)
+    if (DURATION_REGEX.test(text) && !replied) {
+      const is3Month = /3\s*мес|курс/i.test(text);
+      const is6Month = /6\s*мес|полгода/i.test(text);
+      if (is6Month) {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Курс на 6 месяцев — максимальный эффект!\n\nОформить с доставкой СДЭК:\n👉 t.me/spor3s_bot' 
+        });
+      } else if (is3Month) {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ Курс 3 месяца — оптимально!\n\nОформить с доставкой СДЭК:\n👉 t.me/spor3s_bot' 
+        });
+      } else {
+        await client.sendMessage(event.message.peerId, { 
+          message: '✅ На месяц — понял!\n\n💡 Курс 3 мес выгоднее и эффективнее!\n\nОформить: 👉 t.me/spor3s_bot' 
+        });
+      }
+      replied = true;
+    }
+
+    // Подтверждение (хорошо, ок, давай, беру)
+    if (CONFIRM_REGEX.test(text) && text.length < 15 && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🎉 Отлично!\n\nДля оформления заказа с доставкой СДЭК открой мини-приложение:\n👉 t.me/spor3s_bot\n\nТам заполнишь:\n• ФИО получателя\n• Телефон\n• Адрес ПВЗ СДЭК\n\nИ оплатишь удобным способом 💳' 
+      });
+      replied = true;
+    }
+
+    // Вопрос (?)
+    if (QUESTION_REGEX.test(text) && !replied) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '❓ Что-то непонятно? Спрашивай!\n\n🍄 Я помогу выбрать:\n• Ежовик — память\n• Мухомор — сон\n• Кордицепс — энергия\n• Цистозира — щитовидка\n\nИли напиши что беспокоит!' 
+      });
+      replied = true;
+    }
+
+    // Если ничего не подошло — общий ответ
+    if (!replied && text.length > 2) {
+      await client.sendMessage(event.message.peerId, { 
+        message: '🍄 Интересует что-то конкретное?\n\nНапиши:\n• "память" — подберу для мозга\n• "сон" — для качественного отдыха\n• "энергия" — для бодрости\n\nИли открой каталог: 👉 t.me/spor3s_bot' 
+      });
+    }
+
+    // Согласие на напоминания
     if (text === 'да' || text === 'yes') {
       const userId = await findUserIdByTelegram(String(fromId));
       const ok = await hasActiveCourse(userId);
@@ -158,7 +302,9 @@ client.addEventHandler(async (event) => {
       await upsertConsent(String(fromId), false);
       await client.sendMessage(event.message.peerId, { message: 'Ок, отключил. Включить обратно — ответь «Да».' });
     }
-  } catch {}
+  } catch (e) {
+    log('Event handler error:', e.message);
+  }
 }, new NewMessage({}));
 
 function normalizeTarget(input) {
