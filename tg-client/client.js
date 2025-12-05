@@ -40,8 +40,8 @@ const userStates = new Map();
 
 // Функция получения deep link с товаром
 function getDeepLink(productId) {
-  // Короткий формат для Telegram
-  return `t.me/spor3s_bot?startapp=cart_${productId}`;
+  // Формат: t.me/bot/app?startapp=param
+  return `t.me/spor3s_bot/app?startapp=cart_${productId}`;
 }
 
 // Обновление состояния пользователя
