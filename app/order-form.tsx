@@ -146,7 +146,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
             quantity: item.quantity || 1
           }],
           total: item.price * (item.quantity || 1),
-          address: survey.delivery_type === 'cdek' ? survey.cdek_address : survey.delivery_address,
+          address: survey.delivery_type === 'courier' ? survey.delivery_address : survey.cdek_address,
           fio: survey.fio,
           phone: survey.phone,
           referral_code: survey.referral || null,
@@ -485,28 +485,33 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               required
             >
               <option value="cdek">📦 СДЭК (пункт выдачи)</option>
-              <option value="courier">🚚 Курьерская доставка</option>
+              <option value="ozon">📦 OZON (пункт выдачи)</option>
+              <option value="courier">🚚 СДЭК (курьер)</option>
             </select>
           </div>
 
           {/* Адрес доставки */}
           <div style={{ marginBottom: 15 }}>
             <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
-              📍 {survey.delivery_type === 'cdek' ? 'Адрес СДЭК (пункт выдачи):' : 'Адрес доставки:'}
+              📍 {survey.delivery_type === 'cdek' ? 'Адрес СДЭК (пункт выдачи):'
+                : survey.delivery_type === 'ozon' ? 'Адрес пункта выдачи OZON:'
+                : 'Адрес доставки:'}
             </label>
             <input
               type="text"
-              value={survey.delivery_type === 'cdek' ? survey.cdek_address : survey.delivery_address}
+              value={survey.delivery_type === 'courier' ? survey.delivery_address : survey.cdek_address}
               onChange={(e) => {
-                if (survey.delivery_type === 'cdek') {
-                  setSurvey(prev => ({...prev, cdek_address: e.target.value}));
-                } else {
+                if (survey.delivery_type === 'courier') {
                   setSurvey(prev => ({...prev, delivery_address: e.target.value}));
+                } else {
+                  setSurvey(prev => ({...prev, cdek_address: e.target.value}));
                 }
               }}
               disabled={loading}
-              placeholder={survey.delivery_type === 'cdek' 
-                ? "Укажите удобный филиал СДЭК" 
+              placeholder={survey.delivery_type === 'cdek'
+                ? "Укажите удобный филиал СДЭК"
+                : survey.delivery_type === 'ozon'
+                ? "Укажите удобный пункт выдачи OZON"
                 : "Укажите ваш адрес для доставки курьером"
               }
               style={{

@@ -43,7 +43,8 @@ interface TelegramWebApp {
 
 export default function AppClient() {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  // Стартовый экран — Каталог (шаг 2). AI-чат отключён до запуска (см. SHOW_AI ниже).
+  const [currentStep, setCurrentStep] = useState<number>(2);
   const [products, setProducts] = useState<Product[]>([]);
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,10 +158,12 @@ export default function AppClient() {
   // Привязываем обработчики через addEventListener после монтирования
   // Fallback механизм удален - используем только onClick
 
+  // Включить AI-консультанта обратно: поставить SHOW_AI = true
+  const SHOW_AI = false;
   const steps = [
-    { id: 1, name: "AI Консультант", icon: "🤖" },
+    ...(SHOW_AI ? [{ id: 1, name: "AI Консультант", icon: "🤖" }] : []),
     { id: 2, name: "Каталог", icon: "🛒" },
-    { id: 3, name: "Ваш прогресс", icon: "📊" }
+    { id: 3, name: "Бонусы", icon: "🎁" }
   ];
 
   // Обработчик клика (не используется, оставлен для совместимости)
@@ -229,7 +232,7 @@ export default function AppClient() {
           cartItems={[]} // Добавляем пустой массив cartItems
         />;
       default:
-        return <Chat products={products || []} setStep={setCurrentStep} />;
+        return <Cart products={products || []} setStep={setCurrentStep} />;
     }
     } catch (err) {
       console.error('❌ Ошибка рендеринга контента:', err);
@@ -268,14 +271,21 @@ export default function AppClient() {
         <header className={styles.header} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 16, padding: '16px 0' }}>
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
-              <img 
-                src="/logo.png" 
-                alt="logo" 
+              <img
+                src="/logo.jpg"
+                alt="logo"
                 className={styles.logo}
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  // Если нет logo.jpg — показываем запасной logo.svg, иначе прячем
+                  if (img.src.endsWith('/logo.jpg')) { img.src = '/logo.svg'; }
+                  else { img.style.display = 'none'; }
+                }}
                 style={{
                   objectFit: 'contain',
                   width: '54px',
                   height: '54px',
+                  borderRadius: '50%',
                   display: 'block'
                 }}
               />

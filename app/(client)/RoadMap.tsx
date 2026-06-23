@@ -37,6 +37,9 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [startMetrics, setStartMetrics] = useState<Metrics>({ memory: 5, sleep: 4, energy: 3, stress: 7 });
   const [weeklyProgress, setWeeklyProgress] = useState<WeekProgress[]>([]);
   const [showStartAssessment, setShowStartAssessment] = useState(true);
+  // Геймификация (уровни, недельные метрики, трекинг курса) скрыта до запуска.
+  // Включить обратно: SHOW_GAMIFICATION = true
+  const SHOW_GAMIFICATION = false;
   const [todayMetrics, setTodayMetrics] = useState<Metrics>({ memory: 5, sleep: 5, energy: 5, stress: 5 });
   const [weeklyObservations, setWeeklyObservations] = useState("");
   const [currentSC, setCurrentSC] = useState(0);
@@ -400,7 +403,7 @@ export default function RoadMap({ user }: RoadMapProps) {
     }
   }, [user?.id]);
 
-  if (showStartAssessment) {
+  if (SHOW_GAMIFICATION && showStartAssessment) {
     return (
       <div style={{ 
         maxWidth: "800px", 
@@ -557,6 +560,7 @@ export default function RoadMap({ user }: RoadMapProps) {
         </div>
       </div>
 
+      {SHOW_GAMIFICATION && (<>
       {/* Информация о начале курса */}
       <div style={{
         background: "linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1))",
@@ -652,6 +656,7 @@ export default function RoadMap({ user }: RoadMapProps) {
           </div>
         )}
       </div>
+      </>)}
 
       {/* Реферальная система */}
       <div style={{
@@ -779,6 +784,7 @@ export default function RoadMap({ user }: RoadMapProps) {
         )}
       </div>
 
+      {SHOW_GAMIFICATION && (<>
       {/* Гриб мухомор с сообщением */}
       <div style={{
         background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",
@@ -1218,6 +1224,8 @@ export default function RoadMap({ user }: RoadMapProps) {
         </div>
       </div>
 
+      </>)}
+
       {/* Подписки на каналы */}
       <div style={{
         background: "linear-gradient(135deg, #0f172a, #1e293b)",
@@ -1427,6 +1435,7 @@ export default function RoadMap({ user }: RoadMapProps) {
         </div>
       </div>
 
+      {SHOW_GAMIFICATION && (<>
       {/* Кнопки действий */}
       <div style={{
         display: "flex",
@@ -1680,6 +1689,7 @@ export default function RoadMap({ user }: RoadMapProps) {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 } 
