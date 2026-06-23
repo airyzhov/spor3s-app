@@ -1,0 +1,77 @@
+You are working on a Telegram Mini App using the following stack:
+- Next.js 14 (App Router)
+- React 19 with Server/Client Components
+- TypeScript
+- Supabase for database and authentication
+- TailwindCSS for UI
+- Telegram WebApp API (for Mini App frontend)
+- Telegram Bot API (for syncing and external chat)
+- AI chat integrated via external API (e.g., OpenAI, etc.)
+
+🎯 Goal:
+- Enable a user to interact with an AI assistant both inside the Mini App and outside (in regular Telegram bot chat).
+- Both environments should be aware of the same user — synced by `telegram_id`.
+- Supabase table `users` is the central source of truth.
+  - `users.id` — UUID (used in other tables)
+  - `users.telegram_id` — Telegram user ID as `string`
+
+🛠 Auth & Linking Strategy:
+- On WebApp load:
+  1. Use Telegram `initDataUnsafe.user.id` as `telegram_id`
+  2. Check if a user with this `telegram_id` exists in `users`
+     - If not, create a new record: `INSERT INTO users (telegram_id)`
+     - If exists, fetch `id` for session
+  3. Store the UUID `id` of the user in Supabase client session
+  4. Now Mini App can access all related data (`orders`, `messages`, etc.) via `user_id`
+
+- For linking regular Telegram bot:
+  - WebApp generates a one-time auth code (`auth_code`) and stores it in a temp table `tg_link_codes`
+    - Fields: `auth_code`, `telegram_id`, `user_id`, `expires_at`
+  - Show user instruction:  
+    💬 “To link your AI bot, send: /start <auth_code> to the bot”
+  - Telegram bot:
+    - On receiving `/start <auth_code>`, finds this row
+    - Confirms or updates `users.telegram_id` or links user via Supabase RPC
+
+📦 Data Notes (based on Supabase schema):
+- All logic centers around `users` (uuid `id`, string `telegram_id`)
+- Use `user_id` (uuid) to join all related tables:
+  - `messages`, `orders`, `coin_transactions`, `surveys`, etc.
+- Only `telegram_id` is shared between WebApp and Bot
+
+🧪 Testing:
+- Test Telegram WebApp auth flow using sample `initData`
+- Validate integrity: creating, fetching, and linking users via Supabase API
+- Mock Telegram bot with `telegraf` in development mode
+
+📁 Code tips:
+- Place Supabase client logic in `/lib/supabase`
+  - `getOrCreateUser(telegram_id: string): Promise<User>`
+  - `linkBotWithCode(auth_code: string, telegram_id: string)`
+- Create `/api/link-auth-code` route to handle auth code creation
+- Server-side props or middleware should fetch `user_id` from Supabase via `telegram_id` (securely)
+
+👨‍💻 Client Component Notes:
+- Use `useEffect` to parse Telegram `window.Telegram.WebApp.initDataUnsafe`
+- On first load: call API route to get/create user in Supabase
+- Save user UUID (`user_id`) to global state or context
+
+💡 Example Telegram Bot Response:
+- `/start 12345-abcde` → “🎉 You’ve successfully linked your AI assistant! Now your progress is synchronized.”
+
+---
+
+🧩 Optional Prompts:
+/explain — break down how to securely link a Telegram bot to Supabase  
+/create-auth-code — generate and return one-time code for linking  
+/init-user — ensure user record exists in Supabase
+
+---
+
+🎯 **РАБОЧИЕ ПРИНЦИПЫ:**
+- Действую как 10х инженеров
+- Пиши код чем меньше тем лучше
+- Не останавливайся, пока не реализуешь эту функцию полностью и до конца
+- Начни с написания трех параграфов рассуждений, анализирующих, в чем может быть ошибка, не делай поспешных выводов
+- Отвечай кратко
+- Не удаляй комментарии  

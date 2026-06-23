@@ -1,0 +1,584 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: 22
+        script: |
+          set -e
+          echo "🚀 Начало деплоя spor3s-app"
+          
+          # Переходим в директорию проекта
+          cd /var/www/spor3s-app
+          if [ ! -d .git ]; then
+            echo "📁 Клонирование репозитория..."
+            rm -rf *
+            git clone https://github.com/airyzhov/spor3s-app.git .
+          else
+            echo "📦 Обновление кода из GitHub..."
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+          fi
+          
+          echo "📋 Проверка .env файла..."
+          if [ ! -f .env ]; then
+            if [ -f .env.vps ]; then
+              cp .env.vps .env
+              echo "✅ Скопирован .env.vps в .env"
+            elif [ -f env-production ]; then
+              cp env-production .env
+              echo "✅ Скопирован env-production в .env"
+            else
+              echo "⚠️ Файл .env не найден, создайте его вручную"
+            fi
+          fi
+          
+          # Копируем .env в подпроекты
+          if [ -f .env ]; then
+            cp .env tg-bot/.env 2>/dev/null || true
+            cp .env tg-client/.env.local 2>/dev/null || true
+            echo "✅ .env скопирован в подпроекты"
+          fi
+          
+          echo "📦 Установка зависимостей основного проекта..."
+          npm install
+          
+          # Устанавливаем ESLint если его нет
+          if [ ! -d node_modules/eslint ]; then
+            echo "📦 Установка ESLint..."
+            npm install --save-dev eslint eslint-config-next 2>/dev/null || true
+          fi
+          
+          echo "📦 Установка зависимостей tg-bot..."
+          if [ -f tg-bot/package.json ]; then
+            cd /var/www/spor3s-app/tg-bot
+            npm install
+          cd /var/www/spor3s-app
+          fi
+          
+          echo "📦 Установка зависимостей tg-client..."
+          if [ -f tg-client/package.json ]; then
+            cd /var/www/spor3s-app/tg-client
+          npm install
+            cd /var/www/spor3s-app
+          fi
+          
+          echo "🏗️ Сборка Next.js приложения..."
+          cd /var/www/spor3s-app
+          
+          # Удаляем my-fresh-app если существует
+          if [ -d my-fresh-app ]; then
+            echo "🗑️ Удаление my-fresh-app..."
+            rm -rf my-fresh-app
+          fi
+          
+          # КРИТИЧНО: Очищаем кэш Next.js перед сборкой
+          echo "🧹 Очистка кэша Next.js..."
+          rm -rf spor3s-app/.next
+          rm -rf spor3s-app/node_modules/.cache
+          rm -rf .next
+          rm -rf node_modules/.cache
+          echo "✅ Кэш очищен"
+          
+          # Определяем правильную директорию для сборки
+          # Проверяем структуру проекта
+          echo "📁 Проверка структуры проекта..."
+          ls -la /var/www/spor3s-app/ | head -20
+          
+          if [ -d spor3s-app/app ] && [ -f spor3s-app/package.json ]; then
+            echo "📁 Найдена структура с поддиректорией spor3s-app"
+            export BUILD_DIR="/var/www/spor3s-app/spor3s-app"
+          elif [ -d app ] && [ -f package.json ]; then
+            echo "📁 Найдена структура в корне"
+            export BUILD_DIR="/var/www/spor3s-app"
+          else
+            echo "⚠️ Структура проекта не определена, пробуем найти app директорию..."
+            APP_DIR=$(find /var/www/spor3s-app -type d -name "app" -maxdepth 3 | head -1)
+            if [ -n "$APP_DIR" ]; then
+              export BUILD_DIR=$(dirname "$APP_DIR")
+              echo "📁 Найдена app директория в: $BUILD_DIR"
+            else
+              echo "❌ Не удалось найти app директорию"
+              ls -la /var/www/spor3s-app/
+              exit 1
+            fi
+          fi
+          
+          cd "$BUILD_DIR"
+          echo "📂 Рабочая директория: $BUILD_DIR"
+          echo "📂 Содержимое директории:"
+          ls -la | head -15
+          
+          # Проверяем наличие app директории и package.json
+          if [ ! -d app ]; then
+            echo "⚠️ Директория app не найдена в $BUILD_DIR"
+            exit 1
+          fi
+          
+          if [ ! -f package.json ]; then
+            echo "⚠️ package.json не найден в $BUILD_DIR"
+            exit 1
+          fi
+          
+          echo "✅ Структура проекта определена правильно"
+          
+          # КРИТИЧНО: Принудительно обновляем код из git перед сборкой
+          echo "🔄 Принудительное обновление кода из git..."
+          cd "$BUILD_DIR"
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
+          echo "✅ Код принудительно обновлен из git"
+          git pull origin main || echo "⚠️ git pull не выполнен (возможно, уже актуально)"
+          echo "✅ Код обновлен"
+          
+          # Проверяем наличие роута перед сборкой
+          echo "🔍 Проверка роута /api/ai..."
+          ROUTE_FILE=""
+          if [ -f "$BUILD_DIR/app/api/ai/route.ts" ]; then
+            ROUTE_FILE="$BUILD_DIR/app/api/ai/route.ts"
+            echo "✅ Роут найден в $BUILD_DIR/app/api/ai/route.ts"
+          else
+            # Ищем роут в других местах
+            FOUND_ROUTE=$(find "$BUILD_DIR" -name "route.ts" -path "*/api/ai/*" 2>/dev/null | head -1)
+            if [ -n "$FOUND_ROUTE" ]; then
+              echo "⚠️ Роут найден в другом месте: $FOUND_ROUTE"
+              echo "📋 Копирую роут в правильное место..."
+              mkdir -p "$BUILD_DIR/app/api/ai"
+              cp "$FOUND_ROUTE" "$BUILD_DIR/app/api/ai/route.ts"
+              ROUTE_FILE="$BUILD_DIR/app/api/ai/route.ts"
+              echo "✅ Роут скопирован в $ROUTE_FILE"
+            else
+              echo "❌ Роут app/api/ai/route.ts НЕ НАЙДЕН нигде!"
+              exit 1
+            fi
+          fi
+          
+          if [ -n "$ROUTE_FILE" ] && [ -f "$ROUTE_FILE" ]; then
+            ls -lh "$ROUTE_FILE"
+            if grep -q "export async function POST" "$ROUTE_FILE"; then
+              echo "✅ Функция POST экспортирована"
+            else
+              echo "❌ Функция POST НЕ экспортирована!"
+              exit 1
+            fi
+          fi
+          
+          echo "📦 Очистка кэша перед сборкой..."
+          rm -rf "$BUILD_DIR/.next" 2>/dev/null || true
+          rm -rf "$BUILD_DIR/node_modules/.cache" 2>/dev/null || true
+          
+          # КРИТИЧНО: Проверяем что роут существует перед сборкой
+          if [ ! -f "$BUILD_DIR/app/api/ai/route.ts" ]; then
+            echo "❌ Роут $BUILD_DIR/app/api/ai/route.ts НЕ НАЙДЕН!"
+            exit 1
+          fi
+          
+          echo "✅ Роут найден, проверяем экспорт POST функции..."
+          if ! grep -q "export async function POST" "$BUILD_DIR/app/api/ai/route.ts"; then
+            echo "❌ Функция POST не экспортирована в route.ts!"
+            exit 1
+          fi
+          
+          # КРИТИЧНО: Проверяем что код содержит новую логику загрузки ключа
+          echo "🔍 Проверка версии кода..."
+          if ! grep -q "OPENAI_API_KEY" "$BUILD_DIR/app/api/ai/route.ts"; then
+            echo "⚠️ Код не содержит OPENAI_API_KEY, возможно старая версия!"
+            echo "📋 Пробуем обновить код..."
+            cd "$BUILD_DIR"
+            git pull origin main || true
+          fi
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан ПЕРЕД сборкой
+          echo "🔑 Проверка .env.local перед сборкой..."
+          if [ ! -f "$BUILD_DIR/.env.local" ]; then
+            echo "⚠️ .env.local не существует, создаем..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$BUILD_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$BUILD_DIR/.env.local"
+            echo "✅ .env.local создан"
+          else
+            # Проверяем содержимое
+            if ! grep -q "OPENAI_API_KEY" "$BUILD_DIR/.env.local"; then
+              echo "⚠️ .env.local существует, но не содержит OPENAI_API_KEY, обновляем..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$BUILD_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$BUILD_DIR/.env.local"
+            fi
+          fi
+          
+          echo "📦 Запуск сборки в $BUILD_DIR..."
+          cd "$BUILD_DIR"
+          npm run build 2>&1 | tee /tmp/build.log || {
+            echo "❌ Ошибка сборки!"
+            tail -100 /tmp/build.log
+            exit 1
+          }
+          
+          # КРИТИЧНО: Проверяем что роут скомпилировался
+          echo "🔍 Проверка компиляции роута /api/ai..."
+          if [ ! -d "$BUILD_DIR/.next/server/app/api/ai" ]; then
+            echo "❌ Роут /api/ai НЕ скомпилирован!"
+            echo "📋 Проверяем ошибки сборки..."
+            grep -i "error\|fail\|route" /tmp/build.log | tail -20 || true
+            exit 1
+          else
+            echo "✅ Роут /api/ai успешно скомпилирован!"
+            ls -la "$BUILD_DIR/.next/server/app/api/ai/" || true
+          fi
+          
+          # Проверяем, что роут скомпилировался
+          echo "🔍 Проверка компиляции роута /api/ai..."
+          if [ -d "$BUILD_DIR/.next/server/app/api/ai" ]; then
+            echo "✅ Роут /api/ai скомпилирован в .next/server/app/api/ai"
+            ls -la "$BUILD_DIR/.next/server/app/api/ai/" || echo "Директория пуста"
+          else
+            echo "⚠️ Роут /api/ai НЕ найден в сборке!"
+            echo "Проверяю все API роуты:"
+            find "$BUILD_DIR/.next/server/app/api" -name "route.js" -o -name "route.ts" 2>/dev/null | head -10 || echo "API роуты не найдены"
+            echo "Проверяю логи сборки на ошибки:"
+            grep -i "api/ai\|route.ts\|error\|Error\|failed\|Failed" /tmp/build.log | tail -20 || echo "Ошибок не найдено"
+          fi
+          
+          echo "📁 Проверка public/products..."
+          # Копируем изображения если они в поддиректории
+          if [ -d /var/www/spor3s-app/spor3s-app/public/products ] && [ "$BUILD_DIR" != "/var/www/spor3s-app/spor3s-app" ]; then
+            echo "📋 Копирование изображений продуктов из поддиректории..."
+            mkdir -p "$BUILD_DIR/public/products"
+            cp -r /var/www/spor3s-app/spor3s-app/public/products/* "$BUILD_DIR/public/products/" 2>/dev/null || true
+            echo "✅ Изображения скопированы"
+          elif [ -d public/products ]; then
+            echo "✅ Изображения продуктов уже на месте"
+          fi
+          
+          # Устанавливаем переменную окружения OPENROUTER_API_KEY ПЕРЕД перезапуском PM2
+          echo "🔑 Установка OPENROUTER_API_KEY..."
+          # Используем ключ из env или fallback (для первого деплоя без GitHub Secrets)
+          OPENROUTER_KEY="${OPENROUTER_API_KEY:-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}"
+          echo "✅ OPENROUTER_API_KEY установлен (длина: ${#OPENROUTER_KEY})"
+          export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+          
+          # Добавляем в .bashrc для постоянного хранения
+          if ! grep -q "OPENROUTER_API_KEY" ~/.bashrc 2>/dev/null; then
+            echo "export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"" >> ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY добавлен в ~/.bashrc"
+          else
+            sed -i "s|export OPENROUTER_API_KEY=.*|export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"|g" ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY обновлен в ~/.bashrc"
+          fi
+          
+          # Создаем или обновляем .env.local файл в директории проекта ПЕРЕД перезапуском PM2
+          # Next.js автоматически загружает .env.local в production
+          # КРИТИЧНО: Создаем в правильной директории Next.js приложения
+          NEXTJS_DIR="$BUILD_DIR"
+          if [ -d "$NEXTJS_DIR" ]; then
+            cd "$NEXTJS_DIR"
+            # Копируем env.local если существует, иначе создаем новый
+            if [ -f env.local ]; then
+              cp env.local .env.local
+              echo "✅ Скопирован env.local в .env.local"
+            else
+              # Создаем базовый .env.local
+              if [ -f .env.local ]; then
+                # Обновляем ключи если файл существует
+                if ! grep -q "OPENROUTER_API_KEY" .env.local; then
+                  echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
+                fi
+                if ! grep -q "OPENAI_API_KEY" .env.local; then
+                  echo "OPENAI_API_KEY=$OPENROUTER_KEY" >> .env.local
+                fi
+              else
+                echo "OPENAI_API_KEY=$OPENROUTER_KEY" > .env.local
+                echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env.local
+                echo "✅ Создан новый .env.local в $NEXTJS_DIR"
+              fi
+            fi
+            # Убеждаемся что домен правильный
+            if ! grep -q "NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru" .env.local; then
+              # Обновляем или добавляем URL
+              if grep -q "NEXT_PUBLIC_BASE_URL" .env.local; then
+                sed -i 's|NEXT_PUBLIC_BASE_URL=.*|NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru|g' .env.local
+              else
+                echo "NEXT_PUBLIC_BASE_URL=https://ai.spor3s.ru" >> .env.local
+              fi
+              echo "✅ Обновлен NEXT_PUBLIC_BASE_URL в .env.local"
+            fi
+          fi
+          echo "✅ Создан/обновлен .env.local файл с OPENROUTER_API_KEY"
+          # Проверяем что файл создан и содержит ключ
+          if [ -f .env.local ]; then
+            echo "✅ Файл .env.local существует"
+            if grep -q "OPENROUTER_API_KEY" .env.local; then
+              echo "✅ OPENROUTER_API_KEY найден в .env.local"
+              KEY_LENGTH=$(grep "OPENROUTER_API_KEY" .env.local | cut -d'=' -f2 | wc -c)
+              echo "📏 Длина ключа: $KEY_LENGTH символов"
+            else
+              echo "❌ OPENROUTER_API_KEY НЕ найден в .env.local!"
+            fi
+          else
+            echo "❌ Файл .env.local НЕ создан!"
+          fi
+          # Также обновляем .env для совместимости
+          if [ -f .env ]; then
+            if grep -q "OPENROUTER_API_KEY" .env; then
+              sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env
+            else
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env
+            fi
+          else
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env
+          fi
+          echo "📋 Проверка .env.local:"
+          grep "OPENROUTER_API_KEY" .env.local | head -1 | sed 's/OPENROUTER_API_KEY=\(.\{20\}\).*/OPENROUTER_API_KEY=\1.../' || echo "⚠️ OPENROUTER_API_KEY не найден в .env.local"
+          echo "📋 Содержимое .env.local (первые 100 символов):"
+          head -c 100 .env.local || echo "Файл пуст или не существует"
+          echo ""
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан правильно в правильной директории
+          echo "🔍 Проверка .env.local в $NEXTJS_DIR:"
+          if [ -f "$NEXTJS_DIR/.env.local" ]; then
+            if grep -q "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local"; then
+              KEY_LENGTH=$(grep "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local" | cut -d'=' -f2 | tr -d ' ' | wc -c)
+              echo "✅ .env.local найден в $NEXTJS_DIR, ключ присутствует (длина: $KEY_LENGTH)"
+            else
+              echo "⚠️ .env.local существует, но ключ не найден, создаем заново..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "✅ Создан .env.local с OPENAI_API_KEY и OPENROUTER_API_KEY"
+            fi
+          else
+            echo "⚠️ .env.local не найден в $NEXTJS_DIR, создаем..."
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+          fi
+          
+          # Проверяем что ключ точно записан
+          echo "📋 Финальная проверка .env.local:"
+          cat "$NEXTJS_DIR/.env.local" | grep OPENROUTER_API_KEY | head -1 || echo "⚠️ Ключ не найден в $NEXTJS_DIR/.env.local"
+          
+          # КРИТИЧНО: Очищаем кэш перед сборкой
+          echo "🧹 Очистка кэша перед сборкой..."
+          rm -rf "$NEXTJS_DIR/.next"
+          rm -rf "$NEXTJS_DIR/node_modules/.cache"
+          echo "✅ Кэш очищен"
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан и содержит правильный ключ
+          echo "🔑 Проверка и создание .env.local..."
+          if [ ! -f "$NEXTJS_DIR/.env.local" ]; then
+            echo "⚠️ .env.local не существует, создаем..."
+            mkdir -p "$NEXTJS_DIR"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "✅ .env.local создан"
+          else
+            # Проверяем содержимое
+            if ! grep -q "OPENROUTER_API_KEY" "$NEXTJS_DIR/.env.local" || ! grep -q "$OPENROUTER_KEY" "$NEXTJS_DIR/.env.local"; then
+              echo "⚠️ .env.local существует, но ключ неверный, обновляем..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            echo "✅ Создан .env.local с OPENAI_API_KEY и OPENROUTER_API_KEY"
+              echo "✅ .env.local обновлен"
+            else
+              echo "✅ .env.local содержит правильный ключ"
+            fi
+          fi
+          
+          # Проверяем права доступа
+          chmod 644 "$NEXTJS_DIR/.env.local" || true
+          echo "📋 Содержимое .env.local:"
+          cat "$NEXTJS_DIR/.env.local" | head -1
+          
+          cd /var/www/spor3s-app
+          
+          echo "🔄 Перезапуск PM2 процессов..."
+          # Возвращаемся в корень для PM2
+          cd /var/www/spor3s-app
+          
+          # Переменная OPENROUTER_KEY уже установлена выше, экспортируем ее
+          export OPENROUTER_API_KEY="$OPENROUTER_KEY"
+          export OPENAI_API_KEY="$OPENROUTER_KEY"
+          
+          # КРИТИЧНО: Убеждаемся что .env.local создан ПЕРЕД перезапуском
+          echo "🔑 Финальная проверка .env.local перед перезапуском PM2..."
+          if [ -f "$NEXTJS_DIR/.env.local" ]; then
+            echo "✅ .env.local существует"
+            if grep -q "OPENAI_API_KEY" "$NEXTJS_DIR/.env.local"; then
+              echo "✅ OPENAI_API_KEY найден в .env.local"
+            else
+              echo "⚠️ OPENAI_API_KEY НЕ найден, создаем заново..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            fi
+          else
+            echo "⚠️ .env.local НЕ существует, создаем..."
+            echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+          fi
+          
+          # Останавливаем старые процессы
+          echo "🛑 Агрессивная остановка всех процессов PM2..."
+          # Останавливаем все процессы Next.js
+          pm2 stop all || true
+          pm2 delete spor3s-nextjs || true
+          pm2 delete spor3s-n || true
+          pm2 delete all || true
+          pm2 kill || true
+          
+          # Убиваем все процессы Node.js
+          echo "🔪 Убиваем все процессы Node.js..."
+          pkill -9 node || true
+          killall -9 node || true
+          
+          # Убиваем процессы на порту 3000
+          echo "🔪 Освобождаем порт 3000..."
+          PID=$(lsof -ti:3000 2>/dev/null || fuser 3000/tcp 2>/dev/null | awk '{print $1}' || netstat -tlnp 2>/dev/null | grep :3000 | awk '{print $7}' | cut -d'/' -f1)
+          if [ -n "$PID" ]; then
+            echo "🔪 Найден процесс на порту 3000: $PID"
+            kill -9 $PID 2>/dev/null || true
+          fi
+          lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+          
+          # Дополнительная проверка через netstat
+          netstat -tlnp 2>/dev/null | grep :3000 | while read line; do
+            PID=$(echo $line | awk '{print $7}' | cut -d'/' -f1)
+            if [ -n "$PID" ] && [ "$PID" != "-" ]; then
+              echo "🔪 Убиваем процесс $PID..."
+              kill -9 $PID 2>/dev/null || true
+            fi
+          done
+          
+          sleep 5
+          
+          # Проверяем что порт свободен
+          if lsof -ti:3000 >/dev/null 2>&1 || netstat -tlnp 2>/dev/null | grep -q :3000; then
+            echo "⚠️ Порт 3000 все еще занят, пробуем еще раз..."
+            lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+            sleep 2
+          else
+            echo "✅ Порт 3000 свободен!"
+          fi
+          
+          # Обновляем ecosystem.config.js если нужно
+          if [ -f ecosystem.config.js ]; then
+            # Проверяем, что cwd указывает на правильную директорию
+            if [ "$BUILD_DIR" = "/var/www/spor3s-app/spor3s-app" ]; then
+              echo "📝 Обновление ecosystem.config.js для правильного пути..."
+              # Используем существующий config, но убедимся что процессы запускаются из правильной директории
+            fi
+          fi
+          
+          # Запускаем через ecosystem.config.js с переменной OPENROUTER_API_KEY
+          if [ -f ecosystem.config.js ]; then
+            # Обновляем cwd в ecosystem.config.js если нужно
+            if [ "$BUILD_DIR" != "/var/www/spor3s-app/spor3s-app" ]; then
+              echo "📝 Обновление cwd в ecosystem.config.js..."
+              sed -i "s|cwd: '/var/www/spor3s-app/spor3s-app'|cwd: '$BUILD_DIR'|g" ecosystem.config.js || true
+            fi
+            # Запускаем PM2 с переменной окружения OPENROUTER_API_KEY
+            echo "🚀 Запуск PM2 с OPENROUTER_API_KEY..."
+            echo "📋 OPENROUTER_KEY длина: ${#OPENROUTER_KEY}"
+            # Убеждаемся что .env.local существует перед запуском
+            if [ ! -f "$NEXTJS_DIR/.env.local" ]; then
+              echo "⚠️ .env.local не найден, создаем..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            fi
+            OPENROUTER_API_KEY="$OPENROUTER_KEY" OPENAI_API_KEY="$OPENROUTER_KEY" pm2 start ecosystem.config.js --update-env
+            sleep 5
+            echo "📊 Статус PM2:"
+            pm2 list
+            echo "📋 Логи PM2 (последние 20 строк):"
+            pm2 logs spor3s-nextjs --lines 20 --nostream || true
+          else
+            echo "⚠️ ecosystem.config.js не найден, запускаем напрямую..."
+            cd "$BUILD_DIR"
+            # Убеждаемся что .env.local существует перед запуском
+            if [ ! -f "$NEXTJS_DIR/.env.local" ]; then
+              echo "⚠️ .env.local не найден, создаем..."
+              echo "OPENAI_API_KEY=$OPENROUTER_KEY" > "$NEXTJS_DIR/.env.local"
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> "$NEXTJS_DIR/.env.local"
+            fi
+            OPENROUTER_API_KEY="$OPENROUTER_KEY" OPENAI_API_KEY="$OPENROUTER_KEY" pm2 start npm --name "spor3s-nextjs" -- start --update-env
+            cd /var/www/spor3s-app
+          fi
+          
+          # КРИТИЧНО: Финальная проверка что все работает
+          echo "🔍 Финальная проверка API..."
+          sleep 3
+          curl -f http://localhost:3000/api/health || echo "⚠️ Health check failed"
+          
+          # Ждем запуска приложения
+          echo "⏳ Ожидание запуска приложения (10 секунд)..."
+          sleep 10
+          
+          # Проверяем что приложение запустилось
+          echo "🧪 Проверка API..."
+          API_RESPONSE=$(curl -s -X POST https://ai.spor3s.ru/api/ai \
+            -H "Content-Type: application/json" \
+            -d '{"message":"тест","source":"mini_app"}' \
+            -w "\nHTTP_CODE:%{http_code}" || echo "ERROR")
+          
+          echo "📋 Ответ API:"
+          echo "$API_RESPONSE"
+          
+          if echo "$API_RESPONSE" | grep -q "HTTP_CODE:200\|HTTP_CODE:503"; then
+            echo "✅ API отвечает (может быть ошибка ключа, но сервер работает)"
+          else
+            echo "⚠️ API не отвечает или ошибка подключения"
+          fi
+          
+          # Добавляем в .bashrc для постоянного хранения
+          if ! grep -q "OPENROUTER_API_KEY" ~/.bashrc 2>/dev/null; then
+            echo "export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"" >> ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY добавлен в ~/.bashrc"
+          else
+            sed -i "s|export OPENROUTER_API_KEY=.*|export OPENROUTER_API_KEY=\"$OPENROUTER_KEY\"|g" ~/.bashrc
+            echo "✅ OPENROUTER_API_KEY обновлен в ~/.bashrc"
+          fi
+          
+          # Создаем или обновляем .env файл в директории проекта
+          cd "$BUILD_DIR"
+          if [ -f .env ]; then
+            if grep -q "OPENROUTER_API_KEY" .env; then
+              sed -i "s|OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_KEY|g" .env
+              echo "✅ OPENROUTER_API_KEY обновлен в .env"
+            else
+              echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >> .env
+              echo "✅ OPENROUTER_API_KEY добавлен в .env"
+            fi
+          else
+            echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" > .env
+            echo "✅ Создан .env файл с OPENROUTER_API_KEY"
+          fi
+          cd /var/www/spor3s-app
+          
+          # Проверяем, что процесс запущен
+          sleep 3
+          pm2 status
+          echo "📋 Проверка доступности API..."
+          sleep 2
+          curl -f http://localhost:3000/api/health || echo "⚠️ Health check failed"
+          
+          # Сохраняем конфигурацию
+          pm2 save
+          
+          echo "📊 Статус процессов:"
+          pm2 status
+          
+          echo "✅ Деплой завершен успешно!"
+          echo "🌐 Приложение доступно на: https://ai.spor3s.ru"

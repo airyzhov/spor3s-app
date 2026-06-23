@@ -1,0 +1,93 @@
+# 🚀 Инструкция по деплою spor3s-app
+
+## 📋 Автоматический деплой через GitHub Actions
+
+При каждом push в ветку `main` приложение автоматически деплоится на VPS.
+
+### Настройка (один раз)
+
+1. **Добавьте SSH ключ на VPS:**
+   ```bash
+   ssh root@185.166.197.49
+   mkdir -p ~/.ssh
+   echo 'ВАШ_ПУБЛИЧНЫЙ_КЛЮЧ_GITHUB_ACTIONS' >> ~/.ssh/authorized_keys
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+
+2. **Настройте GitHub Secrets:**
+   - Перейдите в Settings → Secrets and variables → Actions
+   - Добавьте:
+     - `VPS_HOST`: `185.166.197.49`
+     - `VPS_USER`: `root`
+     - `VPS_SSH_KEY`: ваш приватный SSH ключ
+     - `OPENROUTER_API_KEY`: ваш API ключ OpenRouter
+
+3. **Деплой:**
+   ```bash
+   git add .
+   git commit -m "Обновление приложения"
+   git push origin main
+   ```
+
+Workflow автоматически:
+- Обновит код на VPS
+- Установит зависимости
+- Соберет Next.js приложение
+- Перезапустит PM2 процессы
+
+## 🔧 Ручной деплой
+
+Если нужно задеплоить вручную:
+
+```bash
+./deploy-vps-github.sh
+```
+
+Или на VPS:
+
+```bash
+ssh root@185.166.197.49
+cd /var/www/spor3s-app
+git pull origin main
+cd spor3s-app  # или корень, в зависимости от структуры
+npm ci
+npm run build
+cd /var/www/spor3s-app
+pm2 restart ecosystem.config.js
+pm2 save
+```
+
+## 🌐 Проверка
+
+После деплоя проверьте:
+
+- **Приложение:** https://ai.spor3s.ru
+- **Health check:** https://ai.spor3s.ru/api/health
+- **PM2 статус:**
+  ```bash
+  ssh root@185.166.197.49
+  pm2 list
+  pm2 logs spor3s-nextjs
+  ```
+
+## 📝 Важные файлы
+
+- **GitHub Actions:** `.github/workflows/deploy.yml`
+- **PM2 конфигурация:** `ecosystem.config.js`
+- **Next.js конфигурация:** `spor3s-app/next.config.js`
+- **Переменные окружения:** `spor3s-app/env.local` → копируется в `.env.local` на VPS
+
+## ⚠️ Устранение проблем
+
+### Ошибка подключения SSH
+- Проверьте, что SSH ключ добавлен в `~/.ssh/authorized_keys` на VPS
+- Проверьте настройки firewall
+
+### Ошибка сборки Next.js
+- Проверьте, что все зависимости установлены: `npm ci`
+- Проверьте логи: `pm2 logs spor3s-nextjs`
+
+### Ошибка запуска приложения
+- Проверьте `.env.local` на VPS
+- Проверьте, что домен `ai.spor3s.ru` правильно настроен в nginx
+- Проверьте порт 3000: `netstat -tlnp | grep 3000`

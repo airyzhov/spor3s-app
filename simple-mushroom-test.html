@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Тест трекера грибов</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .mushroom { font-size: 40px; cursor: pointer; margin: 10px; }
+        .taken { color: green; }
+        .today { color: pink; }
+        .disabled { color: gray; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>🍄 Тест трекера грибов</h1>
+    
+    <div id="mushrooms"></div>
+    
+    <div id="result"></div>
+    
+    <script>
+        const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        let takenDays = [];
+        
+        function createMushrooms() {
+            const container = document.getElementById('mushrooms');
+            container.innerHTML = '';
+            
+            for (let i = 6; i >= 0; i--) {
+                const day = days[6-i];
+                const isToday = i === 0;
+                const isTaken = takenDays.includes(i);
+                const isPast = i > 0;
+                
+                const mushroom = document.createElement('div');
+                mushroom.className = `mushroom ${isTaken ? 'taken' : isToday ? 'today' : 'disabled'}`;
+                mushroom.textContent = isTaken ? '✅' : '🍄';
+                mushroom.onclick = () => clickMushroom(i);
+                mushroom.title = `${day} ${isToday ? '(сегодня)' : ''}`;
+                
+                container.appendChild(mushroom);
+            }
+        }
+        
+        function clickMushroom(dayIndex) {
+            if (dayIndex !== 0) {
+                alert('Можно отмечать только сегодня!');
+                return;
+            }
+            
+            if (takenDays.includes(dayIndex)) {
+                alert('Уже отмечено сегодня!');
+                return;
+            }
+            
+            takenDays.push(dayIndex);
+            showResult('🍄 +10 SC за прием добавки!');
+            createMushrooms();
+        }
+        
+        function showResult(message) {
+            document.getElementById('result').innerHTML = `<p style="color: green;">${message}</p>`;
+        }
+        
+        createMushrooms();
+    </script>
+</body>
+</html> 

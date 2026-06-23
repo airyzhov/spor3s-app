@@ -1,0 +1,98 @@
+# 🚀 Быстрый деплой исправлений на VPS
+
+## Вариант 1: Через SSH (если есть доступ)
+
+### Скопируйте скрипт на VPS и выполните:
+
+```bash
+# На вашем компьютере (Windows):
+# Скопируйте содержимое deploy_fix_loading.sh
+
+# На VPS через SSH:
+cd /var/www/spor3s-app
+nano deploy_fix.sh
+# Вставьте содержимое скрипта, сохраните (Ctrl+O, Enter, Ctrl+X)
+chmod +x deploy_fix.sh
+./deploy_fix.sh
+```
+
+## Вариант 2: Выполните команды вручную на VPS
+
+Подключитесь к VPS через SSH и выполните:
+
+```bash
+cd /var/www/spor3s-app
+
+# 1. Получить обновления
+git pull origin main
+
+# 2. Очистить кэш
+rm -rf .next
+
+# 3. Пересобрать приложение
+npm run build
+
+# 4. Перезапустить приложение
+pm2 stop spor3s-nextjs
+pm2 delete spor3s-nextjs
+pm2 start npm --name "spor3s-nextjs" -- start
+pm2 save
+
+# 5. Перезапустить Nginx
+systemctl restart nginx
+
+# 6. Проверить статус
+pm2 status
+pm2 logs spor3s-nextjs --lines 30
+```
+
+## Вариант 3: Через веб-консоль VPS (если доступна)
+
+1. Войдите в панель управления VPS
+2. Откройте веб-консоль/терминал
+3. Выполните команды из Варианта 2
+
+## Проверка после деплоя
+
+1. **Проверьте статус PM2:**
+   ```bash
+   pm2 status
+   ```
+   Процесс `spor3s-nextjs` должен быть `online`
+
+2. **Проверьте логи:**
+   ```bash
+   pm2 logs spor3s-nextjs
+   ```
+   Не должно быть ошибок
+
+3. **Проверьте в браузере:**
+   - Откройте https://ai.spor3s.ru
+   - Страница должна загружаться без ошибок
+   - Чат должен работать
+
+## Если что-то пошло не так
+
+1. **Проверьте логи:**
+   ```bash
+   pm2 logs spor3s-nextjs --lines 50
+   ```
+
+2. **Проверьте порт 3000:**
+   ```bash
+   netstat -tlnp | grep 3000
+   ```
+
+3. **Проверьте Nginx:**
+   ```bash
+   nginx -t
+   systemctl status nginx
+   ```
+
+4. **Перезапустите все:**
+   ```bash
+   pm2 restart all
+   systemctl restart nginx
+   ```
+
+
