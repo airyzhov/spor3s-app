@@ -246,18 +246,79 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 10. Отправляем уведомление менеджеру
+    // 10. Отправляем уведомление менеджеру в Telegram (напрямую через Bot API)
     try {
       console.log(`🛒 НОВЫЙ ЗАКАЗ: #${order.id} | Пользователь: ${user_id} | Сумма: ${finalTotal} руб`);
-      console.log(`📦 Товары: ${JSON.stringify(items)}`);
-      console.log(`📞 Контакты: ${fio || 'Не указано'}, ${phone || 'Не указано'}`);
-      console.log(`📍 Адрес: ${address || 'Не указано'}`);
-      console.log(`💰 Скидки: Уровень ${levelDiscount}₽, SC ${scDiscount}₽, Итого ${totalDiscount}₽`);
+
+      const botToken = process.env.TELEGRAM_BOT_TOKEN;
+      const managerChatId = process.env.MANAGER_CHAT_ID;
+
+      if (botToken && managerChatId) {
+        const itemsArr = Array.isArray(items) ? items : [];
+        const itemsText = itemsArr.length > 0
+          ? itemsArr.map((i: any) => `• ${i.name || i.id || 'Товар'}${i.quantity ? ` ×${i.quantity}` : ''} — ${i.price || 0}₽`).join('\n')
+          : '—';
+
+        const message = `🆕 НОВЫЙ ЗАКАЗ (приложение) #${order.id}
+
+👤 ФИО: ${fio || 'не указано'}
+📞 Телефон: ${phone || 'не указано'}
+📍 Адрес: ${address || 'не указано'}
+
+📦 Товары:
+${itemsText}
+
+💰 Сумма: ${finalTotal}₽${totalDiscount ? ` (скидка ${totalDiscount}₽)` : ''}
+💬 Комментарий: ${comment || 'нет'}
+🕐 ${new Date().toLocaleString('ru-RU')}`;
+
+        const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: managerChatId, text: message }),
+        });
+        if (!resp.ok) {
+          console.error('❌ Telegram уведомление не отправлено:', resp.status, await resp.text());
+        }
+      } else {
+        console.log('ℹ️ MANAGER_CHAT_ID или TELEGRAM_BOT_TOKEN не заданы — уведомление пропущено');
+      }
     } catch (notificationError) {
-      console.error('❌ Ошибка логирования заказа:', notificationError);
+      // Не валим заказ, если уведомление не ушло
+      console.error('❌ Ошибка отправки уведомления:', notificationError);
     }
 
-    return NextResponse.json({ 
+    // 11. Синхронизация заказа в Google Sheets (через Apps Script webhook, если задан)
+    try {
+      const sheetWebhook = process.env.SHEET_WEBHOOK_URL;
+      if (sheetWebhook) {
+        const itemsArr = Array.isArray(items) ? items : [];
+        const itemsText = itemsArr
+          .map((i: any) => `${i.name || i.id || 'Товар'}${i.quantity ? ` x${i.quantity}` : ''} (${i.price || 0})`)
+          .join('; ');
+        await fetch(sheetWebhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: order.id,
+            created_at: order.created_at,
+            fio: fio || '',
+            phone: phone || '',
+            address: address || '',
+            items: itemsText,
+            total: finalTotal,
+            status: order.status || 'pending',
+            comment: comment || '',
+            referral_code: referral_code || '',
+          }),
+        });
+      }
+    } catch (sheetError) {
+      // Синк в таблицу не должен ронять заказ
+      console.error('❌ Ошибка синка в Google Sheets:', sheetError);
+    }
+
+    return NextResponse.json({
       success: true, 
       order,
       appliedDiscounts: {

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../supabaseServerClient';
+import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
 
 export async function POST(req: NextRequest) {
+  if (!isAdmin(req)) return adminUnauthorized();
   try {
     const { user_id, amount, description } = await req.json();
     if (!user_id || !amount) {

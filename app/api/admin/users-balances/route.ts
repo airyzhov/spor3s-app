@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../supabaseServerClient';
+import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
 
 export async function GET(req: NextRequest) {
+  if (!isAdmin(req)) return adminUnauthorized();
   // Получить всех пользователей
   const { data: users, error: usersError } = await supabaseServer
     .from('users')
