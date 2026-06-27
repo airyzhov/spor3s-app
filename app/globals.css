@@ -31,7 +31,9 @@ body {
     linear-gradient(135deg, #1a1a40 0%, #2d0b3a 25%, #4a1b5a 50%, #2d0b3a 75%, #1a1a40 100%);
   color: white;
   min-height: 100vh;
-  overflow-x: hidden;
+  /* clip (не hidden!) — прячет горизонтальную прокрутку, но НЕ создаёт скролл-контейнер,
+     иначе ломается position: sticky у вложенных блоков (окно заказа на витрине) */
+  overflow-x: clip;
   position: relative;
 }
 

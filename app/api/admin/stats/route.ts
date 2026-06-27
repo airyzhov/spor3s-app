@@ -15,27 +15,22 @@ export async function GET(req: NextRequest) {
     }
     const totalUsers = users.length;
 
-    // 2. Суммарный SC
-    const { data: coins, error: coinsError } = await supabaseServer
-      .from('coin_transactions')
-      .select('user_id, amount, type');
-    if (coinsError) {
-      console.error('coinsError:', coinsError);
-      return NextResponse.json({ error: coinsError.message }, { status: 500 });
+    // 2. Суммарный SC — из user_levels (тратимый баланс)
+    const { data: levels, error: levelsError } = await supabaseServer
+      .from('user_levels')
+      .select('user_id, current_sc_balance');
+    if (levelsError) {
+      console.error('levelsError:', levelsError);
+      return NextResponse.json({ error: levelsError.message }, { status: 500 });
     }
-    const userSC: Record<string, number> = {};
     let totalSC = 0;
-    (coins || []).forEach(tx => {
-      if (!userSC[tx.user_id]) userSC[tx.user_id] = 0;
-      userSC[tx.user_id] += tx.type === 'spent' ? -tx.amount : tx.amount;
-      totalSC += tx.type === 'spent' ? -tx.amount : tx.amount;
-    });
+    (levels || []).forEach(l => { totalSC += l.current_sc_balance || 0; });
 
     // 3. Топ-10 пользователей по SC
-    const topUsers = Object.entries(userSC)
-      .sort((a, b) => b[1] - a[1])
+    const topUsers = [...(levels || [])]
+      .sort((a, b) => (b.current_sc_balance || 0) - (a.current_sc_balance || 0))
       .slice(0, 10)
-      .map(([user_id, sc]) => ({ user_id, sc }));
+      .map(l => ({ user_id: l.user_id, sc: l.current_sc_balance || 0 }));
 
     // 4. Количество заказов
     const { data: orders, error: ordersError } = await supabaseServer
@@ -47,8 +42,11 @@ export async function GET(req: NextRequest) {
     }
     const totalOrders = orders.length;
 
-    // 5. Количество транзакций
-    const totalTransactions = coins.length;
+    // 5. Количество транзакций SC
+    const { count: txCount } = await supabaseServer
+      .from('sc_transactions')
+      .select('id', { count: 'exact', head: true });
+    const totalTransactions = txCount || 0;
 
     return NextResponse.json({
       totalUsers,

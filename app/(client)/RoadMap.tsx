@@ -342,8 +342,9 @@ export default function RoadMap({ user }: RoadMapProps) {
       if (data.success) {
         setReferralStats(data.stats);
         setReferralCode(data.stats.referralCode);
-        setReferralBonus(data.stats.cashbackAmount);
+        setReferralBonus(data.stats.referralEarned);
         setInvitedCount(data.stats.totalReferrals);
+        if (typeof data.stats.balance === 'number') setCurrentSC(data.stats.balance);
       }
     } catch (error) {
       console.error('Fetch referral stats error:', error);

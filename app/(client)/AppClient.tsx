@@ -80,7 +80,7 @@ export default function AppClient() {
             const response = await fetch('/api/init-user', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ telegram_id: telegramId })
+              body: JSON.stringify({ telegram_id: telegramId, username: tgUser.username })
             });
             const data = await response.json();
             if (response.ok && data?.id) {

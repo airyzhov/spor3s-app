@@ -7,16 +7,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log('[init-user] Received body:', body);
-    const { telegram_id, referral_code, source } = body;
+    const { telegram_id, referral_code, source, username } = body;
     console.log('[init-user] telegram_id:', telegram_id);
-    console.log('[init-user] referral_code:', referral_code);
-    console.log('[init-user] source:', source || 'mini_app');
     if (!telegram_id) {
       console.log('[init-user] No telegram_id provided');
       return NextResponse.json({ error: 'telegram_id required' }, { status: 400 });
     }
-    console.log('[init-user] Calling getOrCreateUser');
-    const id = await getOrCreateUser(telegram_id, referral_code);
+    const id = await getOrCreateUser(telegram_id, referral_code, username);
     console.log('[init-user] User ID:', id);
     
     // Создаем запись в ai_agent_status если она не существует

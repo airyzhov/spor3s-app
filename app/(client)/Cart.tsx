@@ -889,7 +889,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                   )}
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 8, textAlign: "center" }}>{modalProduct?.name}</div>
-                <div style={{ fontSize: 15, color: "#ffffff", marginBottom: 16, textAlign: "center", whiteSpace: "pre-line", textShadow: "0 1px 2px rgba(0,0,0,0.3)" }}>{modalProduct?.description}</div>
+                <div style={{ fontSize: 15, color: "#444", marginBottom: 16, textAlign: "center", whiteSpace: "pre-line", lineHeight: "1.5" }}>{modalProduct?.description}</div>
                 <div style={{ fontWeight: 700, fontSize: 18, color: "#ff00cc", marginBottom: 16, textAlign: "center" }}>{modalProduct?.price ? `${modalProduct.price} ₽` : ''}</div>
                 <button
                   onClick={() => {

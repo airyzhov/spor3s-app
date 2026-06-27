@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
+import { normalizePhone } from "../../../lib/referral";
 
 export async function POST(req: NextRequest) {
   try {
@@ -195,54 +196,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 9. Обрабатываем реферальный бонус (если есть referral_code, user_id и это первый заказ)
-    if (referral_code && user_id) {
+    // 9. Реферальные начисления перенесены на смену статуса заказа на "paid"
+    //    (см. app/api/admin/orders/route.ts → processReferralOnPaid).
+    //    Здесь же сохраняем телефон покупателя в его профиль, чтобы он мог
+    //    выступать реферером по номеру телефона.
+    if (user_id && phone) {
       try {
-        // Проверяем, есть ли уже заказы у этого пользователя
-        const { data: existingOrders, error: ordersError } = await supabaseServer
-          .from("orders")
-          .select("id")
-          .eq("user_id", user_id)
-          .neq("id", order.id); // Исключаем текущий заказ
-
-        if (!ordersError && (!existingOrders || existingOrders.length === 0)) {
-          // Это первый заказ пользователя, начисляем реферальный бонус
-          console.log('[order] First order with referral_code, awarding bonus');
-          
-          const { error: bonusError } = await supabaseServer
-            .from("sc_transactions")
-            .insert([{
-              user_id: user_id,
-              amount: 50, // Реферальный бонус 50 SC
-              transaction_type: "earned",
-              source_type: "referral",
-              description: `Реферальный бонус за код: ${referral_code}`,
-              created_at: new Date().toISOString()
-            }]);
-
-          if (bonusError) {
-            console.log('[order] Failed to award referral bonus:', bonusError);
-          } else {
-            console.log('[order] Referral bonus awarded successfully');
-            
-            // Обновляем баланс пользователя
-            const currentBalance = scBalance - coinsToApply;
-            const newBalance = currentBalance + 50;
-            const { error: updateError } = await supabaseServer
-              .from("user_levels")
-              .update({ 
-                current_sc_balance: newBalance,
-                total_sc_earned: (userLevel?.total_sc_earned || 0) + 50
-              })
-              .eq("user_id", user_id);
-
-            if (updateError) {
-              console.error('❌ Ошибка обновления баланса SC:', updateError);
-            }
-          }
+        const normPhone = normalizePhone(phone);
+        if (normPhone) {
+          await supabaseServer.from("users").update({ phone: normPhone }).eq("id", user_id);
         }
-      } catch (bonusError) {
-        console.error('[order] Error awarding referral bonus:', bonusError);
+      } catch (e) {
+        console.error('[order] Не удалось сохранить телефон пользователя:', e);
       }
     }
 

@@ -463,6 +463,32 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
             />
           </div>
 
+          {/* Реферальный код: username или телефон пригласившего */}
+          <div style={{ marginBottom: 15 }}>
+            <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
+              🎁 Реферальный код (необязательно):
+            </label>
+            <input
+              type="text"
+              value={survey.referral}
+              onChange={(e) => setSurvey(prev => ({...prev, referral: e.target.value}))}
+              disabled={loading}
+              placeholder="username или телефон того, кто пригласил"
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid #666",
+                background: "#2a2a2a",
+                color: "#fff",
+                fontSize: 14
+              }}
+            />
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
+              Кто пригласил получит бонус после оплаты вашего заказа
+            </div>
+          </div>
+
           {/* Тип доставки */}
           <div style={{ marginBottom: 15 }}>
             <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
