@@ -37,6 +37,17 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [scBalance, setScBalance] = useState(0);
+  const [coinsToUse, setCoinsToUse] = useState(0);
+
+  // Загружаем баланс SC пользователя (для списания)
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`/api/referral-stats?user_id=${userId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.stats && typeof d.stats.balance === 'number') setScBalance(d.stats.balance); })
+      .catch(() => {});
+  }, [userId]);
 
   // Добавляем обработку ошибок
   useEffect(() => {
@@ -135,51 +146,38 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
     setError("");
 
     try {
-      // Создаем заказ для каждого товара в корзине
-      const orderPromises = selectedItems.map(item => {
-        const orderData = {
-          user_id: userId || null, // Может быть null для неавторизованных пользователей
-          items: [{
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity || 1
-          }],
-          total: item.price * (item.quantity || 1),
-          address: survey.delivery_type === 'courier' ? survey.delivery_address : survey.cdek_address,
-          fio: survey.fio,
-          phone: survey.phone,
-          referral_code: survey.referral || null,
-          comment: `Заказ через ${userId ? 'авторизованного пользователя' : 'гостя'}. ${telegramUser ? `Telegram: ${telegramUser.telegram_id}` : ''}`,
-          coins_to_use: 0
-        };
+      // Один заказ на всю корзину (через полный /api/order: списание SC, уведомление, сохранение телефона)
+      const total = selectedItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0);
+      const coins = Math.max(0, Math.min(Number(coinsToUse) || 0, scBalance, Math.floor(total * 0.3)));
+      const orderData = {
+        user_id: userId || null,
+        items: selectedItems.map(it => ({ id: it.id, name: it.name, price: it.price, quantity: it.quantity || 1 })),
+        total,
+        address: survey.delivery_type === 'courier' ? survey.delivery_address : survey.cdek_address,
+        fio: survey.fio,
+        phone: survey.phone,
+        referral_code: survey.referral || null,
+        comment: `Заказ через ${userId ? 'авторизованного пользователя' : 'гостя'}. ${telegramUser ? `Telegram: ${telegramUser.telegram_id}` : ''}`,
+        coins_to_use: coins,
+      };
 
-        console.log('📦 Submitting order for item:', orderData);
-
-        return fetch("/api/order-simple", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(orderData),
-        }).then(r => r.json());
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
       });
+      const result = await res.json();
 
-      const results = await Promise.all(orderPromises);
-      const successfulOrders = results.filter(r => r.success);
-      
-      if (successfulOrders.length > 0) {
-        setSuccess(`✅ Заказ успешно создан! Оформлено ${successfulOrders.length} товаров.`);
-        // Сброс формы и очистка корзины
+      if (result.success) {
+        const fin = result.appliedDiscounts?.finalTotal;
+        setSuccess(`✅ Заказ оформлен!${fin != null ? ` К оплате: ${fin}₽` : ''} Мы свяжемся с вами.`);
         setSelectedItems([]);
         setSurvey(initialSurvey);
-        localStorage.removeItem('spor3s_cart_items'); // Очищаем корзину из localStorage
-        
-        setTimeout(() => {
-          if (setStep) setStep(2); // Возвращаемся к корзине
-        }, 2000);
+        setCoinsToUse(0);
+        localStorage.removeItem('spor3s_cart_items');
+        setTimeout(() => { if (setStep) setStep(2); }, 2500);
       } else {
-        setError(`❌ Ошибка при создании заказа: ${results[0]?.error || "Неизвестная ошибка"}`);
+        setError(`❌ Ошибка при создании заказа: ${result.error || "Неизвестная ошибка"}`);
       }
     } catch (err) {
       console.error("Order submit error:", err);
@@ -429,6 +427,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               placeholder="Введите ваше ФИО"
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
                 border: "1px solid #666",
@@ -452,6 +451,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               placeholder="+7 (___) ___-__-__"
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
                 border: "1px solid #666",
@@ -476,6 +476,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               placeholder="username или телефон того, кто пригласил"
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
                 border: "1px solid #666",
@@ -489,6 +490,41 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
             </div>
           </div>
 
+          {/* Списание SC (если есть баланс) */}
+          {userId && scBalance > 0 && (() => {
+            const total = selectedItems.reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0);
+            const maxCoins = Math.min(scBalance, Math.floor(total * 0.3));
+            return (
+              <div style={{ marginBottom: 15 }}>
+                <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
+                  💰 Списать SC (баланс: {scBalance}, до {maxCoins}):
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={maxCoins}
+                  value={coinsToUse || ''}
+                  onChange={(e) => setCoinsToUse(Math.max(0, Math.min(Number(e.target.value) || 0, maxCoins)))}
+                  disabled={loading}
+                  placeholder={`0 — ${maxCoins}`}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid #666",
+                    background: "#2a2a2a",
+                    color: "#fff",
+                    fontSize: 14
+                  }}
+                />
+                <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
+                  1 SC = 1₽ скидки, максимум 30% от суммы заказа
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Тип доставки */}
           <div style={{ marginBottom: 15 }}>
             <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
@@ -500,6 +536,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               disabled={loading}
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
                 border: "1px solid #666",
@@ -542,6 +579,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               }
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
                 border: "1px solid #666",
