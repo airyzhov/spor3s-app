@@ -61,18 +61,26 @@ export default function AppClient() {
   useEffect(() => {
     if (!mounted) return;
     
+    // Скрипт telegram-web-app.js подключён async и может загрузиться позже
+    // первого рендера — без ожидания реальный покупатель из Telegram
+    // успевает провалиться в dev-фоллбек и теряет бонусы/рефералку.
+    const waitForTelegramWebApp = async (timeoutMs = 3000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        try {
+          if (typeof window !== 'undefined' && window.Telegram?.WebApp) return window.Telegram.WebApp;
+        } catch {}
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return undefined;
+    };
+
     const initUser = async () => {
       try {
         setError(null);
-        // 1) Telegram WebApp контекст
-        let tg;
-        try {
-          tg = (typeof window !== 'undefined' && window.Telegram?.WebApp) ? window.Telegram.WebApp : undefined;
-        } catch (e) {
-          console.warn('⚠️ Telegram WebApp недоступен:', e);
-          tg = undefined;
-        }
-        
+        // 1) Telegram WebApp контекст (ждём загрузки скрипта)
+        const tg = await waitForTelegramWebApp();
+
         const tgUser = tg?.initDataUnsafe?.user;
         if (tgUser?.id) {
           const telegramId = String(tgUser.id);
@@ -100,9 +108,18 @@ export default function AppClient() {
           }
         }
 
-        // 2) DEV-фоллбек (только если нет Telegram окружения)
+        // 2) DEV-фоллбек (только если нет Telegram окружения).
+        //    Id сохраняем в localStorage, чтобы не плодить нового юзера в БД
+        //    на каждое открытие страницы.
         try {
-          const devId = `dev-${Date.now()}`;
+          let devId = '';
+          try {
+            devId = localStorage.getItem('spor3s_dev_id') || '';
+          } catch {}
+          if (!devId) {
+            devId = `dev-${Date.now()}`;
+            try { localStorage.setItem('spor3s_dev_id', devId); } catch {}
+          }
           const resp = await fetch('/api/init-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
