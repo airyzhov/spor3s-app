@@ -739,6 +739,20 @@ export default function RoadMap({ user }: RoadMapProps) {
                       ))
                     : "—"}
                 </div>
+                {order.admin_comment && (
+                  <div style={{
+                    background: "rgba(56, 189, 248, 0.1)",
+                    border: "1px solid rgba(56, 189, 248, 0.4)",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    marginTop: "8px",
+                    color: "#bae6fd",
+                    fontSize: "clamp(12px, 3vw, 14px)",
+                    lineHeight: 1.4
+                  }}>
+                    💬 {order.admin_comment}
+                  </div>
+                )}
                 <div style={{
                   display: "flex",
                   justifyContent: "space-between",

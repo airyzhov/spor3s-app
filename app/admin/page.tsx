@@ -134,6 +134,28 @@ export default function AdminPage() {
     });
   };
 
+  // Черновики трек-номера/комментария по заказам (до нажатия «Сохранить»)
+  const [orderEdits, setOrderEdits] = useState<Record<string, { tracking_number?: string; admin_comment?: string }>>({});
+  const [orderSaved, setOrderSaved] = useState<string | null>(null);
+  const setOrderEdit = (id: string, field: "tracking_number" | "admin_comment", value: string) => {
+    setOrderEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
+  const saveOrderInfo = async (id: string) => {
+    const edits = orderEdits[id];
+    if (!edits) return;
+    const res = await fetch("/api/admin/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-secret": secret || "" },
+      body: JSON.stringify({ id, ...edits }),
+    });
+    if (res.ok) {
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...edits } : o)));
+      setOrderEdits((prev) => { const n = { ...prev }; delete n[id]; return n; });
+      setOrderSaved(id);
+      setTimeout(() => setOrderSaved(null), 2000);
+    }
+  };
+
   const itemsSummary = (items: any) => {
     const arr = Array.isArray(items) ? items : [];
     if (arr.length === 0) return "—";
@@ -233,6 +255,7 @@ export default function AdminPage() {
                     <th style={{ padding: "8px 8px" }}>Адрес</th>
                     <th style={{ padding: "8px 8px", textAlign: "right" }}>Сумма</th>
                     <th style={{ padding: "8px 8px" }}>Статус</th>
+                    <th style={{ padding: "8px 8px", minWidth: 200 }}>Трек / комментарий покупателю</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -256,6 +279,34 @@ export default function AdminPage() {
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
+                      </td>
+                      <td style={{ padding: "8px 8px" }}>
+                        <input
+                          placeholder="Трек-номер"
+                          value={orderEdits[o.id]?.tracking_number ?? o.tracking_number ?? ""}
+                          onChange={(e) => setOrderEdit(o.id, "tracking_number", e.target.value)}
+                          style={{ ...input, padding: 6, fontSize: 12, marginBottom: 6 }}
+                        />
+                        <textarea
+                          placeholder="Комментарий покупателю (виден в приложении)"
+                          value={orderEdits[o.id]?.admin_comment ?? o.admin_comment ?? ""}
+                          onChange={(e) => setOrderEdit(o.id, "admin_comment", e.target.value)}
+                          rows={2}
+                          style={{ ...input, padding: 6, fontSize: 12, marginBottom: 6, resize: "vertical", fontFamily: "inherit" }}
+                        />
+                        <button
+                          onClick={() => saveOrderInfo(o.id)}
+                          disabled={!orderEdits[o.id]}
+                          style={{
+                            ...btn,
+                            padding: "6px 14px",
+                            fontSize: 12,
+                            opacity: orderEdits[o.id] ? 1 : 0.4,
+                            cursor: orderEdits[o.id] ? "pointer" : "default",
+                          }}
+                        >
+                          {orderSaved === o.id ? "✓ Сохранено" : "💾 Сохранить"}
+                        </button>
                       </td>
                     </tr>
                   ))}

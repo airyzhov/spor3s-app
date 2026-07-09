@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return adminUnauthorized();
   const { data, error } = await supabaseServer
     .from('orders')
-    .select('id, created_at, fio, phone, address, items, total, status, comment, referral_code, tracking_number, user_id')
+    .select('id, created_at, fio, phone, address, items, total, status, comment, referral_code, tracking_number, admin_comment, user_id')
     .order('created_at', { ascending: false })
     .limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -130,14 +130,22 @@ async function creditOrderScOnPaid(orderId: string) {
   }
 }
 
-// Обновление статуса заказа (pending / paid / shipped / completed / cancelled).
+// Обновление заказа: статус (pending / paid / shipped / completed / cancelled),
+// трек-номер и комментарий для покупателя — любые из полей по отдельности.
 export async function PATCH(req: NextRequest) {
   if (!isAdmin(req)) return adminUnauthorized();
-  const { id, status } = await req.json();
-  if (!id || !status) {
-    return NextResponse.json({ error: 'id и status обязательны' }, { status: 400 });
+  const { id, status, tracking_number, admin_comment } = await req.json();
+  if (!id) {
+    return NextResponse.json({ error: 'id обязателен' }, { status: 400 });
   }
-  const { error } = await supabaseServer.from('orders').update({ status }).eq('id', id);
+  const patch: Record<string, unknown> = {};
+  if (status !== undefined) patch.status = status;
+  if (tracking_number !== undefined) patch.tracking_number = String(tracking_number).trim() || null;
+  if (admin_comment !== undefined) patch.admin_comment = String(admin_comment).trim() || null;
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: 'нет полей для обновления' }, { status: 400 });
+  }
+  const { error } = await supabaseServer.from('orders').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // При оплате — начисляем SC за заказ и рефералку (не валим ответ, если что-то пошло не так)

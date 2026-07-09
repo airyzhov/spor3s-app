@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabaseServer
       .from("orders")
-      .select("id, created_at, items, total, status, tracking_number, spores_coin")
+      .select("id, created_at, items, total, status, tracking_number, admin_comment, spores_coin")
       .eq("user_id", user_id)
       .order("created_at", { ascending: false })
       .limit(50);
