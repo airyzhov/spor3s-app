@@ -133,42 +133,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. Начисляем SC за заказ (если есть user_id)
-    if (user_id) {
-      const scEarned = Math.floor(finalTotal / 100); // 1 SC за каждые 100 рублей
-      
-      if (scEarned > 0) {
-        const { error: earnError } = await supabaseServer
-          .from("sc_transactions")
-          .insert([{
-            user_id: user_id,
-            amount: scEarned,
-            transaction_type: "earned",
-            source_type: "order",
-            description: `Начисление SC за заказ #${order.id}`,
-            created_at: new Date().toISOString()
-          }]);
-
-        if (earnError) {
-          console.error('❌ Ошибка начисления SC:', earnError);
-        } else {
-          // Обновляем баланс пользователя
-          const currentBalance = scBalance - coinsToApply; // Учитываем уже списанные монеты
-          const newBalance = currentBalance + scEarned;
-          const { error: updateError } = await supabaseServer
-            .from("user_levels")
-            .update({ 
-              current_sc_balance: newBalance,
-              total_sc_earned: (userLevel?.total_sc_earned || 0) + scEarned
-            })
-            .eq("user_id", user_id);
-
-          if (updateError) {
-            console.error('❌ Ошибка обновления баланса SC:', updateError);
-          }
-        }
-      }
-    }
+    // 7. SC за заказ начисляются ПРИ ОПЛАТЕ (статус paid), а не при создании —
+    //    иначе баланс накручивается неоплаченными заказами.
+    //    См. app/api/admin/orders/route.ts → creditOrderScOnPaid.
 
     // 8. Обновляем информацию о заказах в уровне пользователя
     if (user_id) {

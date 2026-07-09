@@ -85,13 +85,13 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
         .then(d => setLocalProducts(Array.isArray(d.products) ? d.products : []))
         .catch(err => {
           console.error('Error loading products:', err);
-          // Fallback products
+          // Fallback products (цены должны совпадать с таблицей products в Supabase)
           setLocalProducts([
-            { id: 'ezh100', name: 'Ежовик 100г порошок', price: 1200 },
-            { id: 'ezh120k', name: 'Ежовик 120 капсул', price: 1500 },
-            { id: 'mhm30', name: 'Мухомор 30г', price: 800 },
-            { id: 'mhm50', name: 'Мухомор 50г', price: 1200 },
-            { id: 'mhm100', name: 'Мухомор 100г', price: 2000 },
+            { id: 'ezh100', name: 'Ежовик 100г порошок', price: 1100 },
+            { id: 'ezh120k', name: 'Ежовик 120 капсул', price: 1100 },
+            { id: 'mhm30', name: 'Мухомор 30г', price: 1400 },
+            { id: 'mhm50', name: 'Мухомор 50г', price: 2200 },
+            { id: 'mhm100', name: 'Мухомор 100г', price: 4000 },
           ]);
         });
     } else {

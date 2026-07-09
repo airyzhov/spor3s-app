@@ -5,6 +5,7 @@ import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC } 
 
 const REFERRAL_PERCENT = 0.05; // 5% пригласившему
 const WELCOME_SC = 100; // приветственный бонус приглашённому
+const ORDER_SC_RATE = 100; // 1 SC за каждые 100₽ оплаченного заказа
 
 // Список заказов для админки (учёт продаж).
 export async function GET(req: NextRequest) {
@@ -107,6 +108,28 @@ async function processReferralOnPaid(orderId: string) {
   }
 }
 
+// Начисление SC за сам заказ при оплате (1 SC за каждые 100₽). Идемпотентно по source_id.
+async function creditOrderScOnPaid(orderId: string) {
+  const { data: order } = await supabaseServer
+    .from('orders')
+    .select('id, total, user_id')
+    .eq('id', orderId)
+    .single();
+  if (!order || !order.user_id) return;
+  if (await alreadyCredited(order.id, 'order')) return;
+
+  const amount = Math.floor((order.total || 0) / ORDER_SC_RATE);
+  if (amount > 0) {
+    await creditSC({
+      userId: order.user_id,
+      amount,
+      sourceType: 'order',
+      sourceId: order.id,
+      description: `Начисление SC за оплаченный заказ #${order.id}`,
+    });
+  }
+}
+
 // Обновление статуса заказа (pending / paid / shipped / completed / cancelled).
 export async function PATCH(req: NextRequest) {
   if (!isAdmin(req)) return adminUnauthorized();
@@ -117,8 +140,13 @@ export async function PATCH(req: NextRequest) {
   const { error } = await supabaseServer.from('orders').update({ status }).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // При оплате — начисляем рефералку (не валим ответ, если что-то пошло не так)
+  // При оплате — начисляем SC за заказ и рефералку (не валим ответ, если что-то пошло не так)
   if (status === 'paid') {
+    try {
+      await creditOrderScOnPaid(id);
+    } catch (e) {
+      console.error('[order-sc] ошибка начисления SC при оплате:', e);
+    }
     try {
       await processReferralOnPaid(id);
     } catch (e) {
