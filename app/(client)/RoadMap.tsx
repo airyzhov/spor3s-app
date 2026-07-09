@@ -56,6 +56,7 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [courseStartDate, setCourseStartDate] = useState<string | null>(null);
   const [startCourseLoading, setStartCourseLoading] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
+  const [myOrders, setMyOrders] = useState<any[]>([]);
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralBonus, setReferralBonus] = useState(0);
@@ -351,6 +352,18 @@ export default function RoadMap({ user }: RoadMapProps) {
     }
   };
 
+  // История заказов пользователя (для блока «Мои заказы»)
+  const fetchMyOrders = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`/api/my-orders?user_id=${user.id}`);
+      const data = await response.json();
+      if (data.success) setMyOrders(data.orders || []);
+    } catch (error) {
+      console.error('Fetch my orders error:', error);
+    }
+  };
+
   // Функция для копирования реферального кода
   const copyReferralCode = () => {
     if (referralCode) {
@@ -401,6 +414,7 @@ export default function RoadMap({ user }: RoadMapProps) {
     if (user?.id) {
       fetchReferralStats();
       checkSubscriptionBonuses();
+      fetchMyOrders();
     }
   }, [user?.id]);
 
@@ -658,6 +672,93 @@ export default function RoadMap({ user }: RoadMapProps) {
         )}
       </div>
       </>)}
+
+      {/* Мои заказы */}
+      {myOrders.length > 0 && (
+        <div style={{
+          background: "linear-gradient(135deg, #0f172a, #1e293b)",
+          borderRadius: "20px",
+          padding: "clamp(20px, 5vw, 25px)",
+          marginBottom: "30px",
+          border: "2px solid rgba(255, 255, 255, 0.1)",
+          width: "100%",
+          boxSizing: "border-box",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            fontSize: "clamp(18px, 4.5vw, 20px)",
+            fontWeight: "bold",
+            color: "#ff00cc",
+            marginBottom: "15px",
+            textAlign: "center"
+          }}>
+            📦 Мои заказы
+          </div>
+          {myOrders.map((order: any) => {
+            const statusInfo: Record<string, { label: string; color: string }> = {
+              pending: { label: "⏳ В обработке", color: "#ffc107" },
+              paid: { label: "💰 Оплачен", color: "#00ff88" },
+              shipped: { label: "🚚 Отправлен", color: "#38bdf8" },
+              completed: { label: "✅ Выполнен", color: "#8bc34a" },
+              cancelled: { label: "❌ Отменён", color: "#ff6b6b" },
+            };
+            const st = statusInfo[order.status] || { label: order.status || "—", color: "#ccc" };
+            const items = Array.isArray(order.items) ? order.items : [];
+            return (
+              <div key={order.id} style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "12px",
+                padding: "14px 16px",
+                marginBottom: "10px",
+                textAlign: "left"
+              }}>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  marginBottom: "8px"
+                }}>
+                  <span style={{ color: "#ccc", fontSize: "clamp(12px, 3vw, 13px)" }}>
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }) : ""}
+                  </span>
+                  <span style={{
+                    color: st.color,
+                    fontWeight: 700,
+                    fontSize: "clamp(13px, 3.2vw, 14px)",
+                    whiteSpace: "nowrap"
+                  }}>
+                    {st.label}
+                  </span>
+                </div>
+                <div style={{ color: "#fff", fontSize: "clamp(13px, 3.2vw, 15px)", lineHeight: 1.5 }}>
+                  {items.length > 0
+                    ? items.map((it: any, i: number) => (
+                        <div key={i}>{it.name || it.id}{it.quantity > 1 ? ` ×${it.quantity}` : ""}</div>
+                      ))
+                    : "—"}
+                </div>
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  marginTop: "8px"
+                }}>
+                  <span style={{ color: "#ff00cc", fontWeight: 700 }}>{order.total}₽</span>
+                  {order.tracking_number && (
+                    <span style={{ color: "#38bdf8", fontSize: "clamp(12px, 3vw, 13px)", fontFamily: "monospace" }}>
+                      трек: {order.tracking_number}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Реферальная система */}
       <div style={{

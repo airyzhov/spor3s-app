@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useCart } from "./CartContext";
 
 interface OrderFormProps {
   products?: any[];
@@ -35,10 +36,12 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [survey, setSurvey] = useState(initialSurvey);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
+  const [orderPlaced, setOrderPlaced] = useState(false);
   const [error, setError] = useState("");
   const [mounted, setMounted] = useState(false);
   const [scBalance, setScBalance] = useState(0);
   const [coinsToUse, setCoinsToUse] = useState(0);
+  const { clearCart } = useCart();
 
   // Загружаем баланс SC пользователя (для списания)
   useEffect(() => {
@@ -170,12 +173,13 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
 
       if (result.success) {
         const fin = result.appliedDiscounts?.finalTotal;
-        setSuccess(`✅ Заказ оформлен!${fin != null ? ` К оплате: ${fin}₽` : ''} Мы свяжемся с вами.`);
+        setSuccess(fin != null ? `К оплате: ${fin}₽` : '');
+        setOrderPlaced(true);
         setSelectedItems([]);
         setSurvey(initialSurvey);
         setCoinsToUse(0);
         localStorage.removeItem('spor3s_cart_items');
-        setTimeout(() => { if (setStep) setStep(2); }, 2500);
+        clearCart(); // сбрасываем и корзину каталога (CartContext), а не только localStorage
       } else {
         setError(`❌ Ошибка при создании заказа: ${result.error || "Неизвестная ошибка"}`);
       }
@@ -188,6 +192,63 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   };
 
   if (!mounted) return null;
+
+  // Экран успешного заказа
+  if (orderPlaced) {
+    return (
+      <div style={{
+        maxWidth: 500,
+        margin: "0 auto",
+        color: "#fff",
+        padding: "clamp(20px, 5vw, 40px)",
+        textAlign: "center"
+      }}>
+        <div style={{
+          background: "rgba(0, 255, 136, 0.08)",
+          border: "2px solid #00ff88",
+          borderRadius: 16,
+          padding: "clamp(24px, 6vw, 40px)",
+          marginBottom: 24
+        }}>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>✅</div>
+          <h2 style={{ color: "#00ff88", margin: "0 0 12px 0", fontSize: "clamp(20px, 5vw, 26px)" }}>
+            Заказ оформлен!
+          </h2>
+          {success && (
+            <div style={{ fontSize: "clamp(16px, 4vw, 20px)", fontWeight: 700, marginBottom: 12 }}>
+              {success}
+            </div>
+          )}
+          <div style={{ color: "#ccc", fontSize: "clamp(14px, 3.5vw, 16px)", lineHeight: 1.5 }}>
+            Мы свяжемся с вами для подтверждения и оплаты.
+            Статус заказа можно отслеживать во вкладке «Бонусы».
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={() => setStep && setStep(2)}
+            style={{
+              background: "linear-gradient(45deg, #ff00cc, #3333ff)",
+              color: "#fff", border: "none", borderRadius: 25,
+              padding: "12px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer"
+            }}
+          >
+            🛒 В каталог
+          </button>
+          <button
+            onClick={() => setStep && setStep(3)}
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              color: "#fff", border: "2px solid rgba(255,255,255,0.3)", borderRadius: 25,
+              padding: "12px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer"
+            }}
+          >
+            📦 Мои заказы
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Обработка ошибок
   if (error) {
@@ -324,20 +385,6 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
               💡 Для отслеживания заказов и уведомлений рекомендуем авторизоваться через Telegram.
             </div>
           )}
-        </div>
-      )}
-
-      {success && (
-        <div style={{
-          background: "rgba(0, 255, 136, 0.1)",
-          border: "1px solid #00ff88",
-          borderRadius: 8,
-          padding: 15,
-          marginBottom: 20,
-          color: "#00ff88",
-          textAlign: "center"
-        }}>
-          {success}
         </div>
       )}
 
