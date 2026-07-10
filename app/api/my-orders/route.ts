@@ -9,6 +9,10 @@ export async function GET(req: NextRequest) {
     if (!user_id) {
       return NextResponse.json({ error: "Необходим user_id" }, { status: 400 });
     }
+    // Фоллбек-пользователи (temp-user и т.п.) — не UUID; отдаём пусто вместо 500 от Postgres
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) {
+      return NextResponse.json({ success: true, orders: [] });
+    }
 
     const { data, error } = await supabaseServer
       .from("orders")
