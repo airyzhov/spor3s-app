@@ -486,7 +486,10 @@ export default function Cart({ products = [], setStep }: CartProps) {
             <div style={{
               marginBottom: 25,
               padding: 20,
-              background: "rgba(255, 255, 255, 0.15)",
+              background: "rgba(38, 16, 61, 0.97)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              boxShadow: "0 6px 24px rgba(0, 0, 0, 0.45)",
               borderRadius: 12,
               border: "2px solid #ff00cc",
               position: "sticky",
