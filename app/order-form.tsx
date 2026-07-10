@@ -403,9 +403,19 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
       )}
 
       <form onSubmit={handleSubmit}>
-        {/* Товары из корзины */}
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 18, marginBottom: 15, color: "#ff00cc" }}>
+        {/* Товары из корзины — блок закреплён при скролле формы */}
+        <div style={{
+          position: "sticky",
+          top: 8,
+          zIndex: 20,
+          background: "rgba(26, 16, 48, 0.97)",
+          backdropFilter: "blur(6px)",
+          borderRadius: 12,
+          border: "1px solid rgba(255, 0, 204, 0.35)",
+          padding: "12px 14px",
+          marginBottom: 20
+        }}>
+          <h3 style={{ fontSize: 18, marginBottom: 15, color: "#ff00cc", marginTop: 0 }}>
             🛒 Ваш заказ:
           </h3>
           

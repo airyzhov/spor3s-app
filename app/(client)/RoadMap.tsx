@@ -32,6 +32,14 @@ const levelRewards = [
   { level: 6, name: "🌟 Легенда", scRequired: 1000, reward: "Максимальные привилегии", description: "Заказ от 20000₽ - 10% скидка всегда, мерч от бренда, личные встречи, живой трекинг." }
 ];
 
+// Задания: подписки на каналы, бонус за каждое — TASK_BONUS SC
+const TASK_BONUS = 30;
+const TASKS = [
+  { id: 'telegram', icon: '📱', title: 'Telegram канал', desc: 'Подпишитесь на t.me/spor3s', url: 'https://t.me/spor3s', btnColor: 'linear-gradient(45deg, #0088cc, #00a8ff)' },
+  { id: 'youtube', icon: '📺', title: 'YouTube канал', desc: 'Подпишитесь на @spor3s', url: 'https://www.youtube.com/@spor3s', btnColor: 'linear-gradient(45deg, #ff0000, #cc0000)' },
+  { id: 'instagram', icon: '📸', title: 'Instagram', desc: 'Подпишитесь на @alex.spor3s', url: 'https://instagram.com/alex.spor3s', btnColor: 'linear-gradient(45deg, #e1306c, #f77737)' },
+];
+
 export default function RoadMap({ user }: RoadMapProps) {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [startMetrics, setStartMetrics] = useState<Metrics>({ memory: 5, sleep: 4, energy: 3, stress: 7 });
@@ -46,7 +54,8 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [referralSC, setReferralSC] = useState(0);
 
   const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
-  const [subscribeSuccess, setSubscribeSuccess] = useState<string | null>(null);
+  const [tasksDone, setTasksDone] = useState<Record<string, boolean>>({});
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showLevels, setShowLevels] = useState(false);
   
@@ -150,9 +159,9 @@ export default function RoadMap({ user }: RoadMapProps) {
   const nextLevel = getNextLevel();
   const progressToNext = nextLevel ? ((currentSC - currentLevel.scRequired) / (nextLevel.scRequired - currentLevel.scRequired)) * 100 : 0;
 
-  const handleSubscribe = async (channelType: 'telegram' | 'youtube') => {
+  const handleSubscribe = async (channelType: 'telegram' | 'youtube' | 'instagram') => {
     if (!user?.id) return;
-    
+
     setSubscribeLoading(channelType);
     try {
       const response = await fetch('/api/subscribe-bonus', {
@@ -160,11 +169,11 @@ export default function RoadMap({ user }: RoadMapProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id, channel_type: channelType })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
-        setSubscribeSuccess(channelType);
+        setTasksDone(prev => ({ ...prev, [channelType]: true }));
         // Обновляем баланс SC
         setCurrentSC(prev => prev + data.bonus);
         
@@ -377,31 +386,17 @@ export default function RoadMap({ user }: RoadMapProps) {
     if (!user?.id) return;
     
     try {
-      // Проверяем Telegram подписку
-      const telegramResponse = await fetch('/api/check-subscription-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, channel_type: 'telegram' })
-      });
-      
-      if (telegramResponse.ok) {
-        const telegramData = await telegramResponse.json();
-        if (telegramData.hasReceivedBonus) {
-          setSubscribeSuccess('telegram');
-        }
-      }
-      
-      // Проверяем YouTube подписку
-      const youtubeResponse = await fetch('/api/check-subscription-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, channel_type: 'youtube' })
-      });
-      
-      if (youtubeResponse.ok) {
-        const youtubeData = await youtubeResponse.json();
-        if (youtubeData.hasReceivedBonus) {
-          setSubscribeSuccess('youtube');
+      for (const ch of ['telegram', 'youtube', 'instagram']) {
+        const resp = await fetch('/api/check-subscription-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id, channel_type: ch })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.hasReceivedBonus) {
+            setTasksDone(prev => ({ ...prev, [ch]: true }));
+          }
         }
       }
     } catch (error) {
@@ -529,8 +524,16 @@ export default function RoadMap({ user }: RoadMapProps) {
         boxSizing: "border-box",
         overflow: "hidden"
       }}>
-        <div style={{ 
-          fontSize: "clamp(12px, 3vw, 14px)", 
+        <div style={{
+          fontSize: "clamp(12px, 3vw, 14px)",
+          color: "#fff",
+          fontWeight: 600,
+          marginBottom: 6
+        }}>
+          1 Spor3s Coin = 1 рубль
+        </div>
+        <div style={{
+          fontSize: "clamp(12px, 3vw, 14px)",
           color: "#ccc",
           marginBottom: 10,
           fontFamily: "monospace",
@@ -560,7 +563,7 @@ export default function RoadMap({ user }: RoadMapProps) {
           }}>
             💰 {currentSC} SC
           </div>
-          <div style={{ 
+          <div style={{
             background: "linear-gradient(45deg, #10b981, #059669)",
             color: "white",
             padding: "clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px)",
@@ -570,7 +573,7 @@ export default function RoadMap({ user }: RoadMapProps) {
             display: "inline-block",
             whiteSpace: "nowrap"
           }}>
-            🎁 {referralSC} Реф.
+            💵 {currentSC} ₽
           </div>
         </div>
       </div>
@@ -1342,213 +1345,110 @@ export default function RoadMap({ user }: RoadMapProps) {
 
       </>)}
 
-      {/* Подписки на каналы */}
+      {/* Задания (свёрнуты по умолчанию) */}
       <div style={{
         background: "linear-gradient(135deg, #0f172a, #1e293b)",
         borderRadius: "20px",
-        padding: "clamp(25px, 6vw, 30px)",
+        padding: "clamp(20px, 5vw, 25px)",
         marginBottom: "30px",
         border: "2px solid rgba(255, 255, 255, 0.1)",
         width: "100%",
         boxSizing: "border-box",
         overflow: "hidden"
       }}>
-        <h3 style={{ 
-          color: "#fff", 
-          textAlign: "center", 
-          marginBottom: "25px", 
-          fontSize: "clamp(18px, 4.5vw, 20px)",
-          wordBreak: "break-word"
-        }}>
-          📱 Подписки на каналы
-        </h3>
-        
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "clamp(15px, 3vw, 20px)",
-          width: "100%"
-        }}>
-          {/* Telegram канал */}
+        <button
+          onClick={() => setTasksOpen(o => !o)}
+          style={{
+            width: "100%",
+            background: "none",
+            border: "none",
+            color: "#fff",
+            fontSize: "clamp(18px, 4.5vw, 20px)",
+            fontWeight: "bold",
+            cursor: "pointer",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: 0
+          }}
+        >
+          <span>🎯 Задания</span>
+          <span style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#ccc", fontWeight: 500 }}>
+            {Object.values(tasksDone).filter(Boolean).length}/{TASKS.length} выполнено {tasksOpen ? "▲" : "▼"}
+          </span>
+        </button>
+        {tasksOpen && (
           <div style={{
-            background: "rgba(255, 255, 255, 0.1)",
-            borderRadius: "15px",
-            padding: "20px",
-            textAlign: "center",
-            border: subscribeSuccess === 'telegram' ? "2px solid #10b981" : "2px solid rgba(255, 255, 255, 0.1)"
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "clamp(12px, 3vw, 15px)",
+            marginTop: 20,
+            width: "100%"
           }}>
-            <div style={{ fontSize: "48px", marginBottom: "15px" }}>📱</div>
-            <div style={{ fontSize: "18px", fontWeight: "bold", color: "#fff", marginBottom: "10px" }}>
-              Telegram канал
-            </div>
-            <div style={{ fontSize: "14px", color: "#ccc", marginBottom: "15px" }}>
-              Подпишитесь на t.me/spor3s
-            </div>
-            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#ff00cc", marginBottom: "15px" }}>
-              +50 SC
-            </div>
-            {subscribeSuccess === 'telegram' ? (
-              <div style={{
-                background: "linear-gradient(45deg, #10b981, #059669)",
-                color: "white",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontSize: "14px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)"
+            {TASKS.map((t) => (
+              <div key={t.id} style={{
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: 15,
+                padding: 18,
+                textAlign: "center",
+                border: tasksDone[t.id] ? "2px solid #10b981" : "2px solid rgba(255, 255, 255, 0.1)"
               }}>
-                <span style={{ fontSize: "18px" }}>✅</span>
-                <span>Задание выполнено</span>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{t.icon}</div>
+                <div style={{ fontSize: 17, fontWeight: "bold", color: "#fff", marginBottom: 6 }}>{t.title}</div>
+                <div style={{ fontSize: 13, color: "#ccc", marginBottom: 10, wordBreak: "break-word" }}>{t.desc}</div>
+                {tasksDone[t.id] ? (
+                  <div style={{
+                    background: "linear-gradient(45deg, #10b981, #059669)",
+                    color: "#fff",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    fontSize: 13,
+                    fontWeight: "bold"
+                  }}>
+                    ✅ Готово — бонус +{TASK_BONUS} SC получен
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: "bold", color: "#ff00cc", marginBottom: 10 }}>+{TASK_BONUS} SC</div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => window.open(t.url, '_blank')}
+                        style={{
+                          background: t.btnColor,
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: "bold",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Подписаться
+                      </button>
+                      <button
+                        onClick={() => handleSubscribe(t.id as 'telegram' | 'youtube' | 'instagram')}
+                        disabled={subscribeLoading === t.id}
+                        style={{
+                          background: subscribeLoading === t.id ? "rgba(255, 0, 204, 0.5)" : "linear-gradient(45deg, #ff00cc, #3333ff)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: "bold",
+                          cursor: subscribeLoading === t.id ? "not-allowed" : "pointer"
+                        }}
+                      >
+                        {subscribeLoading === t.id ? "⏳" : "💰 Получить бонус"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            ) : (
-              <div style={{ 
-                display: "flex", 
-                gap: "8px", 
-                justifyContent: "center",
-                flexWrap: "wrap"
-              }}>
-                <button
-                  onClick={() => window.open('https://t.me/spor3s', '_blank')}
-                  style={{
-                    background: "linear-gradient(45deg, #0088cc, #00a8ff)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    transition: "transform 0.2s"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-                  onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-                >
-                  📱 Подписаться
-                </button>
-                <button
-                  onClick={() => handleSubscribe('telegram')}
-                  disabled={subscribeLoading === 'telegram'}
-                  style={{
-                    background: subscribeLoading === 'telegram' 
-                      ? "rgba(255, 0, 204, 0.5)" 
-                      : "linear-gradient(45deg, #ff00cc, #3333ff)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: subscribeLoading === 'telegram' ? "not-allowed" : "pointer",
-                    transition: "transform 0.2s",
-                    opacity: subscribeLoading === 'telegram' ? 0.7 : 1
-                  }}
-                  onMouseOver={(e) => {
-                    if (subscribeLoading !== 'telegram') {
-                      e.currentTarget.style.transform = "scale(1.05)";
-                    }
-                  }}
-                  onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-                >
-                  {subscribeLoading === 'telegram' ? '⏳' : '💰 Получить бонус'}
-                </button>
-              </div>
-            )}
+            ))}
           </div>
-
-          {/* YouTube канал */}
-          <div style={{
-            background: "rgba(255, 255, 255, 0.1)",
-            borderRadius: "15px",
-            padding: "20px",
-            textAlign: "center",
-            border: subscribeSuccess === 'youtube' ? "2px solid #10b981" : "2px solid rgba(255, 255, 255, 0.1)"
-          }}>
-            <div style={{ fontSize: "48px", marginBottom: "15px" }}>📺</div>
-            <div style={{ fontSize: "18px", fontWeight: "bold", color: "#fff", marginBottom: "10px" }}>
-              YouTube канал
-            </div>
-            <div style={{ fontSize: "14px", color: "#ccc", marginBottom: "15px" }}>
-              Подпишитесь на @spor3s
-            </div>
-            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#ff00cc", marginBottom: "15px" }}>
-              +50 SC
-            </div>
-            {subscribeSuccess === 'youtube' ? (
-              <div style={{
-                background: "linear-gradient(45deg, #10b981, #059669)",
-                color: "white",
-                padding: "12px 20px",
-                borderRadius: "10px",
-                fontSize: "14px",
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)"
-              }}>
-                <span style={{ fontSize: "18px" }}>✅</span>
-                <span>Задание выполнено</span>
-              </div>
-            ) : (
-              <div style={{ 
-                display: "flex", 
-                gap: "8px", 
-                justifyContent: "center",
-                flexWrap: "wrap"
-              }}>
-                <button
-                  onClick={() => window.open('https://www.youtube.com/@spor3s', '_blank')}
-                  style={{
-                    background: "linear-gradient(45deg, #ff0000, #cc0000)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    transition: "transform 0.2s"
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-                  onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-                >
-                  📺 Подписаться
-                </button>
-                <button
-                  onClick={() => handleSubscribe('youtube')}
-                  disabled={subscribeLoading === 'youtube'}
-                  style={{
-                    background: subscribeLoading === 'youtube' 
-                      ? "rgba(255, 0, 204, 0.5)" 
-                      : "linear-gradient(45deg, #ff00cc, #3333ff)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "8px",
-                    padding: "8px 16px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    cursor: subscribeLoading === 'youtube' ? "not-allowed" : "pointer",
-                    transition: "transform 0.2s",
-                    opacity: subscribeLoading === 'youtube' ? 0.7 : 1
-                  }}
-                  onMouseOver={(e) => {
-                    if (subscribeLoading !== 'youtube') {
-                      e.currentTarget.style.transform = "scale(1.05)";
-                    }
-                  }}
-                  onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-                >
-                  {subscribeLoading === 'youtube' ? '⏳' : '💰 Получить бонус'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {SHOW_GAMIFICATION && (<>

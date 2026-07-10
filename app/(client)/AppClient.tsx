@@ -307,8 +307,8 @@ export default function AppClient() {
                 }}
               />
               <div>
-                <h1 className={styles.title}>ИИ + ГРИБЫ</h1>
-                <div className={styles.subtitle}>для твоего развития</div>
+                <h1 className={styles.title}>СПОРС</h1>
+                <div className={styles.subtitle}>Грибные добавки из Крыма</div>
               </div>
             </div>
           </div>
@@ -387,6 +387,35 @@ export default function AppClient() {
               <span>{step.name}</span>
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => window.open('https://t.me/web3grow', '_blank')}
+            style={{
+              background: "rgba(255, 255, 255, 0.1)",
+              color: "#fff",
+              border: "2px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: 25,
+              padding: "12px 20px",
+              fontSize: 16,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              minWidth: 120,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 9999,
+              userSelect: "none",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent"
+            }}
+          >
+            <span style={{ fontSize: 18 }}>💬</span>
+            <span>Задать вопрос</span>
+          </button>
         </nav>
 
         <main className={styles.main}>

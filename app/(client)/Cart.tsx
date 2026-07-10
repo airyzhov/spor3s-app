@@ -242,6 +242,22 @@ export default function Cart({ products = [], setStep }: CartProps) {
           width: "100%",
           maxWidth: "500px"
         }}>
+          <div style={{
+            color: "#fff",
+            fontSize: "clamp(14px, 3.5vw, 16px)",
+            lineHeight: 1.55,
+            marginBottom: 10
+          }}>
+            Ежовик гребенчатый, Мухомор, Кордицепс, Цистозира — для улучшения работы мозга и саморазвития.
+          </div>
+          <div style={{
+            color: "#ff00cc",
+            fontSize: "clamp(14px, 3.5vw, 16px)",
+            fontWeight: 600,
+            marginBottom: 12
+          }}>
+            ⬇️ сделать заказ
+          </div>
           <button
             onClick={() => setShowVitrina(true)}
             style={{
@@ -359,7 +375,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 textAlign: "center",
                 marginBottom: 15
               }}>
-                Доставка по России через СДЭК: 250-600₽
+                Доставка Ozon|СДЭК|Почта — точный расчет после оформления
               </div>
               
               <div style={{ textAlign: "center" }}>
@@ -565,7 +581,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 marginBottom: 15,
                 textShadow: "0 1px 2px rgba(0,0,0,0.3)"
               }}>
-                Доставка по России через СДЭК: 250-600₽
+                Доставка Ozon|СДЭК|Почта — точный расчет после оформления
               </div>
               
               <div style={{ textAlign: "center" }}>
