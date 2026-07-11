@@ -1,10 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
+import { creditSC } from "../../../lib/referral";
+
+// GET ?user_id= — история еженедельных самооценок (для вкладки прогресса)
+export async function GET(req: NextRequest) {
+  try {
+    const user_id = new URL(req.url).searchParams.get("user_id");
+    if (!user_id) {
+      return NextResponse.json({ error: "user_id required" }, { status: 400 });
+    }
+    const { data, error } = await supabaseServer
+      .from("surveys")
+      .select("id, created_at, memory, sleep, energy, stress, note")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: true })
+      .limit(100);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, surveys: data || [] });
+  } catch (e) {
+    return NextResponse.json({ error: "Ошибка получения анкет" }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { user_id, order_id, ...surveyFields } = body;
+    // order_id вычленяем и отбрасываем — в таблице surveys такой колонки нет
+    const { user_id, order_id: _ignoredOrderId, ...surveyFields } = body;
     if (!user_id) {
       return NextResponse.json({ error: "user_id required" }, { status: 400 });
     }
@@ -50,7 +74,7 @@ export async function POST(req: NextRequest) {
     // 3. Сохраняем анкету
     const { data: survey, error: surveyError } = await supabaseServer
       .from("surveys")
-      .insert([{ user_id, order_id, ...surveyFields, created_at: new Date().toISOString() }])
+      .insert([{ user_id, ...surveyFields, created_at: new Date().toISOString() }])
       .select()
       .single();
     if (surveyError) {
@@ -101,29 +125,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Инициализируем уровень пользователя если его нет
-    const { data: userLevel, error: levelError } = await supabaseServer
-      .from("user_levels")
-      .select("*")
-      .eq("user_id", user_id)
-      .single();
-
-    if (levelError && levelError.code === 'PGRST116') {
-      // Пользователя нет в системе уровней, создаем
-      const { error: initError } = await supabaseServer
-        .from("user_levels")
-        .insert([{
-          user_id,
-          current_level: '🌱 Новичок',
-          level_code: 'novice',
-          current_sc_balance: 0,
-          total_sc_earned: 0,
-          total_sc_spent: 0
-        }]);
-      if (initError) {
-        return NextResponse.json({ error: initError.message }, { status: 500 });
-      }
-    }
+    // 5. Начисляем SC в единый леджер (создаст user_levels при отсутствии, пересчитает уровень)
+    await creditSC({
+      userId: user_id,
+      amount: SC_AMOUNT,
+      sourceType: "survey",
+      sourceId: survey.id,
+      description: "Еженедельная самооценка состояния",
+    });
 
     // 6. Получаем обновленные данные пользователя
     const { data: updatedUserLevel, error: getUpdatedError } = await supabaseServer

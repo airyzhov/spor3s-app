@@ -44,14 +44,19 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [startMetrics, setStartMetrics] = useState<Metrics>({ memory: 5, sleep: 4, energy: 3, stress: 7 });
   const [weeklyProgress, setWeeklyProgress] = useState<WeekProgress[]>([]);
-  const [showStartAssessment, setShowStartAssessment] = useState(true);
+  // Стартовая оценка отключена до подключения к API (не персистится) — не блокируем вкладку
+  const [showStartAssessment, setShowStartAssessment] = useState(false);
   // Геймификация (уровни, недельные метрики, трекинг курса) скрыта до запуска.
   // Включить обратно: SHOW_GAMIFICATION = true
   const SHOW_GAMIFICATION = false;
   const [todayMetrics, setTodayMetrics] = useState<Metrics>({ memory: 5, sleep: 5, energy: 5, stress: 5 });
   const [weeklyObservations, setWeeklyObservations] = useState("");
   const [currentSC, setCurrentSC] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0); // заработано за всё время — для уровня
   const [referralSC, setReferralSC] = useState(0);
+  const [checkinDoneToday, setCheckinDoneToday] = useState(false);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
 
   const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
   const [tasksDone, setTasksDone] = useState<Record<string, boolean>>({});
@@ -71,59 +76,77 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
 
-  // Симуляция данных для демонстрации
-  useEffect(() => {
-    // Генерируем прогресс за несколько недель
-    const mockProgress: WeekProgress[] = [
-      {
-        week: 1,
-        date: "2024-01-01",
-        metrics: { memory: 5, sleep: 5, energy: 4, stress: 6 },
-        notes: "Начал прием мухомора. Лёгкое покалывание в первые дни.",
-        achievements: ["Первый день", "Неделя адаптации"],
-        extraHabits: 12
-      },
-      {
-        week: 2,
-        date: "2024-01-08", 
-        metrics: { memory: 6, sleep: 6, energy: 5, stress: 5 },
-        notes: "Сон стал немного лучше. Меньше тревожности.",
-        achievements: ["7 дней подряд"],
-        extraHabits: 18
-      },
-      {
-        week: 3,
-        date: "2024-01-15",
-        metrics: { memory: 7, sleep: 7, energy: 6, stress: 4 },
-        notes: "Заметил улучшение концентрации на работе!",
-        achievements: ["Первые ростки", "Мудрец"],
-        extraHabits: 25
+  // Реальная история еженедельных самооценок из БД (таблица surveys)
+  const fetchSurveys = async () => {
+    if (!user?.id) return;
+    try {
+      const resp = await fetch(`/api/survey?user_id=${user.id}`);
+      const data = await resp.json();
+      if (data.success) {
+        const progress: WeekProgress[] = (data.surveys || []).map((s: any, i: number) => ({
+          week: i + 1,
+          date: (s.created_at || '').split('T')[0],
+          metrics: { memory: s.memory ?? 5, sleep: s.sleep ?? 5, energy: s.energy ?? 5, stress: s.stress ?? 5 },
+          notes: s.note || '',
+          achievements: [],
+          extraHabits: 0
+        }));
+        setWeeklyProgress(progress);
+        setCurrentWeek(progress.length + 1);
       }
-    ];
-    setWeeklyProgress(mockProgress);
-    setCurrentWeek(4);
-    if (mockProgress.length > 0) {
-      setShowStartAssessment(false);
+    } catch (e) {
+      console.error('Fetch surveys error:', e);
     }
-  }, []);
+  };
 
   const handleStartAssessment = () => {
     setShowStartAssessment(false);
     // Здесь можно отправить startMetrics в API
   };
 
-  const saveWeeklyProgress = () => {
-    const newProgress: WeekProgress = {
-      week: currentWeek,
-      date: new Date().toISOString().split('T')[0],
-      metrics: todayMetrics,
-      notes: weeklyObservations,
-      achievements: ["Активный грибник"],
-      extraHabits: 0 // Убираем подсчет привычек
-    };
-    setWeeklyProgress([...weeklyProgress, newProgress]);
-    setCurrentWeek(currentWeek + 1);
-    setWeeklyObservations(""); // Reset observations after saving
+  const [saveProgressLoading, setSaveProgressLoading] = useState(false);
+  const [saveProgressMsg, setSaveProgressMsg] = useState<string | null>(null);
+  const saveWeeklyProgress = async () => {
+    if (!user?.id || saveProgressLoading) return;
+    setSaveProgressLoading(true);
+    setSaveProgressMsg(null);
+    try {
+      const resp = await fetch('/api/survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          memory: todayMetrics.memory,
+          sleep: todayMetrics.sleep,
+          energy: todayMetrics.energy,
+          stress: todayMetrics.stress,
+          note: weeklyObservations
+        })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setWeeklyProgress(prev => [...prev, {
+          week: prev.length + 1,
+          date: new Date().toISOString().split('T')[0],
+          metrics: todayMetrics,
+          notes: weeklyObservations,
+          achievements: [],
+          extraHabits: 0
+        }]);
+        setCurrentWeek(prev => prev + 1);
+        setWeeklyObservations("");
+        if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
+        setTotalEarned(prev => prev + (data.scEarned || 0));
+        setSaveProgressMsg(`✅ Прогресс сохранён! +${data.scEarned || 25} SC`);
+      } else {
+        setSaveProgressMsg(`⚠️ ${data.error || 'Не удалось сохранить'}`);
+      }
+    } catch (e) {
+      setSaveProgressMsg('⚠️ Ошибка сети, попробуйте ещё раз');
+    } finally {
+      setSaveProgressLoading(false);
+      setTimeout(() => setSaveProgressMsg(null), 5000);
+    }
   };
 
   const getProgressPhase = (week: number) => {
@@ -140,9 +163,11 @@ export default function RoadMap({ user }: RoadMapProps) {
     return latest - first;
   };
 
+  // Уровень считаем от totalEarned (заработано за всё время), а не от текущего баланса —
+  // потраченные на скидку SC не понижают уровень.
   const getCurrentLevel = () => {
     for (let i = levelRewards.length - 1; i >= 0; i--) {
-      if (currentSC >= levelRewards[i].scRequired) {
+      if (totalEarned >= levelRewards[i].scRequired) {
         return levelRewards[i];
       }
     }
@@ -157,7 +182,7 @@ export default function RoadMap({ user }: RoadMapProps) {
 
   const currentLevel = getCurrentLevel();
   const nextLevel = getNextLevel();
-  const progressToNext = nextLevel ? ((currentSC - currentLevel.scRequired) / (nextLevel.scRequired - currentLevel.scRequired)) * 100 : 0;
+  const progressToNext = nextLevel ? ((totalEarned - currentLevel.scRequired) / (nextLevel.scRequired - currentLevel.scRequired)) * 100 : 0;
 
   const handleSubscribe = async (channelType: 'telegram' | 'youtube' | 'instagram') => {
     if (!user?.id) return;
@@ -341,6 +366,67 @@ export default function RoadMap({ user }: RoadMapProps) {
     }
   };
 
+  // Статус чек-ина на сегодня
+  const fetchCheckinStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const resp = await fetch(`/api/checkin?user_id=${user.id}`);
+      const data = await resp.json();
+      if (data.success) setCheckinDoneToday(!!data.doneToday);
+    } catch {}
+  };
+
+  // Активный курс (восстановление состояния после перезахода)
+  const fetchCourseStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const resp = await fetch(`/api/start-course?user_id=${user.id}`);
+      const data = await resp.json();
+      if (data.success && data.course) {
+        setCourseStarted(true);
+        setCourseDuration(data.course.course_duration);
+        setCourseStartDate(data.course.start_date);
+      }
+    } catch {}
+  };
+
+  // Оплаченный заказ, к которому привязывается чек-ин/курс
+  const eligibleOrder = myOrders.find((o: any) => ['paid', 'shipped', 'completed'].includes(o.status));
+
+  // Ежедневный чек-ин: +3 SC, доступен при оплаченном заказе
+  const handleDailyCheckin = async () => {
+    if (!user?.id || checkinLoading) return;
+    if (!eligibleOrder) {
+      setCheckinMsg('🍄 Чек-ин станет доступен после оплаты заказа');
+      setTimeout(() => setCheckinMsg(null), 4000);
+      return;
+    }
+    if (checkinDoneToday) return;
+    setCheckinLoading(true);
+    try {
+      const resp = await fetch('/api/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, order_id: eligibleOrder.id })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setCheckinDoneToday(true);
+        if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
+        setTotalEarned(prev => prev + (data.scEarned || 0));
+        setCheckinMsg(`✅ Отмечено! +${data.scEarned || 3} SC`);
+      } else {
+        if ((data.error || '').includes('уже')) setCheckinDoneToday(true);
+        setCheckinMsg(`⚠️ ${data.error || 'Не получилось, попробуйте позже'}`);
+      }
+    } catch {
+      setCheckinMsg('⚠️ Ошибка сети');
+    } finally {
+      setCheckinLoading(false);
+      setTimeout(() => setCheckinMsg(null), 4000);
+    }
+  };
+
   // Функция для получения реферальной статистики
   const fetchReferralStats = async () => {
     if (!user?.id) return;
@@ -355,6 +441,7 @@ export default function RoadMap({ user }: RoadMapProps) {
         setReferralBonus(data.stats.referralEarned);
         setInvitedCount(data.stats.totalReferrals);
         if (typeof data.stats.balance === 'number') setCurrentSC(data.stats.balance);
+        if (typeof data.stats.totalEarned === 'number') setTotalEarned(data.stats.totalEarned);
       }
     } catch (error) {
       console.error('Fetch referral stats error:', error);
@@ -410,6 +497,9 @@ export default function RoadMap({ user }: RoadMapProps) {
       fetchReferralStats();
       checkSubscriptionBonuses();
       fetchMyOrders();
+      fetchSurveys();
+      fetchCheckinStatus();
+      fetchCourseStatus();
     }
   }, [user?.id]);
 
@@ -919,32 +1009,48 @@ export default function RoadMap({ user }: RoadMapProps) {
         <div style={{
           fontSize: "clamp(60px, 15vw, 80px)",
           marginBottom: "20px",
-          cursor: "pointer",
+          cursor: checkinDoneToday ? "default" : "pointer",
           transition: "transform 0.3s ease",
-          filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
+          filter: checkinDoneToday
+            ? "drop-shadow(0 4px 8px rgba(16,185,129,0.5))"
+            : "drop-shadow(0 4px 8px rgba(0,0,0,0.3))",
+          opacity: checkinLoading ? 0.5 : 1
         }}
-        onClick={() => {
-          alert("🍄 Начните прием курса, чтобы кнопка была активна!");
-        }}
+        onClick={handleDailyCheckin}
         onMouseOver={(e) => {
-          e.currentTarget.style.transform = "scale(1.1)";
+          if (!checkinDoneToday) e.currentTarget.style.transform = "scale(1.1)";
         }}
         onMouseOut={(e) => {
           e.currentTarget.style.transform = "scale(1)";
         }}
-        title="Нажмите для информации"
+        title={checkinDoneToday ? "Сегодня уже отмечено" : "Нажми, чтобы отметить приём"}
         >
-          🍄
+          {checkinDoneToday ? "✅" : "🍄"}
         </div>
 
         <div style={{
-          color: "#ccc",
+          color: checkinDoneToday ? "#10b981" : "#ccc",
           fontSize: "clamp(12px, 3vw, 14px)",
           lineHeight: "1.5",
+          fontWeight: checkinDoneToday ? 700 : 400,
           wordBreak: "break-word"
         }}>
-          Отметь что сегодня принял добавки → +3 SC
+          {checkinDoneToday
+            ? "Сегодня отмечено! +3 SC. Возвращайся завтра 🍄"
+            : eligibleOrder
+              ? "Отметь, что сегодня принял добавки → +3 SC"
+              : "Чек-ин откроется после оплаты заказа (+3 SC каждый день)"}
         </div>
+        {checkinMsg && (
+          <div style={{
+            marginTop: "10px",
+            color: checkinMsg.startsWith("✅") ? "#10b981" : "#ffc107",
+            fontSize: "clamp(13px, 3.2vw, 15px)",
+            fontWeight: 600
+          }}>
+            {checkinMsg}
+          </div>
+        )}
       </div>
 
       {/* Enhanced Motivational Habit Component */}
@@ -1042,7 +1148,7 @@ export default function RoadMap({ user }: RoadMapProps) {
             marginBottom: "10px",
             wordBreak: "break-word"
           }}>
-            {currentSC} / {nextLevel ? nextLevel.scRequired : currentLevel.scRequired} SC
+            {totalEarned} / {nextLevel ? nextLevel.scRequired : currentLevel.scRequired} SC
           </div>
           {nextLevel && (
             <div style={{
@@ -1069,7 +1175,7 @@ export default function RoadMap({ user }: RoadMapProps) {
               color: "#ccc",
               wordBreak: "break-word"
             }}>
-              До следующего уровня: {nextLevel.scRequired - currentSC} SC
+              До следующего уровня: {nextLevel.scRequired - totalEarned} SC
             </div>
           )}
         </div>
@@ -1477,8 +1583,19 @@ export default function RoadMap({ user }: RoadMapProps) {
           onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
           onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
         >
-          💾 Сохранить прогресс недели {currentWeek} (с 01.01.2024)
+          {saveProgressLoading ? '⏳ Сохраняю...' : `💾 Сохранить прогресс недели ${currentWeek}`}
         </button>
+        {saveProgressMsg && (
+          <div style={{
+            width: "100%",
+            textAlign: "center",
+            color: saveProgressMsg.startsWith("✅") ? "#10b981" : "#ffc107",
+            fontWeight: 600,
+            fontSize: "clamp(13px, 3.2vw, 15px)"
+          }}>
+            {saveProgressMsg}
+          </div>
+        )}
         
         <button
           onClick={() => setShowHistoryModal(true)}
@@ -1634,6 +1751,11 @@ export default function RoadMap({ user }: RoadMapProps) {
                     maxHeight: "300px",
                     overflowY: "auto"
                   }}>
+                    {weeklyProgress.length === 0 && (
+                      <div style={{ color: "#ccc", textAlign: "center", padding: "20px" }}>
+                        Пока нет записей — сохраните первую еженедельную самооценку во вкладке «Бонусы»
+                      </div>
+                    )}
                     {weeklyProgress.map((week, index) => (
                       <div key={week.week} style={{
                         background: "rgba(255, 255, 255, 0.05)",

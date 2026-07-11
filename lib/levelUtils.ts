@@ -85,22 +85,15 @@ export const LEVEL_CONFIG = [
     code: 'legend',
     name: '🌟 Легенда',
     icon: '🌟',
-    scRequired: 1200,
+    scRequired: 1000,
     ordersAmountRequired: 20000,
     ordersCountRequired: 0,
     benefits: ['10% скидка навсегда', 'Мерч', 'Личные встречи', 'Живой трекинг', 'Доступ к базовым функциям']
-  },
-  {
-    level: 7,
-    code: 'myth',
-    name: '🌀 Миф',
-    icon: '🌀',
-    scRequired: 2000,
-    ordersAmountRequired: 30000,
-    ordersCountRequired: 0,
-    benefits: ['Тестирование новых продуктов', 'NFT-ранг', 'Подарки', 'Вечный VIP-доступ', 'Доступ к базовым функциям']
   }
 ];
+// ЕДИНСТВЕННЫЙ источник уровней. Шкала согласована с UI (RoadMap.levelRewards):
+// 0 / 20 / 100 / 300 / 600 / 1000 SC. Уровень считается от total_sc_earned
+// (заработано за всё время), а не от текущего баланса — при трате SC уровень не падает.
 
 // Механика начисления SC
 export const SC_MECHANICS = {

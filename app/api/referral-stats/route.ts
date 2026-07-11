@@ -20,13 +20,14 @@ export async function GET(req: NextRequest) {
     // Реферальный код для шеринга: username (с @) или телефон
     const referralCode = user.username ? '@' + user.username : (user.phone || user.telegram_id);
 
-    // Баланс SC (тратимый)
+    // Баланс SC (тратимый) + всего заработано (для уровня — уровень не падает при тратах)
     const { data: level } = await supabaseServer
       .from("user_levels")
-      .select("current_sc_balance")
+      .select("current_sc_balance, total_sc_earned, level_code, current_level")
       .eq("user_id", user_id)
       .single();
     const balance = level?.current_sc_balance || 0;
+    const totalEarned = level?.total_sc_earned || 0;
 
     // Приглашённые
     const { data: referrals } = await supabaseServer
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
       stats: {
         referralCode,
         balance,
+        totalEarned,
+        levelCode: level?.level_code || 'novice',
+        levelName: level?.current_level || '🌱 Новичок',
         totalReferrals: referrals?.length || 0,
         referralEarned,
         referrals: referrals || [],

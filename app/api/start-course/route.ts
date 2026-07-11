@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 
+// GET ?user_id= — активный курс пользователя (для восстановления состояния в UI)
+export async function GET(req: NextRequest) {
+  try {
+    const user_id = new URL(req.url).searchParams.get("user_id");
+    if (!user_id) {
+      return NextResponse.json({ error: "user_id required" }, { status: 400 });
+    }
+    const { data } = await supabaseServer
+      .from("user_courses")
+      .select("id, course_duration, start_date, status")
+      .eq("user_id", user_id)
+      .eq("status", "active")
+      .limit(1);
+    return NextResponse.json({ success: true, course: data?.[0] || null });
+  } catch (e) {
+    return NextResponse.json({ error: "Ошибка получения курса" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { user_id, course_duration } = await req.json();
@@ -13,13 +32,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Неверная длительность курса. Допустимые значения: 1, 3, 6" }, { status: 400 });
     }
 
-    // Проверяем, есть ли активный заказ у пользователя
-    const { data: activeOrder, error: orderError } = await supabaseServer
+    // Курс доступен при наличии оплаченного заказа (статуса "active" в системе не существует)
+    const { data: paidOrders, error: orderError } = await supabaseServer
       .from("orders")
-      .select("id, total")
+      .select("id, total, status")
       .eq("user_id", user_id)
-      .eq("status", "active")
-      .single();
+      .in("status", ["paid", "shipped", "completed"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const activeOrder = paidOrders?.[0];
 
     if (orderError || !activeOrder) {
       return NextResponse.json({ 
@@ -56,8 +77,11 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    if (insertError) {
-      return NextResponse.json({ error: "Ошибка создания курса: " + insertError.message }, { status: 500 });
+    if (insertError || !newCourse) {
+      return NextResponse.json(
+        { error: "Ошибка создания курса: " + (insertError?.message || "таблица user_courses недоступна") },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ 

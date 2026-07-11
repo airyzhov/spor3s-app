@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
+import { creditSC, alreadyCredited } from "../../../lib/referral";
 
 // GET - Get user's current habit status and available habits
 export async function GET(req: NextRequest) {
@@ -245,19 +246,22 @@ async function submitWeeklyReport(user_id: string, data: any) {
     return NextResponse.json({ error: upsertError.message }, { status: 500 });
   }
 
-  // Add SC transaction if earned
+  // Начисляем SC в единый леджер (sc_transactions + user_levels, пересчёт уровня внутри).
+  // При повторной отправке отчёта за ту же неделю (уже с начислением) — не начисляем снова.
+  if (existingReport && (existingReport.sc_earned || 0) > 0) {
+    scEarned = 0;
+  }
   if (scEarned > 0) {
-    const { error: txError } = await supabaseServer
-      .from("coin_transactions")
-      .insert([{
-        user_id,
+    try {
+      await creditSC({
+        userId: user_id,
         amount: scEarned,
-        type: "habit_completion",
-        description: `Мотивационная привычка - неделя ${week_number}`
-      }]);
-
-    if (txError) {
-      console.error("Error creating SC transaction:", txError);
+        sourceType: "habit_completion",
+        sourceId: habit_id,
+        description: `Мотивационная привычка — неделя ${week_number}`,
+      });
+    } catch (e) {
+      console.error("Error creating SC transaction:", e);
     }
   }
 
@@ -287,19 +291,19 @@ async function submitWeeklyReport(user_id: string, data: any) {
   const isMonthComplete = completedWeeks >= 4;
   let monthCompletionMessage = "";
   
-  if (isMonthComplete) {
-    // Add bonus SC for completing all 4 weeks
-    const { error: bonusError } = await supabaseServer
-      .from("coin_transactions")
-      .insert([{
-        user_id,
+  if (isMonthComplete && !(await alreadyCredited(habit_id, "habit_monthly_bonus"))) {
+    // Бонус за все 4 недели — в единый леджер, один раз на привычку
+    try {
+      await creditSC({
+        userId: user_id,
         amount: 20,
-        type: "habit_monthly_bonus",
-        description: "Бонус за полное выполнение месяца мотивационной привычки"
-      }]);
-
-    if (!bonusError) {
+        sourceType: "habit_monthly_bonus",
+        sourceId: habit_id,
+        description: "Бонус за полное выполнение месяца мотивационной привычки",
+      });
       monthCompletionMessage = "🎉 Поздравляем! Вы завершили месяц мотивационной привычки. +20 SC бонус!";
+    } catch (e) {
+      console.error("Error creating monthly bonus:", e);
     }
   }
 

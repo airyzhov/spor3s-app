@@ -1,4 +1,5 @@
 import { supabaseServer } from '../app/supabaseServerClient';
+import { getLevelInfo, LEVEL_CONFIG } from './levelUtils';
 
 // Нормализуем телефон к виду 79998887766 (11 цифр, ведущая 7). Возвращаем null, если не похоже на телефон.
 export function normalizePhone(raw: string | null | undefined): string | null {
@@ -67,6 +68,36 @@ export async function alreadyCredited(orderId: string, sourceType: string): Prom
   return !!(data && data.length);
 }
 
+// Пересчитать уровень пользователя от total_sc_earned (+ требования по заказам).
+// Вызывается после каждого начисления SC — поэтому скидки Мастера/Легенды в /api/order работают.
+export async function recalcUserLevel(userId: string): Promise<void> {
+  const { data: level } = await supabaseServer
+    .from('user_levels')
+    .select('level_code, total_sc_earned, total_orders_amount, orders_count')
+    .eq('user_id', userId)
+    .single();
+  if (!level) return;
+
+  const info = getLevelInfo(
+    level.total_sc_earned || 0,
+    level.total_orders_amount || 0,
+    level.orders_count || 0
+  );
+  if (info.levelCode === level.level_code) return;
+
+  const levelNum = LEVEL_CONFIG.find(l => l.code === info.levelCode)?.level || 1;
+  await supabaseServer.from('user_levels').update({
+    level_code: info.levelCode,
+    current_level: info.levelName,
+    level_achieved_at: new Date().toISOString(),
+    has_motivational_habit: levelNum >= 3,
+    has_expert_chat_access: levelNum >= 4,
+    has_permanent_discount: levelNum >= 5,
+    has_vip_access: levelNum >= 6,
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', userId);
+}
+
 // Начислить SC: запись в sc_transactions + обновление баланса в user_levels (создаём строку при отсутствии).
 export async function creditSC(params: {
   userId: string;
@@ -109,5 +140,12 @@ export async function creditSC(params: {
       total_sc_earned: (level.total_sc_earned || 0) + amount,
       updated_at: new Date().toISOString(),
     }).eq('user_id', userId);
+  }
+
+  // Пересчёт уровня после каждого начисления (не валим начисление при ошибке)
+  try {
+    await recalcUserLevel(userId);
+  } catch (e) {
+    console.error('[levels] ошибка пересчёта уровня:', e);
   }
 }
