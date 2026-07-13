@@ -221,7 +221,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           )}
           <div style={{ color: "#ccc", fontSize: "clamp(14px, 3.5vw, 16px)", lineHeight: 1.5 }}>
             Мы свяжемся с вами для подтверждения и оплаты.
-            Статус заказа можно отслеживать во вкладке «Бонусы».
+            Статус заказа можно отслеживать во вкладке «Кабинет».
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>

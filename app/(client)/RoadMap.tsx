@@ -1753,7 +1753,7 @@ export default function RoadMap({ user }: RoadMapProps) {
                   }}>
                     {weeklyProgress.length === 0 && (
                       <div style={{ color: "#ccc", textAlign: "center", padding: "20px" }}>
-                        Пока нет записей — сохраните первую еженедельную самооценку во вкладке «Бонусы»
+                        Пока нет записей — сохраните первую еженедельную самооценку во вкладке «Кабинет»
                       </div>
                     )}
                     {weeklyProgress.map((week, index) => (

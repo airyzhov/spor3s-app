@@ -180,7 +180,7 @@ export default function AppClient() {
   const steps = [
     ...(SHOW_AI ? [{ id: 1, name: "AI Консультант", icon: "🤖" }] : []),
     { id: 2, name: "Каталог", icon: "🛒" },
-    { id: 3, name: "Бонусы", icon: "🎁" }
+    { id: 3, name: "Кабинет", icon: "🎁" }
   ];
 
   // Обработчик клика (не используется, оставлен для совместимости)
