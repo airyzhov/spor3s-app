@@ -42,16 +42,6 @@ export const LEVEL_CONFIG = [
   },
   {
     level: 2,
-    code: 'mushroom_picker',
-    name: '🍄 Грибник',
-    icon: '🍄',
-    scRequired: 20,
-    ordersAmountRequired: 0,
-    ordersCountRequired: 0,
-    benefits: ['Доступ к базовым функциям']
-  },
-  {
-    level: 3,
     code: 'collector',
     name: '🌿 Собиратель',
     icon: '🌿',
@@ -61,7 +51,7 @@ export const LEVEL_CONFIG = [
     benefits: ['Открытие мотивационной привычки', 'Доступ к базовым функциям']
   },
   {
-    level: 4,
+    level: 3,
     code: 'expert',
     name: '🌳 Эксперт',
     icon: '🌳',
@@ -71,7 +61,7 @@ export const LEVEL_CONFIG = [
     benefits: ['Доступ к закрытому чату с экспертами', 'Участие в розыгрышах', 'Доступ к базовым функциям']
   },
   {
-    level: 5,
+    level: 4,
     code: 'master',
     name: '👑 Мастер',
     icon: '👑',
@@ -81,7 +71,7 @@ export const LEVEL_CONFIG = [
     benefits: ['Постоянная 5% скидка', 'Доступ к наборам для практик', 'Доступ к базовым функциям']
   },
   {
-    level: 6,
+    level: 5,
     code: 'legend',
     name: '🌟 Легенда',
     icon: '🌟',
@@ -92,7 +82,7 @@ export const LEVEL_CONFIG = [
   }
 ];
 // ЕДИНСТВЕННЫЙ источник уровней. Шкала согласована с UI (RoadMap.levelRewards):
-// 0 / 20 / 100 / 300 / 600 / 1000 SC. Уровень считается от total_sc_earned
+// 0 / 100 / 300 / 600 / 1000 SC. Уровень считается от total_sc_earned
 // (заработано за всё время), а не от текущего баланса — при трате SC уровень не падает.
 
 // Механика начисления SC

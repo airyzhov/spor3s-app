@@ -90,10 +90,10 @@ export async function recalcUserLevel(userId: string): Promise<void> {
     level_code: info.levelCode,
     current_level: info.levelName,
     level_achieved_at: new Date().toISOString(),
-    has_motivational_habit: levelNum >= 3,
-    has_expert_chat_access: levelNum >= 4,
-    has_permanent_discount: levelNum >= 5,
-    has_vip_access: levelNum >= 6,
+    has_motivational_habit: levelNum >= 2,
+    has_expert_chat_access: levelNum >= 3,
+    has_permanent_discount: levelNum >= 4,
+    has_vip_access: levelNum >= 5,
     updated_at: new Date().toISOString(),
   }).eq('user_id', userId);
 }
