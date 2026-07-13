@@ -83,13 +83,13 @@ export default function RoadMap({ user }: RoadMapProps) {
       const data = await resp.json();
       if (data.success) {
         const progress: WeekProgress[] = (data.surveys || []).map((s: any, i: number) => ({
-          week: i + 1,
+          week: s.week || i + 1,
           date: (s.created_at || '').split('T')[0],
           metrics: { memory: s.memory ?? 5, sleep: s.sleep ?? 5, energy: s.energy ?? 5, stress: s.stress ?? 5 },
           notes: s.note || '',
           achievements: [],
           extraHabits: 0
-        }));
+        })).sort((a: WeekProgress, b: WeekProgress) => a.week - b.week);
         setWeeklyProgress(progress);
         setCurrentWeek(progress.length + 1);
       }
@@ -124,19 +124,22 @@ export default function RoadMap({ user }: RoadMapProps) {
       });
       const data = await resp.json();
       if (data.success) {
+        const savedWeek = data.week || weeklyProgress.length + 1;
         setWeeklyProgress(prev => [...prev, {
-          week: prev.length + 1,
+          week: savedWeek,
           date: new Date().toISOString().split('T')[0],
           metrics: todayMetrics,
           notes: weeklyObservations,
           achievements: [],
           extraHabits: 0
-        }]);
+        }].sort((a, b) => a.week - b.week));
         setCurrentWeek(prev => prev + 1);
         setWeeklyObservations("");
         if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
         setTotalEarned(prev => prev + (data.scEarned || 0));
-        setSaveProgressMsg(`✅ Прогресс сохранён! +${data.scEarned || 25} SC`);
+        setSaveProgressMsg(data.scLimitReached
+          ? `✅ Неделя ${savedWeek} сохранена (без SC — исчерпан месячный лимит 100 SC)`
+          : `✅ Неделя ${savedWeek} сохранена! +${data.scEarned || 25} SC`);
       } else {
         setSaveProgressMsg(`⚠️ ${data.error || 'Не удалось сохранить'}`);
       }
@@ -147,6 +150,24 @@ export default function RoadMap({ user }: RoadMapProps) {
       setTimeout(() => setSaveProgressMsg(null), 5000);
     }
   };
+
+  // Следующая незаполненная неделя. При активном курсе недели идут от даты старта:
+  // пропущенные можно досдать позже, но будущие недели закрыты до их наступления.
+  const WEEK_MS = 7 * 24 * 3600 * 1000;
+  const getNextWeekInfo = () => {
+    const filledWeeks = new Set(weeklyProgress.map(p => p.week));
+    let next = 1;
+    while (filledWeeks.has(next)) next++;
+    if (courseStarted && courseStartDate) {
+      const start = new Date(courseStartDate).getTime();
+      const currentCourseWeek = Math.floor((Date.now() - start) / WEEK_MS) + 1;
+      if (next > currentCourseWeek) {
+        return { next, locked: true, opensAt: new Date(start + (next - 1) * WEEK_MS) };
+      }
+    }
+    return { next, locked: false, opensAt: null as Date | null };
+  };
+  const nextWeekInfo = getNextWeekInfo();
 
   const getProgressPhase = (week: number) => {
     if (week <= 4) return { name: "🌱 Адаптация", color: "#4ade80" };
@@ -1566,23 +1587,30 @@ export default function RoadMap({ user }: RoadMapProps) {
       }}>
         <button
           onClick={saveWeeklyProgress}
+          disabled={saveProgressLoading || nextWeekInfo.locked}
           style={{
-            background: "linear-gradient(45deg, #ff00cc, #3333ff)",
+            background: nextWeekInfo.locked
+              ? "linear-gradient(45deg, #10b981, #059669)"
+              : "linear-gradient(45deg, #ff00cc, #3333ff)",
             color: "white",
             border: "none",
             borderRadius: "12px",
             padding: "15px 30px",
             fontSize: "16px",
             fontWeight: "bold",
-            cursor: "pointer",
+            cursor: nextWeekInfo.locked ? "default" : "pointer",
             flex: "1",
             minWidth: "200px",
             transition: "transform 0.2s"
           }}
-          onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+          onMouseOver={(e) => { if (!nextWeekInfo.locked) e.currentTarget.style.transform = "scale(1.02)"; }}
           onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
         >
-          {saveProgressLoading ? '⏳ Сохраняю...' : `💾 Сохранить прогресс недели ${currentWeek}`}
+          {saveProgressLoading
+            ? '⏳ Сохраняю...'
+            : nextWeekInfo.locked
+              ? `✅ Все недели заполнены — неделя ${nextWeekInfo.next} откроется ${nextWeekInfo.opensAt?.toLocaleDateString('ru-RU')}`
+              : `💾 Сохранить прогресс недели ${nextWeekInfo.next}`}
         </button>
         {saveProgressMsg && (
           <div style={{
