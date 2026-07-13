@@ -662,7 +662,7 @@ export default function RoadMap({ user }: RoadMapProps) {
             display: "inline-block",
             whiteSpace: "nowrap"
           }}>
-            💵 {currentSC} ₽
+            🎁 {referralBonus} ₽ реф.
           </div>
         </div>
       </div>
