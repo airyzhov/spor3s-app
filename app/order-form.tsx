@@ -41,6 +41,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [mounted, setMounted] = useState(false);
   const [scBalance, setScBalance] = useState(0);
   const [coinsToUse, setCoinsToUse] = useState(0);
+  const [pdConsent, setPdConsent] = useState(false);
   const { clearCart } = useCart();
 
   // Загружаем баланс SC пользователя (для списания)
@@ -142,6 +143,11 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
 
     if (selectedItems.length === 0) {
       setError("❌ Корзина пуста. Добавьте товары в корзину.");
+      return;
+    }
+
+    if (!pdConsent) {
+      setError("❌ Для оформления заказа необходимо согласие на обработку персональных данных.");
       return;
     }
 
@@ -547,37 +553,68 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
             </div>
           </div>
 
-          {/* Списание SC (если есть баланс) */}
+          {/* Списание SC (если есть баланс) — заметный блок со скидкой */}
           {userId && scBalance > 0 && (() => {
             const total = selectedItems.reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0);
             const maxCoins = Math.min(scBalance, Math.floor(total * 0.3));
             return (
-              <div style={{ marginBottom: 15 }}>
-                <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
-                  💰 Списать SC (баланс: {scBalance}, до {maxCoins}):
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={maxCoins}
-                  value={coinsToUse || ''}
-                  onChange={(e) => setCoinsToUse(Math.max(0, Math.min(Number(e.target.value) || 0, maxCoins)))}
-                  disabled={loading}
-                  placeholder={`0 — ${maxCoins}`}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: 12,
-                    borderRadius: 8,
-                    border: "1px solid #666",
-                    background: "#2a2a2a",
-                    color: "#fff",
-                    fontSize: 14
-                  }}
-                />
-                <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
-                  1 SC = 1₽ скидки, максимум 30% от суммы заказа
+              <div style={{
+                marginBottom: 15,
+                padding: 14,
+                borderRadius: 12,
+                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1))",
+                border: "1px solid rgba(16, 185, 129, 0.5)"
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#10b981", marginBottom: 4 }}>
+                  💰 У вас {scBalance} SC = {scBalance} ₽
                 </div>
+                <div style={{ fontSize: 13, color: "#ccc", marginBottom: 10 }}>
+                  Можно оплатить монетами до {maxCoins} ₽ этого заказа (30% от суммы)
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={maxCoins}
+                    value={coinsToUse || ''}
+                    onChange={(e) => setCoinsToUse(Math.max(0, Math.min(Number(e.target.value) || 0, maxCoins)))}
+                    disabled={loading}
+                    placeholder={`0 — ${maxCoins}`}
+                    style={{
+                      flex: 1,
+                      boxSizing: "border-box",
+                      padding: 12,
+                      borderRadius: 8,
+                      border: "1px solid #666",
+                      background: "#2a2a2a",
+                      color: "#fff",
+                      fontSize: 14
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCoinsToUse(coinsToUse === maxCoins ? 0 : maxCoins)}
+                    disabled={loading}
+                    style={{
+                      background: coinsToUse === maxCoins ? "rgba(255,255,255,0.15)" : "linear-gradient(45deg, #10b981, #059669)",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "0 16px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    {coinsToUse === maxCoins ? "Сбросить" : `Списать ${maxCoins}`}
+                  </button>
+                </div>
+                {coinsToUse > 0 && (
+                  <div style={{ fontSize: 13, color: "#10b981", fontWeight: 600, marginTop: 8 }}>
+                    Скидка {coinsToUse} ₽ — к оплате {Math.max(0, total - coinsToUse)} ₽
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -649,12 +686,53 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           </div>
         </div>
 
+        {/* Оплата и доставка — что будет после оформления */}
+        <div style={{
+          background: "rgba(255, 255, 255, 0.06)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          borderRadius: 12,
+          padding: 14,
+          marginTop: 20,
+          fontSize: 13,
+          color: "#ccc",
+          lineHeight: 1.55
+        }}>
+          <div style={{ fontWeight: 700, color: "#fff", marginBottom: 6 }}>💳 Оплата и доставка</div>
+          После оформления менеджер свяжется с вами в Telegram, подтвердит заказ и сообщит
+          удобный способ оплаты. Доставка Ozon | СДЭК | Почта — от 200 ₽, точная стоимость
+          рассчитывается по вашему адресу.
+        </div>
+
+        {/* Согласие на обработку персональных данных */}
+        <label style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          marginTop: 16,
+          fontSize: 13,
+          color: "#ccc",
+          cursor: "pointer",
+          lineHeight: 1.5
+        }}>
+          <input
+            type="checkbox"
+            checked={pdConsent}
+            onChange={(e) => setPdConsent(e.target.checked)}
+            disabled={loading}
+            style={{ marginTop: 3, width: 16, height: 16, accentColor: "#ff00cc", flexShrink: 0 }}
+          />
+          <span>
+            Соглашаюсь на обработку персональных данных (ФИО, телефон, адрес) для выполнения
+            заказа — <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#ff7ae0", textDecoration: "underline" }}>политика конфиденциальности</a>
+          </span>
+        </label>
+
         {/* Кнопки */}
         <div style={{
           display: "flex",
           gap: 15,
           justifyContent: "center",
-          marginTop: 30
+          marginTop: 20
         }}>
           <button
             type="button"
@@ -675,9 +753,9 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           
           <button
             type="submit"
-                         disabled={loading || selectedItems.length === 0}
+            disabled={loading || selectedItems.length === 0 || !pdConsent}
              style={{
-               background: (loading || selectedItems.length === 0) 
+               background: (loading || selectedItems.length === 0 || !pdConsent)
                  ? "rgba(100, 100, 100, 0.5)"
                  : "linear-gradient(45deg, #00ff88, #00cc6a)",
                border: "none",
@@ -686,8 +764,8 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
                padding: "12px 24px",
                fontSize: 14,
                fontWeight: 600,
-               cursor: (loading || selectedItems.length === 0) ? "not-allowed" : "pointer",
-               opacity: (loading || selectedItems.length === 0) ? 0.5 : 1,
+               cursor: (loading || selectedItems.length === 0 || !pdConsent) ? "not-allowed" : "pointer",
+               opacity: (loading || selectedItems.length === 0 || !pdConsent) ? 0.5 : 1,
                transition: "all 0.3s ease"
              }}
           >

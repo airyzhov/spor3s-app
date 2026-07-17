@@ -426,8 +426,16 @@ export default function AppClient() {
             {renderContent()}
           </section>
         </main>
-        <footer className={styles.footer}>
+        <footer className={styles.footer} style={{ textAlign: "center" }}>
           <span>© {new Date().getFullYear()} spor3s</span>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 6, lineHeight: 1.6 }}>
+            ИП Рыжов А.И. · ИНН 421814558880 ·{" "}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}>
+              Политика конфиденциальности
+            </a>
+            <br />
+            Продукция не является лекарственным средством. 18+
+          </div>
         </footer>
         
         {/* Стрелка вверх */}

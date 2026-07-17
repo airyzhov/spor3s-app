@@ -20,7 +20,11 @@ interface CartProps {
 export default function Cart({ products = [], setStep }: CartProps) {
   const { cart, addToCart, changeQuantity, removeFromCart, getTotal } = useCart();
   const [mounted, setMounted] = useState(false);
-  const [showVitrina, setShowVitrina] = useState(false);
+  // Витрина открыта сразу — кнопка «Каталог» ведёт на реальный каталог (UX-аудит)
+  const [showVitrina, setShowVitrina] = useState(true);
+  // Фильтры витрины: по виду гриба и форме выпуска
+  const [catFilter, setCatFilter] = useState('all');
+  const [formFilter, setFormFilter] = useState('all');
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
   // Отладочные логи (только при монтировании и изменении продуктов)
@@ -251,9 +255,10 @@ export default function Cart({ products = [], setStep }: CartProps) {
             Ежовик гребенчатый, Мухомор, Кордицепс, Цистозира — для улучшения работы мозга и саморазвития.
           </div>
           <div style={{
-            color: "#ff00cc",
-            fontSize: "clamp(14px, 3.5vw, 16px)",
-            fontWeight: 600,
+            color: "#ffffff",
+            fontSize: "clamp(15px, 3.8vw, 17px)",
+            fontWeight: 700,
+            textShadow: "0 0 10px rgba(255, 0, 204, 0.7)",
             marginBottom: 12
           }}>
             ⬇️ сделать заказ
@@ -375,7 +380,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 textAlign: "center",
                 marginBottom: 15
               }}>
-                Доставка Ozon|СДЭК|Почта — точный расчет после оформления
+                Доставка Ozon|СДЭК|Почта — от 200 ₽ (точный расчёт после оформления)
               </div>
               
               <div style={{ textAlign: "center" }}>
@@ -459,6 +464,25 @@ export default function Cart({ products = [], setStep }: CartProps) {
               onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
             >
               🌟 Добавить курс 4в1
+            </button>
+
+            <button
+              onClick={() => window.open('https://t.me/Spor3s_comments', '_blank')}
+              style={{
+                background: "rgba(255, 255, 255, 0.15)",
+                color: "white",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                borderRadius: "8px",
+                padding: "10px 20px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "transform 0.2s"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+            >
+              ⭐ Отзывы
             </button>
             
             <button
@@ -584,7 +608,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 marginBottom: 15,
                 textShadow: "0 1px 2px rgba(0,0,0,0.3)"
               }}>
-                Доставка Ozon|СДЭК|Почта — точный расчет после оформления
+                Доставка Ozon|СДЭК|Почта — от 200 ₽ (точный расчёт после оформления)
               </div>
               
               <div style={{ textAlign: "center" }}>
@@ -619,16 +643,69 @@ export default function Cart({ products = [], setStep }: CartProps) {
             </div>
           )}
           
+          {/* Фильтры: вид гриба + форма выпуска */}
+          {(() => {
+            const cats = [
+              { id: 'all', label: 'Все' },
+              { id: 'ezh', label: '🍄 Ежовик' },
+              { id: 'mhm', label: '🔴 Мухомор' },
+              { id: 'mhmp', label: '🟤 Пантерный' },
+              { id: 'kor', label: '🟠 Кордицепс' },
+              { id: 'ci', label: '🌿 Цистозира' },
+              { id: '4v1', label: '⭐ Комплексы' },
+            ];
+            const forms = [
+              { id: 'all', label: 'Любая форма' },
+              { id: 'powder', label: 'Порошок' },
+              { id: 'caps', label: 'Капсулы' },
+            ];
+            const chip = (active: boolean): React.CSSProperties => ({
+              background: active ? 'linear-gradient(45deg, #ff00cc, #3333ff)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: active ? '1px solid transparent' : '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 20,
+              padding: '6px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            });
+            return (
+              <div style={{ marginBottom: 16, width: '100%' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 8 }}>
+                  {cats.map(c => (
+                    <button key={c.id} style={chip(catFilter === c.id)} onClick={() => setCatFilter(c.id)}>{c.label}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {forms.map(f => (
+                    <button key={f.id} style={chip(formFilter === f.id)} onClick={() => setFormFilter(f.id)}>{f.label}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Витрина товаров в 2 столбца */}
-          <div className="product-grid" style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(2, 1fr)", 
-            gap: 16, 
+          <div className="product-grid" style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 16,
             marginBottom: 32,
             maxWidth: "100%",
             padding: "0 12px"
           }}>
-            {safeProducts.map((product, index) => {
+            {safeProducts.filter((p) => {
+              if (!p || !p.id) return true;
+              const cat = p.id.startsWith('mhmp') ? 'mhmp'
+                : p.id.startsWith('mhm') ? 'mhm'
+                : p.id.startsWith('ezh') ? 'ezh'
+                : p.id.startsWith('kor') ? 'kor'
+                : p.id.startsWith('ci') ? 'ci'
+                : '4v1';
+              const form = /капсул/i.test(p.name || '') ? 'caps' : 'powder';
+              return (catFilter === 'all' || cat === catFilter) && (formFilter === 'all' || form === formFilter);
+            }).map((product, index) => {
               if (!product || !product.id) {
                 console.warn('🛒 Cart: Пропущен некорректный продукт:', product);
                 return null;
