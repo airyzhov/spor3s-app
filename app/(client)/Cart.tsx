@@ -466,24 +466,6 @@ export default function Cart({ products = [], setStep }: CartProps) {
               🌟 Добавить курс 4в1
             </button>
 
-            <button
-              onClick={() => window.open('https://t.me/Spor3s_comments', '_blank')}
-              style={{
-                background: "rgba(255, 255, 255, 0.15)",
-                color: "white",
-                border: "1px solid rgba(255, 255, 255, 0.3)",
-                borderRadius: "8px",
-                padding: "10px 20px",
-                fontSize: "14px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "transform 0.2s"
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-              onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-            >
-              ⭐ Отзывы
-            </button>
             
             <button
               onClick={() => setShowVitrina(false)}
@@ -658,6 +640,8 @@ export default function Cart({ products = [], setStep }: CartProps) {
               { id: 'all', label: 'Любая форма' },
               { id: 'powder', label: 'Порошок' },
               { id: 'caps', label: 'Капсулы' },
+              { id: 'hats', label: 'Шляпки' },
+              { id: 'fruit', label: 'Плодовые тела' },
             ];
             const chip = (active: boolean): React.CSSProperties => ({
               background: active ? 'linear-gradient(45deg, #ff00cc, #3333ff)' : 'rgba(255,255,255,0.1)',
@@ -703,7 +687,12 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 : p.id.startsWith('kor') ? 'kor'
                 : p.id.startsWith('ci') ? 'ci'
                 : '4v1';
-              const form = /капсул/i.test(p.name || '') ? 'caps' : 'powder';
+              // Мухоморы (красный и пантерный) в граммах — сушёные шляпки;
+              // кордицепс — сушёные плодовые тела, а не порошок
+              const form = /капсул/i.test(p.name || '') ? 'caps'
+                : (cat === 'mhm' || cat === 'mhmp') ? 'hats'
+                : cat === 'kor' ? 'fruit'
+                : 'powder';
               return (catFilter === 'all' || cat === catFilter) && (formFilter === 'all' || form === formFilter);
             }).map((product, index) => {
               if (!product || !product.id) {

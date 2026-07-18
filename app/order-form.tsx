@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useCart } from "./CartContext";
+import { openExternal } from "../lib/openExternal";
 
 interface OrderFormProps {
   products?: any[];
@@ -723,7 +724,13 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           />
           <span>
             Соглашаюсь на обработку персональных данных (ФИО, телефон, адрес) для выполнения
-            заказа — <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#ff7ae0", textDecoration: "underline" }}>политика конфиденциальности</a>
+            заказа —{" "}
+            <span
+              onClick={(e) => { e.preventDefault(); openExternal(`${window.location.origin}/privacy`); }}
+              style={{ color: "#ff7ae0", textDecoration: "underline", cursor: "pointer" }}
+            >
+              политика конфиденциальности
+            </span>
           </span>
         </label>
 

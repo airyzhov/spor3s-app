@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
@@ -378,9 +378,84 @@ async function verifyYouTubeSubscription(userId: string, channelId: string) {
   }
 }
 
-// /start <auth_code> - привязка аккаунта
+// Реферальная привязка: /start <telegram_id пригласившего>
+// Ссылка вида https://t.me/Spor3s_bot?start=54993853 — друг кликает и сразу привязывается.
+async function handleReferralStart(ctx: any, referrerTgId: string): Promise<void> {
+  const invitedTgId = ctx.from.id.toString();
+  if (referrerTgId === invitedTgId) {
+    await ctx.reply('🙂 Это ваша собственная реферальная ссылка — отправьте её друзьям!');
+    return;
+  }
+
+  // 1. Приглашённый: создаём/находим по telegram_id
+  let { data: invited } = await supabase
+    .from('users').select('id').eq('telegram_id', invitedTgId).single();
+  if (!invited) {
+    const { data: created } = await supabase
+      .from('users')
+      .insert([{ telegram_id: invitedTgId, username: ctx.from.username || null }])
+      .select('id').single();
+    invited = created;
+  }
+  if (!invited) {
+    await ctx.reply('❌ Не получилось активировать ссылку, попробуйте позже.');
+    return;
+  }
+
+  // 2. Пригласивший: находим (или создаём заочно — активируется при первом входе)
+  let { data: referrer } = await supabase
+    .from('users').select('id, username').eq('telegram_id', referrerTgId).single();
+  if (!referrer) {
+    const { data: created } = await supabase
+      .from('users').insert([{ telegram_id: referrerTgId }]).select('id, username').single();
+    referrer = created;
+  }
+  if (!referrer || referrer.id === invited.id) {
+    await ctx.reply('❌ Ссылка недействительна.');
+    return;
+  }
+
+  const openShop = Markup.inlineKeyboard([
+    Markup.button.webApp('🛒 Открыть магазин', 'https://ai.spor3s.ru'),
+  ]);
+
+  // 3. Первая ссылка побеждает: если рефер уже есть — не перезаписываем
+  const { data: existing } = await supabase
+    .from('referrals').select('id').eq('referred_user_id', invited.id).limit(1);
+  if (existing && existing.length) {
+    await ctx.reply('👋 С возвращением! Пригласивший у вас уже закреплён. Выбирайте добавки в магазине 👇', openShop);
+    return;
+  }
+
+  await supabase.from('referrals').insert([{
+    referrer_user_id: referrer.id,
+    referred_user_id: invited.id,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  }]);
+
+  const refName = referrer.username ? `@${referrer.username}` : 'друг';
+  await ctx.reply(
+    `🎁 Вас пригласил ${refName}!\n\n` +
+    `За первый оплаченный заказ вы получите 100 SC (= 100 ₽ скидки на будущие покупки), ` +
+    `а бонусы начисляются автоматически — ничего вводить не нужно.\n\n` +
+    `Выбирайте грибные добавки 👇`,
+    openShop
+  );
+}
+
+// /start <auth_code> - привязка аккаунта, /start <telegram_id> - реферальная ссылка
 bot.start(async (ctx) => {
   const parts = ctx.message.text.split(' ');
+  if (parts.length === 2 && /^\d{5,15}$/.test(parts[1])) {
+    try {
+      await handleReferralStart(ctx, parts[1]);
+    } catch (e: any) {
+      console.error('[referral start] ошибка:', e?.message);
+      ctx.reply('❌ Не получилось активировать ссылку, попробуйте позже.');
+    }
+    return;
+  }
   if (parts.length === 2) {
     const auth_code = parts[1];
     try {

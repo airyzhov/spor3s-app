@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import MotivationalHabit from "../../components/MotivationalHabit";
+import { openExternal } from "../../lib/openExternal";
 
 interface Metrics {
   memory: number;
@@ -642,16 +643,9 @@ export default function RoadMap({ user }: RoadMapProps) {
         }}>
           1 Spor3s Coin = 1 рубль
         </div>
-        <div style={{
-          fontSize: "clamp(12px, 3vw, 14px)",
-          color: "#ccc",
-          marginBottom: 10,
-          fontFamily: "monospace",
-          wordBreak: "break-word"
-        }}>
-          ID: {user?.telegram_username || user?.telegram_id || (user?.id ? user.id.slice(0, 8) + '...' + user.id.slice(-4) : 'Loading...')}
-        </div>
-        
+        {/* Технический ID/username больше не показываем (не должен светиться dev-user/temp-user).
+            Персональная реферальная ссылка — ниже, в блоке «Реферальная система». */}
+
         {/* Компактное отображение коинов */}
         <div style={{
           display: "flex",
@@ -918,6 +912,58 @@ export default function RoadMap({ user }: RoadMapProps) {
           Получай 5% от заказов друзей, они получат приветственные 100SC
         </div>
         
+        {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
+        {user?.telegram_id && /^\d+$/.test(String(user.telegram_id)) && (() => {
+          const refLink = `https://t.me/Spor3s_bot?start=${user.telegram_id}`;
+          const shareText = 'Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!';
+          return (
+            <div style={{
+              background: "rgba(255, 255, 255, 0.1)",
+              borderRadius: "12px",
+              padding: "15px",
+              marginBottom: "15px",
+              width: "100%",
+              boxSizing: "border-box"
+            }}>
+              <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px", fontWeight: 600 }}>
+                🔗 Ваша персональная ссылка:
+              </div>
+              <div style={{
+                background: "rgba(255, 255, 255, 0.2)",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                fontSize: "clamp(12px, 3vw, 14px)",
+                color: "#ff7ae0",
+                fontFamily: "monospace",
+                wordBreak: "break-all",
+                marginBottom: "10px"
+              }}>
+                {refLink}
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(refLink); alert('Ссылка скопирована!'); }}
+                  style={{
+                    background: "#ff00cc", color: "#fff", border: "none", borderRadius: 8,
+                    padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
+                  }}
+                >
+                  📋 Скопировать
+                </button>
+                <button
+                  onClick={() => openExternal(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`)}
+                  style={{
+                    background: "linear-gradient(45deg, #0088cc, #00a8ff)", color: "#fff", border: "none", borderRadius: 8,
+                    padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
+                  }}
+                >
+                  📤 Поделиться
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {referralCode && (
           <div style={{
             background: "rgba(255, 255, 255, 0.1)",
@@ -928,7 +974,7 @@ export default function RoadMap({ user }: RoadMapProps) {
             boxSizing: "border-box"
           }}>
             <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px" }}>
-              Ваш реферальный код:
+              Или код для ввода при заказе:
             </div>
             <div style={{
               display: "flex",
@@ -1538,7 +1584,7 @@ export default function RoadMap({ user }: RoadMapProps) {
                     <div style={{ fontSize: 15, fontWeight: "bold", color: "#ff00cc", marginBottom: 10 }}>+{TASK_BONUS} SC</div>
                     <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
                       <button
-                        onClick={() => window.open(t.url, '_blank')}
+                        onClick={() => openExternal(t.url)}
                         style={{
                           background: t.btnColor,
                           color: "#fff",

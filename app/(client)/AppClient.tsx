@@ -10,6 +10,7 @@ import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import SCGiftForm from "../../components/SCGiftForm";
 import { useState, useEffect, useRef } from "react";
+import { openExternal } from "../../lib/openExternal";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -389,7 +390,36 @@ export default function AppClient() {
           ))}
           <button
             type="button"
-            onClick={() => window.open('https://t.me/web3grow', '_blank')}
+            onClick={() => openExternal('https://t.me/Spor3s_comments')}
+            style={{
+              background: "rgba(255, 255, 255, 0.1)",
+              color: "#fff",
+              border: "2px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: 25,
+              padding: "12px 20px",
+              fontSize: 16,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              minWidth: 120,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              pointerEvents: "auto",
+              position: "relative",
+              zIndex: 9999,
+              userSelect: "none",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent"
+            }}
+          >
+            <span style={{ fontSize: 18 }}>⭐</span>
+            <span>Отзывы</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openExternal('https://t.me/web3grow')}
             style={{
               background: "rgba(255, 255, 255, 0.1)",
               color: "#fff",
@@ -430,9 +460,12 @@ export default function AppClient() {
           <span>© {new Date().getFullYear()} spor3s</span>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 6, lineHeight: 1.6 }}>
             ИП Рыжов А.И. · ИНН 421814558880 ·{" "}
-            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}>
+            <span
+              onClick={() => openExternal(`${window.location.origin}/privacy`)}
+              style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline", cursor: "pointer" }}
+            >
               Политика конфиденциальности
-            </a>
+            </span>
             <br />
             Продукция не является лекарственным средством. 18+
           </div>
