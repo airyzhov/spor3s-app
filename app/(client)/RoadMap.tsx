@@ -1084,6 +1084,44 @@ export default function RoadMap({ user }: RoadMapProps) {
             </div>
           </div>
         )}
+
+        {/* Список приглашённых: кто, статус, сколько SC принёс */}
+        {referralStats?.referrals?.length > 0 && (
+          <div style={{ marginTop: "12px", width: "100%" }}>
+            <div style={{ fontSize: "13px", color: "#ccc", marginBottom: "8px" }}>
+              👥 Ваши приглашённые:
+            </div>
+            {referralStats.referrals.map((r: any) => {
+              const u = r.referred_user;
+              const name = u?.username
+                ? `@${u.username}`
+                : `ID ${String(u?.telegram_id || "").slice(0, 4)}…`;
+              return (
+                <div key={r.id} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "8px",
+                  padding: "8px 12px",
+                  marginBottom: "6px",
+                  fontSize: "13px",
+                  boxSizing: "border-box"
+                }}>
+                  <span style={{ fontWeight: 600 }}>👤 {name}</span>
+                  <span style={{ color: r.status === "completed" ? "#10b981" : "#f59e0b" }}>
+                    {r.status === "completed"
+                      ? `✅ активен${r.scEarned > 0 ? ` · принёс ${r.scEarned} SC` : ""}`
+                      : "⏳ ждёт первого заказа"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {SHOW_GAMIFICATION && (<>
