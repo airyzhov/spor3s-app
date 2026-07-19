@@ -416,13 +416,35 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
       )}
 
       <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 600, boxSizing: "border-box" }}>
-        {/* Товары из корзины — блок закреплён при скролле формы */}
+        {/* Компактная закреплённая строка с итогом — не перекрывает поля формы */}
+        {selectedItems.length > 0 && (
+          <div style={{
+            position: "sticky",
+            top: 8,
+            zIndex: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 10,
+            background: "rgba(26, 16, 48, 0.97)",
+            backdropFilter: "blur(6px)",
+            borderRadius: 12,
+            border: "1px solid rgba(255, 0, 204, 0.35)",
+            padding: "8px 14px",
+            marginBottom: 12,
+            fontSize: 15,
+            fontWeight: 600
+          }}>
+            <span>🛒 {selectedItems.reduce((n, i) => n + (i.quantity || 1), 0)} шт.</span>
+            <span>💰 Итого: <span style={{ color: "#ff00cc" }}>
+              {selectedItems.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0)}₽
+            </span></span>
+          </div>
+        )}
+
+        {/* Товары из корзины — обычный блок, скроллится вместе с формой */}
         <div style={{
-          position: "sticky",
-          top: 8,
-          zIndex: 20,
-          background: "rgba(26, 16, 48, 0.97)",
-          backdropFilter: "blur(6px)",
+          background: "rgba(26, 16, 48, 0.6)",
           borderRadius: 12,
           border: "1px solid rgba(255, 0, 204, 0.35)",
           padding: "12px 14px",
@@ -431,7 +453,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           <h3 style={{ fontSize: 18, marginBottom: 15, color: "#ff00cc", marginTop: 0 }}>
             🛒 Ваш заказ:
           </h3>
-          
+
           {selectedItems.length > 0 ? (
             <div style={{ marginBottom: 20 }}>
               {selectedItems.map((item, index) => (
