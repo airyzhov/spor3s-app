@@ -964,6 +964,31 @@ export default function RoadMap({ user }: RoadMapProps) {
           );
         })()}
 
+        {/* Гость из браузера: ссылки нет — подсказываем открыть через Telegram */}
+        {!(user?.telegram_id && /^\d+$/.test(String(user.telegram_id))) && (
+          <div style={{
+            background: "rgba(0, 136, 204, 0.15)",
+            border: "1px solid rgba(0, 168, 255, 0.5)",
+            borderRadius: "12px",
+            padding: "15px",
+            marginBottom: "15px",
+            width: "100%",
+            boxSizing: "border-box",
+            fontSize: "clamp(12px, 3vw, 14px)",
+            color: "#fff",
+            lineHeight: 1.5
+          }}>
+            🔗 Персональная реферальная ссылка появится здесь, если открыть
+            приложение через Telegram:{" "}
+            <span
+              onClick={() => openExternal('https://t.me/Spor3s_bot')}
+              style={{ color: "#00a8ff", textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}
+            >
+              @Spor3s_bot
+            </span>
+          </div>
+        )}
+
         {referralCode && (
           <div style={{
             background: "rgba(255, 255, 255, 0.1)",
@@ -974,7 +999,9 @@ export default function RoadMap({ user }: RoadMapProps) {
             boxSizing: "border-box"
           }}>
             <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px" }}>
-              Или код для ввода при заказе:
+              {user?.telegram_id && /^\d+$/.test(String(user.telegram_id))
+                ? "Или код для ввода при заказе:"
+                : "Ваш реферальный код:"}
             </div>
             <div style={{
               display: "flex",
