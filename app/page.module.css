@@ -99,6 +99,9 @@
 }
 
 .section {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 18px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.2);
@@ -212,8 +215,12 @@ a.secondary {
 
 @media (max-width: 600px) {
   .page {
-    padding: 32px;
+    padding: 12px;
     padding-bottom: 80px;
+  }
+
+  .section {
+    padding: 20px 14px;
   }
 
   .main {

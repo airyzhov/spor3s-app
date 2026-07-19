@@ -1,6 +1,7 @@
 "use client";
 import { useCart } from "../CartContext";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 type Product = {
   id: string;
@@ -36,6 +37,16 @@ export default function Cart({ products = [], setStep }: CartProps) {
   useEffect(() => {
     console.log('🛒 Cart: Корзина обновлена:', cart?.length || 0, 'шт');
   }, [cart]);
+
+  // При открытой модалке товара блокируем скролл страницы,
+  // чтобы окно не «уезжало» при прокрутке (особенно в Telegram WebView)
+  useEffect(() => {
+    if (modalProduct) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [modalProduct]);
 
   // Функция показа уведомлений
   const showNotification = (productName: string, type: 'add' | 'remove' = 'add') => {
@@ -892,7 +903,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
           </button>
 
           {/* Модальное окно с описанием товара */}
-          {modalProduct && (
+          {modalProduct && createPortal(
             <div
               onClick={e => {
                 if (e.target === e.currentTarget) setModalProduct(null);
@@ -903,22 +914,28 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 left: 0,
                 width: "100vw",
                 height: "100vh",
-                background: "rgba(0,0,0,0.35)",
-                zIndex: 1000,
+                background: "rgba(0,0,0,0.5)",
+                zIndex: 100000,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center"
+                justifyContent: "center",
+                padding: "16px 0"
               }}
             >
-              <div style={{ 
-                background: "#fff", 
-                borderRadius: 18, 
-                maxWidth: 360, 
-                width: "90%", 
-                padding: 24, 
-                boxShadow: "0 4px 32px rgba(0,0,0,0.18)", 
+              <div style={{
+                background: "#fff",
+                borderRadius: 18,
+                maxWidth: 360,
+                width: "92vw",
+                maxHeight: "85vh",
+                overflowY: "auto",
+                overflowX: "hidden",
+                boxSizing: "border-box",
+                padding: "clamp(16px, 4vw, 24px)",
+                boxShadow: "0 4px 32px rgba(0,0,0,0.18)",
                 position: "relative",
-                color: "#333"
+                color: "#333",
+                wordBreak: "break-word"
               }}>
                 <button 
                   onClick={() => setModalProduct(null)} 
@@ -998,7 +1015,8 @@ export default function Cart({ products = [], setStep }: CartProps) {
                   Добавить в корзину
                 </button>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </>
       )}

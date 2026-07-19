@@ -43,14 +43,19 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [scBalance, setScBalance] = useState(0);
   const [coinsToUse, setCoinsToUse] = useState(0);
   const [pdConsent, setPdConsent] = useState(false);
+  // Пригласивший уже закреплён (реф-ссылка бота) — поле кода блокируется
+  const [invitedBy, setInvitedBy] = useState<{ username: string | null; telegram_id: string | null } | null>(null);
   const { clearCart } = useCart();
 
-  // Загружаем баланс SC пользователя (для списания)
+  // Загружаем баланс SC пользователя (для списания) и привязку к пригласившему
   useEffect(() => {
     if (!userId) return;
     fetch(`/api/referral-stats?user_id=${userId}`)
       .then(r => r.json())
-      .then(d => { if (d?.stats && typeof d.stats.balance === 'number') setScBalance(d.stats.balance); })
+      .then(d => {
+        if (d?.stats && typeof d.stats.balance === 'number') setScBalance(d.stats.balance);
+        if (d?.stats?.invitedBy) setInvitedBy(d.stats.invitedBy);
+      })
       .catch(() => {});
   }, [userId]);
 
@@ -317,15 +322,16 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   }
 
   return (
-    <div style={{ 
-      maxWidth: 800, 
-      margin: "0 auto", 
-      color: "#fff", 
+    <div style={{
+      maxWidth: 800,
+      margin: "0 auto",
+      color: "#fff",
       padding: "clamp(15px, 4vw, 20px)",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      width: "100%"
+      width: "100%",
+      boxSizing: "border-box"
     }}>
       {/* Заголовок */}
       <div style={{
@@ -409,7 +415,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} style={{ width: "100%", maxWidth: 600, boxSizing: "border-box" }}>
         {/* Товары из корзины — блок закреплён при скролле формы */}
         <div style={{
           position: "sticky",
@@ -527,30 +533,48 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
             />
           </div>
 
-          {/* Реферальный код: username или телефон пригласившего */}
+          {/* Реферальный код: если пригласивший уже закреплён по ссылке — поле заблокировано */}
           <div style={{ marginBottom: 15 }}>
             <label style={{ display: "block", marginBottom: 5, fontSize: 14 }}>
-              🎁 Реферальный код (необязательно):
+              🎁 Реферальный код{invitedBy ? ":" : " (необязательно):"}
             </label>
-            <input
-              type="text"
-              value={survey.referral}
-              onChange={(e) => setSurvey(prev => ({...prev, referral: e.target.value}))}
-              disabled={loading}
-              placeholder="username или телефон того, кто пригласил"
-              style={{
+            {invitedBy ? (
+              <div style={{
                 width: "100%",
                 boxSizing: "border-box",
                 padding: 12,
                 borderRadius: 8,
-                border: "1px solid #666",
-                background: "#2a2a2a",
-                color: "#fff",
-                fontSize: 14
-              }}
-            />
+                border: "1px solid rgba(16, 185, 129, 0.6)",
+                background: "rgba(16, 185, 129, 0.12)",
+                color: "#10b981",
+                fontSize: 14,
+                fontWeight: 600
+              }}>
+                ✅ Вас пригласил {invitedBy.username ? `@${invitedBy.username}` : `ID ${invitedBy.telegram_id}`}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={survey.referral}
+                onChange={(e) => setSurvey(prev => ({...prev, referral: e.target.value}))}
+                disabled={loading}
+                placeholder="username или телефон того, кто пригласил"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid #666",
+                  background: "#2a2a2a",
+                  color: "#fff",
+                  fontSize: 14
+                }}
+              />
+            )}
             <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
-              Кто пригласил получит бонус после оплаты вашего заказа
+              {invitedBy
+                ? "Бонусы по рефералке начислятся автоматически после оплаты"
+                : "Кто пригласил получит бонус после оплаты вашего заказа"}
             </div>
           </div>
 
@@ -739,6 +763,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
           display: "flex",
           gap: 15,
           justifyContent: "center",
+          flexWrap: "wrap",
           marginTop: 20
         }}>
           <button
