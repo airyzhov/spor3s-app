@@ -698,13 +698,14 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 : p.id.startsWith('kor') ? 'kor'
                 : p.id.startsWith('ci') ? 'ci'
                 : '4v1';
-              // Мухоморы (красный и пантерный) в граммах — сушёные шляпки;
-              // кордицепс — сушёные плодовые тела, а не порошок
-              const form = /капсул/i.test(p.name || '') ? 'caps'
-                : (cat === 'mhm' || cat === 'mhmp') ? 'hats'
-                : cat === 'kor' ? 'fruit'
-                : 'powder';
-              return (catFilter === 'all' || cat === catFilter) && (formFilter === 'all' || form === formFilter);
+              // Мухоморы в граммах — сушёные шляпки; красный при этом молотый,
+              // поэтому попадает и в «Порошок». Кордицепс — плодовые тела, не порошок
+              const formList = /капсул/i.test(p.name || '') ? ['caps']
+                : cat === 'mhm' ? ['hats', 'powder']
+                : cat === 'mhmp' ? ['hats']
+                : cat === 'kor' ? ['fruit']
+                : ['powder'];
+              return (catFilter === 'all' || cat === catFilter) && (formFilter === 'all' || formList.includes(formFilter));
             }).map((product, index) => {
               if (!product || !product.id) {
                 console.warn('🛒 Cart: Пропущен некорректный продукт:', product);
