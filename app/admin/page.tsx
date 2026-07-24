@@ -271,6 +271,7 @@ export default function AdminPage() {
                     <th style={{ padding: "8px 8px" }}>Дата</th>
                     <th style={{ padding: "8px 8px" }}>ФИО</th>
                     <th style={{ padding: "8px 8px" }}>Клиент TG</th>
+                    <th style={{ padding: "8px 8px", textAlign: "right" }}>SC клиента</th>
                     <th style={{ padding: "8px 8px" }}>Телефон</th>
                     <th style={{ padding: "8px 8px" }}>Товары</th>
                     <th style={{ padding: "8px 8px" }}>Адрес</th>
@@ -287,6 +288,9 @@ export default function AdminPage() {
                       </td>
                       <td style={{ padding: "8px 8px" }}>{o.fio || "—"}</td>
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}><TgUser username={o.username} telegram_id={o.telegram_id} /></td>
+                      <td style={{ padding: "8px 8px", textAlign: "right", fontWeight: "bold", whiteSpace: "nowrap", color: "#38bdf8" }}>
+                        {(() => { const u = users.find((x) => x.id === o.user_id); return u ? `${u.balance} SC` : "—"; })()}
+                      </td>
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{o.phone || "—"}</td>
                       <td style={{ padding: "8px 8px", maxWidth: 220 }}>{itemsSummary(o.items)}</td>
                       <td style={{ padding: "8px 8px", maxWidth: 200, color: "#cbd5e1" }}>{o.address || "—"}</td>
