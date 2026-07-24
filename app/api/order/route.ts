@@ -186,28 +186,49 @@ export async function POST(req: NextRequest) {
       const managerChatId = process.env.MANAGER_CHAT_ID;
 
       if (botToken && managerChatId) {
+        // Экранируем пользовательский текст для parse_mode: HTML
+        const esc = (s: any) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
         const itemsArr = Array.isArray(items) ? items : [];
         const itemsText = itemsArr.length > 0
-          ? itemsArr.map((i: any) => `• ${i.name || i.id || 'Товар'}${i.quantity ? ` ×${i.quantity}` : ''} — ${i.price || 0}₽`).join('\n')
+          ? itemsArr.map((i: any) => `• ${esc(i.name || i.id || 'Товар')}${i.quantity ? ` ×${esc(i.quantity)}` : ''} — ${esc(i.price || 0)}₽`).join('\n')
           : '—';
 
-        const message = `🆕 НОВЫЙ ЗАКАЗ (приложение) #${order.id}
+        // Кликабельный контакт клиента в Telegram — чтобы менеджер мог сразу написать
+        let clientLine = '';
+        if (user_id) {
+          const { data: client } = await supabaseServer
+            .from('users')
+            .select('telegram_id, username, name')
+            .eq('id', user_id)
+            .single();
+          if (client) {
+            const uname = String(client.username || '').replace(/^@/, '').trim();
+            if (uname) {
+              clientLine = `\n💬 Клиент: <a href="https://t.me/${esc(uname)}">@${esc(uname)}</a>`;
+            } else if (client.telegram_id) {
+              clientLine = `\n💬 Клиент: <a href="tg://user?id=${esc(client.telegram_id)}">написать в Telegram</a> (ID <code>${esc(client.telegram_id)}</code>)`;
+            }
+          }
+        }
 
-👤 ФИО: ${fio || 'не указано'}
-📞 Телефон: ${phone || 'не указано'}
-📍 Адрес: ${address || 'не указано'}
+        const message = `🆕 НОВЫЙ ЗАКАЗ (приложение) #${esc(order.id)}
+
+👤 ФИО: ${esc(fio || 'не указано')}
+📞 Телефон: ${esc(phone || 'не указано')}
+📍 Адрес: ${esc(address || 'не указано')}${clientLine}
 
 📦 Товары:
 ${itemsText}
 
-💰 Сумма: ${finalTotal}₽${totalDiscount ? ` (скидка ${totalDiscount}₽)` : ''}
-💬 Комментарий: ${comment || 'нет'}
-🕐 ${new Date().toLocaleString('ru-RU')}`;
+💰 Сумма: ${esc(finalTotal)}₽${totalDiscount ? ` (скидка ${esc(totalDiscount)}₽)` : ''}
+💬 Комментарий: ${esc(comment || 'нет')}
+🕐 ${esc(new Date().toLocaleString('ru-RU'))}`;
 
         const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: managerChatId, text: message }),
+          body: JSON.stringify({ chat_id: managerChatId, text: message, parse_mode: 'HTML' }),
         });
         if (!resp.ok) {
           console.error('❌ Telegram уведомление не отправлено:', resp.status, await resp.text());

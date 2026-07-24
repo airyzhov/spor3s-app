@@ -8,7 +8,27 @@ type Stats = {
   totalTransactions: number;
   topUsers: { user_id: string; sc: number }[];
 };
-type UserBal = { id: string; telegram_id: string; name: string | null; balance: number };
+type UserBal = { id: string; telegram_id: string; name: string | null; username?: string | null; balance: number };
+
+// Кликабельный @username -> личный чат в Telegram
+function TgUser({ username, telegram_id }: { username?: string | null; telegram_id?: string | null }) {
+  const uname = String(username || "").replace(/^@/, "").trim();
+  if (uname) {
+    return (
+      <a href={`https://t.me/${uname}`} target="_blank" rel="noopener noreferrer" style={{ color: "#38bdf8", textDecoration: "none" }}>
+        @{uname}
+      </a>
+    );
+  }
+  if (telegram_id) {
+    return (
+      <a href={`tg://user?id=${telegram_id}`} style={{ color: "#38bdf8", textDecoration: "none" }}>
+        написать
+      </a>
+    );
+  }
+  return <span style={{ color: "#64748b" }}>—</span>;
+}
 
 const card: React.CSSProperties = {
   background: "#1e293b",
@@ -250,6 +270,7 @@ export default function AdminPage() {
                   <tr style={{ color: "#94a3b8", textAlign: "left" }}>
                     <th style={{ padding: "8px 8px" }}>Дата</th>
                     <th style={{ padding: "8px 8px" }}>ФИО</th>
+                    <th style={{ padding: "8px 8px" }}>Клиент TG</th>
                     <th style={{ padding: "8px 8px" }}>Телефон</th>
                     <th style={{ padding: "8px 8px" }}>Товары</th>
                     <th style={{ padding: "8px 8px" }}>Адрес</th>
@@ -265,6 +286,7 @@ export default function AdminPage() {
                         {o.created_at ? new Date(o.created_at).toLocaleDateString("ru-RU") : "—"}
                       </td>
                       <td style={{ padding: "8px 8px" }}>{o.fio || "—"}</td>
+                      <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}><TgUser username={o.username} telegram_id={o.telegram_id} /></td>
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}>{o.phone || "—"}</td>
                       <td style={{ padding: "8px 8px", maxWidth: 220 }}>{itemsSummary(o.items)}</td>
                       <td style={{ padding: "8px 8px", maxWidth: 200, color: "#cbd5e1" }}>{o.address || "—"}</td>
@@ -324,7 +346,7 @@ export default function AdminPage() {
               <option value="">— выберите пользователя —</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {(u.name || u.telegram_id || u.id.slice(0, 8))} — {u.balance} SC
+                  {(u.name || (u.username ? "@" + String(u.username).replace(/^@/, "") : "") || u.telegram_id || u.id.slice(0, 8))} — {u.balance} SC
                 </option>
               ))}
             </select>
@@ -355,6 +377,7 @@ export default function AdminPage() {
               <thead>
                 <tr style={{ color: "#94a3b8", textAlign: "left" }}>
                   <th style={{ padding: "8px 10px" }}>Имя</th>
+                  <th style={{ padding: "8px 10px" }}>Username</th>
                   <th style={{ padding: "8px 10px" }}>Telegram ID</th>
                   <th style={{ padding: "8px 10px", textAlign: "right" }}>Баланс SC</th>
                 </tr>
@@ -366,6 +389,7 @@ export default function AdminPage() {
                   .map((u) => (
                     <tr key={u.id} style={{ borderTop: "1px solid #334155" }}>
                       <td style={{ padding: "8px 10px" }}>{u.name || "—"}</td>
+                      <td style={{ padding: "8px 10px" }}><TgUser username={u.username} telegram_id={u.telegram_id} /></td>
                       <td style={{ padding: "8px 10px", fontFamily: "monospace", color: "#cbd5e1" }}>{u.telegram_id}</td>
                       <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: "bold" }}>{u.balance}</td>
                     </tr>

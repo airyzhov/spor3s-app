@@ -454,10 +454,11 @@ export default function Cart({ products = [], setStep }: CartProps) {
           }}>
             <button
               onClick={() => {
-                // Добавляем курс 4в1
-                const course4v1 = safeProducts.find(p => p.name.includes('4в1') || p.name.includes('4 в 1'));
+                // Открываем описание курса 4в1 на месяц из каталога ниже
+                const course4v1 = safeProducts.find(p => p.id === '4v1')
+                  || safeProducts.find(p => (p.name || '').includes('4в1') || (p.name || '').includes('4 в 1'));
                 if (course4v1) {
-                  handleAddToCart(course4v1);
+                  setModalProduct(course4v1);
                 }
               }}
               style={{

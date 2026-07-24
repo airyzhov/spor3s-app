@@ -16,7 +16,27 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ orders: data || [] });
+
+  // Подтягиваем контакт клиента в Telegram (username / telegram_id) по user_id
+  const orders = data || [];
+  const userIds = Array.from(new Set(orders.map((o: any) => o.user_id).filter(Boolean)));
+  const tgMap: Record<string, { username: string | null; telegram_id: string | null }> = {};
+  if (userIds.length) {
+    const { data: usersData } = await supabaseServer
+      .from('users')
+      .select('id, username, telegram_id')
+      .in('id', userIds);
+    (usersData || []).forEach((u: any) => {
+      tgMap[u.id] = { username: u.username || null, telegram_id: u.telegram_id || null };
+    });
+  }
+  const withTg = orders.map((o: any) => ({
+    ...o,
+    username: o.user_id ? tgMap[o.user_id]?.username ?? null : null,
+    telegram_id: o.user_id ? tgMap[o.user_id]?.telegram_id ?? null : null,
+  }));
+
+  return NextResponse.json({ orders: withTg });
 }
 
 // Начисление рефералки при оплате заказа. Идемпотентно (защита по sc_transactions.source_id).
