@@ -123,30 +123,34 @@ export default function AppClient() {
           }
         }
 
-        // 2) DEV-фоллбек (только если нет Telegram окружения).
-        //    Id сохраняем в localStorage, чтобы не плодить нового юзера в БД
-        //    на каждое открытие страницы.
+        // 2) Гость/тест (нет Telegram-окружения).
+        //    Id сохраняем в localStorage, чтобы не плодить запись на каждое открытие.
+        //    Прод (реальные посетители из браузера) = guest-, наши локальные тесты = test-.
         try {
-          let devId = '';
+          const host = typeof window !== 'undefined' ? window.location.hostname : '';
+          const isLocal = /^(localhost|127\.0\.0\.1)$/.test(host) || host.endsWith('.local');
+          const prefix = isLocal ? 'test-' : 'guest-';
+          let guestId = '';
           try {
-            devId = localStorage.getItem('spor3s_dev_id') || '';
+            guestId = localStorage.getItem('spor3s_guest_id') || '';
           } catch {}
-          if (!devId) {
-            devId = `dev-${Date.now()}`;
-            try { localStorage.setItem('spor3s_dev_id', devId); } catch {}
+          // Миграция со старого dev-* id, чтобы не воскрешать удалённые записи
+          if (!guestId || guestId.startsWith('dev-')) {
+            guestId = `${prefix}${Date.now()}`;
+            try { localStorage.setItem('spor3s_guest_id', guestId); } catch {}
           }
           const resp = await fetchWithTimeout('/api/init-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegram_id: devId })
+            body: JSON.stringify({ telegram_id: guestId })
           });
           const resData = await resp.json();
           if (resp.ok && resData?.id) {
-            setUser({ id: resData.id, telegram_id: devId, username: 'dev-user' });
-            console.log('⚙️ Dev user initialized:', resData.id);
+            setUser({ id: resData.id, telegram_id: guestId, username: isLocal ? 'test-user' : 'guest-user' });
+            console.log('👤 Guest/test user initialized:', resData.id);
           }
-        } catch (devError) {
-          console.error('❌ Ошибка dev-фоллбека:', devError);
+        } catch (guestError) {
+          console.error('❌ Ошибка инициализации гостя:', guestError);
           // Устанавливаем минимальный пользователь для работы приложения
           setUser({ id: 'temp-user', telegram_id: 'temp', username: 'temp-user' });
         }
