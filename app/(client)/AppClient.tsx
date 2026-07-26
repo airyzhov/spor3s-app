@@ -42,6 +42,17 @@ interface TelegramWebApp {
 
 // Type declaration moved to global.d.ts to avoid conflicts
 
+// fetch с таймаутом — чтобы запросы не висели вечно на медленной сети/VPN
+async function fetchWithTimeout(url: string, opts: RequestInit = {}, ms = 8000): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export default function AppClient() {
   const [user, setUser] = useState<AppUser | null>(null);
   // Стартовый экран — Каталог (шаг 2). AI-чат отключён до запуска (см. SHOW_AI ниже).
@@ -81,12 +92,15 @@ export default function AppClient() {
         setError(null);
         // 1) Telegram WebApp контекст (ждём загрузки скрипта)
         const tg = await waitForTelegramWebApp();
+        // Сообщаем Telegram, что приложение загрузилось (снимает его лоадер), и разворачиваем
+        try { (tg as any)?.ready?.(); } catch {}
+        try { (tg as any)?.expand?.(); } catch {}
 
         const tgUser = tg?.initDataUnsafe?.user;
         if (tgUser?.id) {
           const telegramId = String(tgUser.id);
           try {
-            const response = await fetch('/api/init-user', {
+            const response = await fetchWithTimeout('/api/init-user', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ telegram_id: telegramId, username: tgUser.username })
@@ -121,7 +135,7 @@ export default function AppClient() {
             devId = `dev-${Date.now()}`;
             try { localStorage.setItem('spor3s_dev_id', devId); } catch {}
           }
-          const resp = await fetch('/api/init-user', {
+          const resp = await fetchWithTimeout('/api/init-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ telegram_id: devId })
@@ -156,7 +170,7 @@ export default function AppClient() {
       try {
         setError(null);
         console.log('🛒 AppClient: Загружаем продукты...');
-        const response = await fetch('/api/products');
+        const response = await fetchWithTimeout('/api/products');
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
