@@ -19,6 +19,22 @@ type Product = {
   [key: string]: any;
 };
 
+const FALLBACK_PRODUCTS: Product[] = [
+  { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
+  { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
+];
+
+// fetch с таймаутом — чтобы UI не завис навсегда на медленной сети/VPN
+async function fetchWithTimeout(url: string, opts: RequestInit = {}, ms = 8000): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export default function MainApp() {
   const [currentStep, setCurrentStep] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
@@ -83,24 +99,41 @@ export default function MainApp() {
 
 
 
+  // Аварийный фолбэк: не держим экран «Загрузка…» дольше 8с ни при каких условиях
+  // (например, если запрос завис на плохой сети/VPN)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setLoading(false);
+      setAuthLoading(false);
+      setProducts((prev) => (prev.length ? prev : FALLBACK_PRODUCTS));
+    }, 8000);
+    return () => clearTimeout(t);
+  }, []);
+
   // Авторизация пользователя
   useEffect(() => {
     const initUser = async () => {
       if (!telegramUser?.telegram_id) {
-        // Если Telegram данных нет, используем тестового пользователя
+        // Внутри Telegram (initData есть), но пользователь ещё не подхватился хуком —
+        // ждём его, не создавая одноразового тестового юзера
+        const inTelegram = typeof window !== 'undefined' && Boolean((window as any).Telegram?.WebApp?.initData);
+        if (inTelegram) {
+          return; // эффект перезапустится, когда telegramUser разрешится
+        }
+        // Вне Telegram (обычный браузер) — гостевой/тестовый пользователь
         const testUserId = `test-user-${Date.now()}`;
         try {
-          const response = await fetch('/api/init-user', {
+          const response = await fetchWithTimeout('/api/init-user', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               telegram_id: testUserId,
-              referral_code: referralCode 
+              referral_code: referralCode
             }),
           });
-          
+
           const data = await response.json();
           if (data.id) {
             setUserId(data.id);
@@ -112,17 +145,17 @@ export default function MainApp() {
       } else {
         // Реальная авторизация через Telegram
         try {
-          const response = await fetch('/api/init-user', {
+          const response = await fetchWithTimeout('/api/init-user', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               telegram_id: telegramUser.telegram_id,
-              referral_code: referralCode 
+              referral_code: referralCode
             }),
           });
-          
+
           const data = await response.json();
           if (data.id) {
             setUserId(data.id);
@@ -146,26 +179,18 @@ export default function MainApp() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
+      const response = await fetchWithTimeout('/api/products');
       const data = await response.json();
-      
+
       if (data.success && data.products) {
         setProducts(data.products);
       } else {
         console.warn('Products API returned no data, using fallback');
-        // Fallback products
-        setProducts([
-          { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
-          { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
-        ]);
+        setProducts(FALLBACK_PRODUCTS);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      // Fallback products
-      setProducts([
-        { id: 'ezh100', name: 'Ежовик 100г', price: 1200, image: '/products/ezh100.jpg' },
-        { id: 'mhm30', name: 'Мухомор 30г', price: 800, image: '/products/mhm30.jpg' }
-      ]);
+      setProducts(FALLBACK_PRODUCTS);
     } finally {
       setLoading(false);
     }

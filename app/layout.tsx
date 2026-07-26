@@ -16,8 +16,8 @@ export default function RootLayout({
     <html lang="ru">
       <head>
         <meta charSet="utf-8" />
-        {/* Telegram WebApp SDK */}
-        <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+        {/* Telegram WebApp SDK — defer (не async), чтобы SDK был готов до гидрации React */}
+        <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       </head>
       <body className="antialiased">
