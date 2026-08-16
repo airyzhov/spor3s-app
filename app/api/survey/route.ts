@@ -1,24 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 import { creditSC } from "../../../lib/referral";
+import { surveysWithWeeks, nextFreeWeek } from "../../../lib/surveyWeeks";
 
 const SC_AMOUNT = 25;
 const MONTH_LIMIT = 100; // максимум SC за опросы в месяц (анти-фарм при догоне недель)
 const WEEK_MS = 7 * 24 * 3600 * 1000;
-
-// Номер недели каждой анкеты: из data.week; для старых записей без него — по порядку.
-function surveysWithWeeks(rows: any[]): { row: any; week: number }[] {
-  const used = new Set<number>();
-  return (rows || []).map((row, i) => {
-    let week = Number(row?.data?.week);
-    if (!week || used.has(week)) {
-      week = 1;
-      while (used.has(week)) week++;
-    }
-    used.add(week);
-    return { row, week };
-  });
-}
 
 // GET ?user_id= — история еженедельных самооценок с номерами недель
 export async function GET(req: NextRequest) {
@@ -73,9 +60,7 @@ export async function POST(req: NextRequest) {
     if (existingError) {
       return NextResponse.json({ error: existingError.message }, { status: 500 });
     }
-    const filled = new Set(surveysWithWeeks(existing || []).map(s => s.week));
-    let targetWeek = 1;
-    while (filled.has(targetWeek)) targetWeek++;
+    const targetWeek = nextFreeWeek(existing || []);
 
     if (courseStart) {
       // Нельзя заполнять недели, которые ещё не наступили
