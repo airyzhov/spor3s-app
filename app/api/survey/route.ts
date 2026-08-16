@@ -45,12 +45,15 @@ export async function POST(req: NextRequest) {
 
     // Стартовая самооценка: нулевая точка курса. SC не даёт, недели не занимает, пишется один раз.
     if (baseline) {
-      const { data: existingBaseline } = await supabaseServer
+      const { data: existingBaseline, error: checkError } = await supabaseServer
         .from("surveys")
         .select("id")
         .eq("user_id", user_id)
         .eq("data->>kind", BASELINE_KIND)
         .limit(1);
+      if (checkError) {
+        return NextResponse.json({ error: checkError.message }, { status: 500 });
+      }
       if (existingBaseline && existingBaseline.length) {
         return NextResponse.json({ error: "Стартовая самооценка уже сохранена" }, { status: 400 });
       }
