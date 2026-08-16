@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         user,
         level: newUserLevel,
-        levelInfo: getLevelInfo(newUserLevel.current_sc_balance, newUserLevel.total_orders_amount, newUserLevel.orders_count),
+        levelInfo: getLevelInfo(newUserLevel.total_sc_earned, newUserLevel.total_orders_amount, newUserLevel.orders_count),
         monthlySC: calculateMonthlySC(30)
       });
     } else if (levelError) {
@@ -105,7 +105,6 @@ export async function GET(req: NextRequest) {
 
     // 6. Рассчитываем статистику
     const totalOrdersAmount = (orders || []).reduce((sum, order) => sum + (order.total || 0), 0);
-    const activeDays = (activities || []).filter(a => a.daily_checkin).length;
     const surveyWeeks = (activities || []).filter(a => a.weekly_survey).length;
     const habitDays = (activities || []).filter(a => a.motivational_habit).length;
 
@@ -139,10 +138,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       user,
       level: updatedUserLevel,
-      levelInfo: getLevelInfo(updatedUserLevel.current_sc_balance, updatedUserLevel.total_orders_amount, updatedUserLevel.orders_count),
+      levelInfo: getLevelInfo(updatedUserLevel.total_sc_earned, updatedUserLevel.total_orders_amount, updatedUserLevel.orders_count),
       activities: {
         total: activities?.length || 0,
-        activeDays,
         surveyWeeks,
         habitDays
       },
@@ -151,7 +149,7 @@ export async function GET(req: NextRequest) {
       statistics: {
         totalOrdersAmount,
         ordersCount: orders.length,
-        monthlySC: calculateMonthlySC(activeDays)
+        monthlySC: calculateMonthlySC(surveyWeeks)
       }
     });
   } catch (e) {

@@ -54,9 +54,6 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [currentSC, setCurrentSC] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0); // заработано за всё время — для уровня
   const [referralSC, setReferralSC] = useState(0);
-  const [checkinDoneToday, setCheckinDoneToday] = useState(false);
-  const [checkinLoading, setCheckinLoading] = useState(false);
-  const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
 
   const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
   const [tasksDone, setTasksDone] = useState<Record<string, boolean>>({});
@@ -387,16 +384,6 @@ export default function RoadMap({ user }: RoadMapProps) {
     }
   };
 
-  // Статус чек-ина на сегодня
-  const fetchCheckinStatus = async () => {
-    if (!user?.id) return;
-    try {
-      const resp = await fetch(`/api/checkin?user_id=${user.id}`);
-      const data = await resp.json();
-      if (data.success) setCheckinDoneToday(!!data.doneToday);
-    } catch {}
-  };
-
   // Активный курс (восстановление состояния после перезахода)
   const fetchCourseStatus = async () => {
     if (!user?.id) return;
@@ -413,40 +400,6 @@ export default function RoadMap({ user }: RoadMapProps) {
 
   // Оплаченный заказ, к которому привязывается чек-ин/курс
   const eligibleOrder = myOrders.find((o: any) => ['paid', 'shipped', 'completed'].includes(o.status));
-
-  // Ежедневный чек-ин: +3 SC, доступен при оплаченном заказе
-  const handleDailyCheckin = async () => {
-    if (!user?.id || checkinLoading) return;
-    if (!eligibleOrder) {
-      setCheckinMsg('🍄 Чек-ин станет доступен после оплаты заказа');
-      setTimeout(() => setCheckinMsg(null), 4000);
-      return;
-    }
-    if (checkinDoneToday) return;
-    setCheckinLoading(true);
-    try {
-      const resp = await fetch('/api/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, order_id: eligibleOrder.id })
-      });
-      const data = await resp.json();
-      if (data.success) {
-        setCheckinDoneToday(true);
-        if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
-        setTotalEarned(prev => prev + (data.scEarned || 0));
-        setCheckinMsg(`✅ Отмечено! +${data.scEarned || 3} SC`);
-      } else {
-        if ((data.error || '').includes('уже')) setCheckinDoneToday(true);
-        setCheckinMsg(`⚠️ ${data.error || 'Не получилось, попробуйте позже'}`);
-      }
-    } catch {
-      setCheckinMsg('⚠️ Ошибка сети');
-    } finally {
-      setCheckinLoading(false);
-      setTimeout(() => setCheckinMsg(null), 4000);
-    }
-  };
 
   // Функция для получения реферальной статистики
   const fetchReferralStats = async () => {
@@ -519,7 +472,6 @@ export default function RoadMap({ user }: RoadMapProps) {
       checkSubscriptionBonuses();
       fetchMyOrders();
       fetchSurveys();
-      fetchCheckinStatus();
       fetchCourseStatus();
     }
   }, [user?.id]);
@@ -1125,64 +1077,6 @@ export default function RoadMap({ user }: RoadMapProps) {
       </div>
 
       {SHOW_GAMIFICATION && (<>
-      {/* Гриб мухомор с сообщением */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",
-        borderRadius: "20px",
-        padding: "clamp(25px, 6vw, 30px)",
-        marginBottom: "30px",
-        border: "2px solid rgba(255, 255, 255, 0.2)",
-        textAlign: "center",
-        width: "100%",
-        boxSizing: "border-box",
-        overflow: "hidden"
-      }}>
-        <div style={{
-          fontSize: "clamp(60px, 15vw, 80px)",
-          marginBottom: "20px",
-          cursor: checkinDoneToday ? "default" : "pointer",
-          transition: "transform 0.3s ease",
-          filter: checkinDoneToday
-            ? "drop-shadow(0 4px 8px rgba(16,185,129,0.5))"
-            : "drop-shadow(0 4px 8px rgba(0,0,0,0.3))",
-          opacity: checkinLoading ? 0.5 : 1
-        }}
-        onClick={handleDailyCheckin}
-        onMouseOver={(e) => {
-          if (!checkinDoneToday) e.currentTarget.style.transform = "scale(1.1)";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-        title={checkinDoneToday ? "Сегодня уже отмечено" : "Нажми, чтобы отметить приём"}
-        >
-          {checkinDoneToday ? "✅" : "🍄"}
-        </div>
-
-        <div style={{
-          color: checkinDoneToday ? "#10b981" : "#ccc",
-          fontSize: "clamp(12px, 3vw, 14px)",
-          lineHeight: "1.5",
-          fontWeight: checkinDoneToday ? 700 : 400,
-          wordBreak: "break-word"
-        }}>
-          {checkinDoneToday
-            ? "Сегодня отмечено! +3 SC. Возвращайся завтра 🍄"
-            : eligibleOrder
-              ? "Отметь, что сегодня принял добавки → +3 SC"
-              : "Чек-ин откроется после оплаты заказа (+3 SC каждый день)"}
-        </div>
-        {checkinMsg && (
-          <div style={{
-            marginTop: "10px",
-            color: checkinMsg.startsWith("✅") ? "#10b981" : "#ffc107",
-            fontSize: "clamp(13px, 3.2vw, 15px)",
-            fontWeight: 600
-          }}>
-            {checkinMsg}
-          </div>
-        )}
-      </div>
 
       {/* Enhanced Motivational Habit Component */}
       {user?.id && (

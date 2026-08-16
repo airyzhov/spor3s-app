@@ -85,10 +85,10 @@ export const LEVEL_CONFIG = [
 // 0 / 100 / 300 / 600 / 1000 SC. Уровень считается от total_sc_earned
 // (заработано за всё время), а не от текущего баланса — при трате SC уровень не падает.
 
-// Механика начисления SC
+// Механика начисления SC (дневной чек-ин убран — механика заменена на еженедельный отчёт)
 export const SC_MECHANICS = {
-  daily_checkin: { amount: 3, maxPerMonth: 90, description: 'Ежедневный чек-ин' },
-  weekly_survey: { amount: 25, maxPerMonth: 100, description: 'Еженедельная самооценка' },
+  weekly_survey: { amount: 25, maxPerMonth: 100, description: 'Еженедельный отчёт' },
+  month_goal: { amount: 50, maxPerMonth: 50, description: 'Цель месяца — 4 отчёта' },
   motivational_habit: { amount: 25, maxPerMonth: 100, description: 'Мотивационная привычка' }
 };
 
@@ -137,12 +137,14 @@ export function getLevelInfo(sc: number, ordersAmount: number = 0, ordersCount: 
   };
 }
 
-export function calculateMonthlySC(activeDays: number = 30): number {
-  const dailyCheckin = SC_MECHANICS.daily_checkin.amount * Math.min(activeDays, 30);
-  const weeklySurveys = SC_MECHANICS.weekly_survey.amount * Math.min(Math.floor(activeDays / 7), 4);
-  const motivationalHabits = SC_MECHANICS.motivational_habit.amount * Math.min(Math.floor(activeDays / 7), 4);
-  
-  return dailyCheckin + weeklySurveys + motivationalHabits;
+// Потолок регулярного заработка за месяц: 4 отчёта + бонус цели месяца + 4 привычки.
+export function calculateMonthlySC(activeWeeks: number = 4): number {
+  const weeks = Math.max(0, Math.min(activeWeeks, 4));
+  const weeklySurveys = SC_MECHANICS.weekly_survey.amount * weeks;
+  const monthGoal = weeks >= 4 ? SC_MECHANICS.month_goal.amount : 0;
+  const motivationalHabits = SC_MECHANICS.motivational_habit.amount * weeks;
+
+  return weeklySurveys + monthGoal + motivationalHabits;
 }
 
 export function getLevelBenefits(levelCode: string): string[] {
