@@ -54,6 +54,7 @@ cp "C:/Users/User/Documents/Claude/spor3s-app/.env.local" "C:/Users/User/Documen
 | `lib/__tests__/monthGoal.test.ts` | Юнит-тесты правил цели месяца. |
 | `app/api/home-summary/route.ts` | Один агрегирующий GET для витрины на главном экране. |
 | `app/(client)/HomeStatus.tsx` | Витрина: SC, друзья, уровень, раскрытие механики, плашка заданий. |
+| `app/(client)/MetricsSliders.tsx` | Четыре слайдера самооценки (память/сон/энергия/стресс). Один компонент на два места: недельный отчёт и стартовая самооценка. |
 
 **Меняем:**
 
@@ -901,6 +902,7 @@ git commit -m "API: агрегирующий /api/home-summary для витри
 "use client";
 import { useEffect, useState } from "react";
 import { openExternal } from "../../lib/openExternal";
+import { SC_MECHANICS } from "../../lib/levelUtils";
 
 type Summary = {
   sc: number;
@@ -1026,9 +1028,12 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
             <div style={{ fontWeight: 700, color: "#fff", fontSize: "clamp(13px, 3.2vw, 15px)", margin: "6px 0 8px" }}>
               Как заработать SC
             </div>
-            <div style={row}><span>🍄 Отчёт за неделю</span><span>+25 SC</span></div>
-            <div style={row}><span>🏆 Цель месяца: 4 отчёта</span><span>+50 SC</span></div>
-            <div style={row}><span>🌟 Мотивационная привычка</span><span>до 100 SC/мес</span></div>
+            <div style={row}><span>🍄 Отчёт за неделю</span><span>+{SC_MECHANICS.weekly_survey.amount} SC</span></div>
+            <div style={row}>
+              <span>🏆 Цель месяца: {data.monthGoal.reportsTarget} отчёта</span>
+              <span>+{data.monthGoal.bonus} SC</span>
+            </div>
+            <div style={row}><span>🌟 Мотивационная привычка</span><span>до {SC_MECHANICS.motivational_habit.maxPerMonth} SC/мес</span></div>
             <div style={row}><span>🎯 Задания: 3 подписки</span><span>+{data.tasks.bonusPerTask} SC каждое</span></div>
             <div style={row}><span>👥 Друг оформил заказ</span><span>5% суммы в SC</span></div>
             <div style={row}><span>🛒 Свой заказ</span><span>1 SC за 100 ₽</span></div>
@@ -1253,9 +1258,87 @@ git commit -m "Главный экран: витрина SC/друзей с ра
 - Consumes: `POST /api/survey` с полями `monthGoalBonus`, `monthGoal` (Задача 4); `nextWeekInfo` (уже есть, `RoadMap.tsx:171`)
 - Produces: ничего для других задач
 
+- [ ] **Step 0: Вынести слайдеры самооценки в общий компонент**
+
+Один и тот же набор из четырёх слайдеров нужен в двух местах: недельный отчёт (эта задача) и стартовая самооценка (Задача 9). Чтобы не копировать 40 строк JSX, создать `app/(client)/MetricsSliders.tsx`:
+
+```tsx
+"use client";
+
+export interface Metrics {
+  memory: number;
+  sleep: number;
+  energy: number;
+  stress: number;
+}
+
+const LABELS: Record<keyof Metrics, string> = {
+  memory: '🧠 Память и концентрация',
+  sleep: '😴 Качество сна',
+  energy: '⚡ Уровень энергии',
+  stress: '😌 Стрессоустойчивость',
+};
+
+interface MetricsSlidersProps {
+  metrics: Metrics;
+  onChange: (metrics: Metrics) => void;
+}
+
+export default function MetricsSliders({ metrics, onChange }: MetricsSlidersProps) {
+  return (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "clamp(12px, 3vw, 16px)",
+      marginBottom: 16
+    }}>
+      {(Object.keys(LABELS) as (keyof Metrics)[]).map((key) => {
+        const value = metrics[key];
+        return (
+          <div key={key} style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "12px",
+            padding: "clamp(12px, 3.5vw, 16px)",
+            textAlign: "center",
+            boxSizing: "border-box"
+          }}>
+            <div style={{ fontSize: "clamp(13px, 3.2vw, 15px)", fontWeight: "bold", color: "#fff", marginBottom: 8 }}>
+              {LABELS[key]}
+            </div>
+            <div style={{
+              fontSize: "clamp(18px, 4.5vw, 22px)",
+              fontWeight: "bold",
+              color: value > 7 ? "#10b981" : value > 4 ? "#f59e0b" : "#ef4444",
+              marginBottom: 8
+            }}>
+              {value}/10
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={value}
+              onChange={(e) => onChange({ ...metrics, [key]: parseInt(e.target.value) })}
+              style={{ width: "100%", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.2)", outline: "none" }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+```
+
 - [ ] **Step 1: Добавить состояние цели месяца и раскрытия формы**
 
-В `app/(client)/RoadMap.tsx` рядом с остальными состояниями:
+В `app/(client)/RoadMap.tsx` добавить импорты рядом с существующими (строки 2-4):
+
+```tsx
+import MetricsSliders from "./MetricsSliders";
+import { SC_MECHANICS } from "../../lib/levelUtils";
+```
+
+и состояния рядом с остальными:
 
 ```tsx
   const [reportOpen, setReportOpen] = useState(false);
@@ -1308,8 +1391,8 @@ git commit -m "Главный экран: витрина SC/друзей с ра
 ```tsx
         setSaveProgressMsg(
           data.scLimitReached
-            ? `✅ Неделя ${savedWeek} сохранена (без SC — исчерпан месячный лимит 100 SC)`
-            : `✅ Неделя ${savedWeek} сохранена! +${data.scEarned || 25} SC` +
+            ? `✅ Неделя ${savedWeek} сохранена (без SC — исчерпан месячный лимит ${SC_MECHANICS.weekly_survey.maxPerMonth} SC)`
+            : `✅ Неделя ${savedWeek} сохранена! +${data.scEarned || SC_MECHANICS.weekly_survey.amount} SC` +
               (data.monthGoalBonus > 0 ? ` и +${data.monthGoalBonus} SC за цель месяца 🏆` : '')
         );
         setReportOpen(false);
@@ -1404,53 +1487,15 @@ git commit -m "Главный экран: витрина SC/друзей с ра
           wordBreak: "break-word"
         }}>
           {!courseStarted
-            ? "Начни курс — и открой еженедельные отчёты (+25 SC за неделю)"
+            ? `Начни курс — и открой еженедельные отчёты (+${SC_MECHANICS.weekly_survey.amount} SC за неделю)`
             : nextWeekInfo.locked
               ? `Все недели заполнены — неделя ${nextWeekInfo.next} откроется ${nextWeekInfo.opensAt?.toLocaleDateString('ru-RU')}`
-              : `Собери отчёт за неделю ${nextWeekInfo.next} → +25 SC`}
+              : `Собери отчёт за неделю ${nextWeekInfo.next} → +${SC_MECHANICS.weekly_survey.amount} SC`}
         </div>
 
         {reportOpen && courseStarted && !nextWeekInfo.locked && (
           <div style={{ marginTop: 20, textAlign: "left" }}>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "clamp(12px, 3vw, 16px)",
-              marginBottom: 16
-            }}>
-              {Object.entries(todayMetrics).map(([key, value]) => (
-                <div key={key} style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
-                  padding: "clamp(12px, 3.5vw, 16px)",
-                  textAlign: "center",
-                  boxSizing: "border-box"
-                }}>
-                  <div style={{ fontSize: "clamp(13px, 3.2vw, 15px)", fontWeight: "bold", color: "#fff", marginBottom: 8 }}>
-                    {key === 'memory' && '🧠 Память и концентрация'}
-                    {key === 'sleep' && '😴 Качество сна'}
-                    {key === 'energy' && '⚡ Уровень энергии'}
-                    {key === 'stress' && '😌 Стрессоустойчивость'}
-                  </div>
-                  <div style={{
-                    fontSize: "clamp(18px, 4.5vw, 22px)",
-                    fontWeight: "bold",
-                    color: value > 7 ? "#10b981" : value > 4 ? "#f59e0b" : "#ef4444",
-                    marginBottom: 8
-                  }}>
-                    {value}/10
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={value}
-                    onChange={(e) => setTodayMetrics({ ...todayMetrics, [key]: parseInt(e.target.value) })}
-                    style={{ width: "100%", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.2)", outline: "none" }}
-                  />
-                </div>
-              ))}
-            </div>
+            <MetricsSliders metrics={todayMetrics} onChange={setTodayMetrics} />
 
             <textarea
               value={weeklyObservations}
@@ -1490,7 +1535,7 @@ git commit -m "Главный экран: витрина SC/друзей с ра
                 cursor: saveProgressLoading ? "not-allowed" : "pointer"
               }}
             >
-              {saveProgressLoading ? '⏳ Сохраняю…' : `🍄 Сдать отчёт за неделю ${nextWeekInfo.next} → +25 SC`}
+              {saveProgressLoading ? '⏳ Сохраняю…' : `🍄 Сдать отчёт за неделю ${nextWeekInfo.next} → +${SC_MECHANICS.weekly_survey.amount} SC`}
             </button>
           </div>
         )}
@@ -1688,44 +1733,7 @@ git commit -m "Кабинет: гриб становится кнопкой не
               <div style={{ color: "#fff", fontSize: "clamp(13px, 3.2vw, 15px)", fontWeight: 600, marginBottom: 12, textAlign: "center" }}>
                 Отметь, как сейчас — это нулевая точка курса
               </div>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "clamp(12px, 3vw, 16px)",
-                marginBottom: 16
-              }}>
-                {Object.entries(startMetrics).map(([key, value]) => (
-                  <div key={key} style={{
-                    background: "rgba(255, 255, 255, 0.1)",
-                    borderRadius: "12px",
-                    padding: "clamp(12px, 3.5vw, 16px)",
-                    textAlign: "center"
-                  }}>
-                    <div style={{ fontSize: "clamp(13px, 3.2vw, 15px)", fontWeight: "bold", color: "#fff", marginBottom: 8 }}>
-                      {key === 'memory' && '🧠 Память и концентрация'}
-                      {key === 'sleep' && '😴 Качество сна'}
-                      {key === 'energy' && '⚡ Уровень энергии'}
-                      {key === 'stress' && '😌 Стрессоустойчивость'}
-                    </div>
-                    <div style={{
-                      fontSize: "clamp(18px, 4.5vw, 22px)",
-                      fontWeight: "bold",
-                      color: value > 7 ? "#10b981" : value > 4 ? "#f59e0b" : "#ef4444",
-                      marginBottom: 8
-                    }}>
-                      {value}/10
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={value}
-                      onChange={(e) => setStartMetrics({ ...startMetrics, [key]: parseInt(e.target.value) })}
-                      style={{ width: "100%", height: 8, borderRadius: 4, background: "rgba(255,255,255,0.2)", outline: "none" }}
-                    />
-                  </div>
-                ))}
-              </div>
+              <MetricsSliders metrics={startMetrics} onChange={setStartMetrics} />
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   onClick={() => handleStartCourse(pendingDuration, true)}
