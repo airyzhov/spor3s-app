@@ -93,8 +93,8 @@ export async function grantMonthGoalIfComplete(userId): Promise<number>; // 0 и
 ```
 
 - `reportsDone` = число транзакций `sc_transactions` с `source_type='survey'` за текущий календарный месяц. Считаем по транзакциям, а не по строкам `surveys`: стартовая самооценка (§4.1) SC не даёт и в счёт не идёт автоматически, а в `POST /api/survey` этот запрос уже выполняется для месячного лимита (`survey/route.ts:107`) — лишних обращений к БД нет.
-- Начисление через `creditSC({ sourceType: 'month_goal', sourceId: monthKey(), description: 'Цель месяца — 4 отчёта' })`.
-- **Идемпотентность:** перед начислением проверяем `sc_transactions` по `source_type='month_goal' AND source_id=monthKey()`. `source_id` — свободная строка (`creditSC` кладёт её как есть, `app/api/referral-stats` уже использует произвольные значения), миграции не нужны.
+- Начисление через `creditSC({ sourceType: 'month_goal', description: 'Цель месяца — 4 отчёта за месяц (2026-08)' })`.
+- **Идемпотентность:** перед начислением проверяем `sc_transactions` по `source_type='month_goal'` в запросе, уже ограниченном текущим месяцем (`created_at >= monthStart`). Через `source_id` не получится: при реализации выяснилось, что колонка имеет тип **uuid**, строка `"2026-08"` туда не пишется — вставка падала бы молча (`creditSC` не проверяет ошибку insert), баланс всё равно рос бы, а бонус начислялся бы повторно при каждом вызове. Тот же приём для одноразовых бонусов без естественного uuid уже используется в `app/api/subscribe-bonus/route.ts`. Миграции не нужны.
 - Вызов: в конце `POST /api/survey`, после успешного `creditSC` за отчёт. Ошибка бонуса не должна валить сохранение отчёта → в `try/catch`, в ответ добавляем `monthGoalBonus: number`.
 - Бонус в лимит 100 SC/мес по отчётам **не входит** (другой `source_type`).
 
