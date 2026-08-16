@@ -21,6 +21,8 @@ interface WeekProgress {
 
 interface RoadMapProps {
   user: any;
+  focus?: 'tasks' | null;
+  onFocusHandled?: () => void;
 }
 
 // Обновленные награды для каждого уровня с актуальными SC
@@ -40,7 +42,7 @@ const TASKS = [
   { id: 'instagram', icon: '📸', title: 'Instagram', desc: 'Подпишитесь на @alex.spor3s', url: 'https://instagram.com/alex.spor3s', btnColor: 'linear-gradient(45deg, #e1306c, #f77737)' },
 ];
 
-export default function RoadMap({ user }: RoadMapProps) {
+export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [startMetrics, setStartMetrics] = useState<Metrics>({ memory: 5, sleep: 4, energy: 3, stress: 7 });
   const [weeklyProgress, setWeeklyProgress] = useState<WeekProgress[]>([]);
@@ -72,6 +74,15 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [referralCode, setReferralCode] = useState("");
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
+  const tasksRef = useRef<HTMLDivElement>(null);
+
+  // Переход с плашки на главном экране: раскрыть задания и подвести к ним
+  useEffect(() => {
+    if (focus !== 'tasks') return;
+    setTasksOpen(true);
+    tasksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    onFocusHandled?.();
+  }, [focus]);
 
   // Реальная история еженедельных самооценок из БД (таблица surveys)
   const fetchSurveys = async () => {
@@ -1477,7 +1488,7 @@ export default function RoadMap({ user }: RoadMapProps) {
       </>)}
 
       {/* Задания (свёрнуты по умолчанию) */}
-      <div style={{
+      <div ref={tasksRef} style={{
         background: "linear-gradient(135deg, #0f172a, #1e293b)",
         borderRadius: "20px",
         padding: "clamp(20px, 5vw, 25px)",
