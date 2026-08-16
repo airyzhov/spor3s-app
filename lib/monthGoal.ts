@@ -14,7 +14,8 @@ export type MonthGoal = {
   completed: boolean;
 };
 
-// Ключ месяца для идемпотентности начисления: source_id транзакции.
+// Месячный ключ: используется в description транзакции для читаемого формата месяца.
+// ВАЖНО: не использовать как source_id (это колонка UUID) — идемпотентность гарантируется source_type='month_goal'.
 export function monthKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
