@@ -67,6 +67,12 @@ export async function GET(req: NextRequest) {
       getMonthGoal(user_id),
     ]);
 
+    if (levelRes.error) console.error("home-summary error: user_levels query failed for user", user_id, ":", levelRes.error);
+    if (refRes.error) console.error("home-summary error: referrals query failed for user", user_id, ":", refRes.error);
+    if (txRes.error) console.error("home-summary error: sc_transactions query failed for user", user_id, ":", txRes.error);
+    if (legacyRes.error) console.error("home-summary error: coin_transactions query failed for user", user_id, ":", legacyRes.error);
+    if (userRes.error) console.error("home-summary error: users query failed for user", user_id, ":", userRes.error);
+
     const lvl = levelRes.data || { current_sc_balance: 0, total_sc_earned: 0, total_orders_amount: 0, orders_count: 0 };
     const txs = txRes.data || [];
     const legacy = legacyRes.data || [];
