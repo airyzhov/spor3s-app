@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 import { creditSC } from "../../../lib/referral";
+import { surveysWithWeeks, nextFreeWeek, BASELINE_KIND } from "../../../lib/surveyWeeks";
+import { getMonthGoal, grantMonthGoalIfComplete } from "../../../lib/monthGoalServer";
 
 const SC_AMOUNT = 25;
 const MONTH_LIMIT = 100; // максимум SC за опросы в месяц (анти-фарм при догоне недель)
 const WEEK_MS = 7 * 24 * 3600 * 1000;
-
-// Номер недели каждой анкеты: из data.week; для старых записей без него — по порядку.
-function surveysWithWeeks(rows: any[]): { row: any; week: number }[] {
-  const used = new Set<number>();
-  return (rows || []).map((row, i) => {
-    let week = Number(row?.data?.week);
-    if (!week || used.has(week)) {
-      week = 1;
-      while (used.has(week)) week++;
-    }
-    used.add(week);
-    return { row, week };
-  });
-}
 
 // GET ?user_id= — история еженедельных самооценок с номерами недель
 export async function GET(req: NextRequest) {
@@ -49,11 +37,41 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     // order_id отбрасываем — в таблице surveys такой колонки нет
-    const { user_id, order_id: _ignoredOrderId, ...surveyFields } = body;
+    const { user_id, order_id: _ignoredOrderId, baseline, ...surveyFields } = body;
     if (!user_id) {
       return NextResponse.json({ error: "user_id required" }, { status: 400 });
     }
     const now = new Date();
+
+    // Стартовая самооценка: нулевая точка курса. SC не даёт, недели не занимает, пишется один раз.
+    if (baseline) {
+      const { data: existingBaseline, error: checkError } = await supabaseServer
+        .from("surveys")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("data->>kind", BASELINE_KIND)
+        .limit(1);
+      if (checkError) {
+        return NextResponse.json({ error: checkError.message }, { status: 500 });
+      }
+      if (existingBaseline && existingBaseline.length) {
+        return NextResponse.json({ error: "Стартовая самооценка уже сохранена" }, { status: 400 });
+      }
+      const { data: created, error: baselineError } = await supabaseServer
+        .from("surveys")
+        .insert([{
+          user_id,
+          ...surveyFields,
+          data: { week: 0, kind: BASELINE_KIND },
+          created_at: now.toISOString(),
+        }])
+        .select()
+        .single();
+      if (baselineError) {
+        return NextResponse.json({ error: baselineError.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, baseline: true, survey: created, week: 0, scEarned: 0 });
+    }
 
     // 1. Активный курс — если есть, недели привязаны к дате старта
     const { data: courses } = await supabaseServer
@@ -73,9 +91,7 @@ export async function POST(req: NextRequest) {
     if (existingError) {
       return NextResponse.json({ error: existingError.message }, { status: 500 });
     }
-    const filled = new Set(surveysWithWeeks(existing || []).map(s => s.week));
-    let targetWeek = 1;
-    while (filled.has(targetWeek)) targetWeek++;
+    const targetWeek = nextFreeWeek(existing || []);
 
     if (courseStart) {
       // Нельзя заполнять недели, которые ещё не наступили
@@ -154,6 +170,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 6.1 Цель месяца: 4 отчёта за календарный месяц → разовый бонус.
+    // Ошибка бонуса не должна терять сохранённый отчёт.
+    let monthGoalBonus = 0;
+    let monthGoal = null;
+    try {
+      monthGoalBonus = await grantMonthGoalIfComplete(user_id, now);
+      monthGoal = await getMonthGoal(user_id, now);
+    } catch (e) {
+      console.error('[monthGoal] ошибка начисления бонуса цели месяца:', e);
+    }
+
     // 7. Актуальный баланс в ответ
     const { data: level } = await supabaseServer
       .from("user_levels")
@@ -166,6 +193,8 @@ export async function POST(req: NextRequest) {
       survey,
       week: targetWeek,
       scEarned,
+      monthGoalBonus,
+      monthGoal,
       scLimitReached: scEarned === 0,
       currentBalance: level?.current_sc_balance ?? null,
       level: level?.current_level ?? null,

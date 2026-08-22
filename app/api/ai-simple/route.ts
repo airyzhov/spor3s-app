@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 📱 **Проверить баланс:** откройте приложение → раздел "Прогресс"`;
       
       if (messageSource !== 'mini_app') {
-        balanceResponse += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+        balanceResponse += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
       }
       
       return NextResponse.json({ response: balanceResponse });
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 Также у вас уже есть опыт приема добавок или начинаете впервые?`;
 
       if (messageSource !== 'mini_app') {
-        response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+        response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
       }
       
       return NextResponse.json({ response });
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 Также у вас уже есть опыт приема добавок или начинаете впервые?`;
 
       if (messageSource !== 'mini_app') {
-        response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+        response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
       }
       
       return NextResponse.json({ response });
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 Что вас интересует?`;
 
     if (messageSource !== 'mini_app') {
-      response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+      response += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
     }
     
     return NextResponse.json({ response });

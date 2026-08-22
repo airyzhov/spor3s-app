@@ -156,7 +156,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('мухомор') || lastMessage.includes('сон') || lastMessage.includes('стресс')) {
@@ -172,7 +172,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('кордицепс') || lastMessage.includes('энергия') || lastMessage.includes('выносливость')) {
@@ -184,7 +184,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('цистозира') || lastMessage.includes('щитовидка') || lastMessage.includes('йод')) {
@@ -196,7 +196,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('комплекс') || lastMessage.includes('4 в 1') || lastMessage.includes('все вместе')) {
@@ -210,7 +210,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Также у вас уже есть опыт приема добавок или начинаете впервые?
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('порошок') || lastMessage.includes('капсулы')) {
@@ -222,7 +222,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 • 3 месяца (курс, экономично)
 • 6 месяцев (максимальный эффект)
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   if (lastMessage.includes('месяц') || lastMessage.includes('3 месяца') || lastMessage.includes('6 месяцев')) {
@@ -231,7 +231,7 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Теперь добавлю в корзину и вы сможете оформить заказ!
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
   }
   
   // Общий ответ для неопределенных запросов
@@ -247,12 +247,12 @@ function generateIntelligentFallback(message: string, context: any[]): string {
 
 Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!
 
-Для быстрого оформления используйте приложение: 👉 t.me/spor3s_bot`;
+Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
 }
 
 // Генерация корректной deep-link для Mini App
 async function buildMiniAppLink(telegramId: string): Promise<string> {
-  const botUsername = process.env.BOT_USERNAME || 'spor3s_bot';
+  const botUsername = process.env.BOT_USERNAME || 'spor3sbot';
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
   try {
     const resp = await fetch(`${baseUrl}/api/generate-auth-code`, {
@@ -379,7 +379,7 @@ async function verifyYouTubeSubscription(userId: string, channelId: string) {
 }
 
 // Реферальная привязка: /start <telegram_id пригласившего>
-// Ссылка вида https://t.me/Spor3s_bot?start=54993853 — друг кликает и сразу привязывается.
+// Ссылка вида https://t.me/spor3sbot?start=54993853 — друг кликает и сразу привязывается.
 async function handleReferralStart(ctx: any, referrerTgId: string): Promise<void> {
   const invitedTgId = ctx.from.id.toString();
   if (referrerTgId === invitedTgId) {

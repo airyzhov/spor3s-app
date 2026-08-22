@@ -5,6 +5,7 @@ import Chat from "./chat";
 import Cart from "./Cart";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap";
+import HomeStatus from "./HomeStatus";
 import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
@@ -61,6 +62,8 @@ export default function AppClient() {
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
+  // Куда проскроллить в Кабинете после перехода с главного экрана
+  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -247,13 +250,17 @@ export default function AppClient() {
       case 2:
         return <Cart products={products || []} setStep={setCurrentStep} />;
       case 3:
-        return <RoadMap user={{ 
-          id: user?.id || 'temp-user',
-          telegram_id: user?.telegram_id || 'temp',
-          telegram_username: user?.username,
-          first_name: user?.first_name,
-          last_name: user?.last_name
-        }} />;
+        return <RoadMap
+          user={{
+            id: user?.id || 'temp-user',
+            telegram_id: user?.telegram_id || 'temp',
+            telegram_username: user?.username,
+            first_name: user?.first_name,
+            last_name: user?.last_name
+          }}
+          focus={cabinetFocus}
+          onFocusHandled={() => setCabinetFocus(null)}
+        />;
       case 10:
         return <OrderForm 
           products={products || []} 
@@ -465,6 +472,14 @@ export default function AppClient() {
             <span>Задать вопрос</span>
           </button>
         </nav>
+
+        {currentStep === 2 && (
+          <HomeStatus
+            userId={user?.id}
+            onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
+            onOpenCabinet={() => setCurrentStep(3)}
+          />
+        )}
 
         <main className={styles.main}>
           {/* Управление AI агентом — скрыто на проде */}

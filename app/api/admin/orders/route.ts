@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../supabaseServerClient';
 import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
 import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC } from '../../../../lib/referral';
+import { REFERRAL_PERCENT } from '../../../../lib/levelUtils';
 
-const REFERRAL_PERCENT = 0.05; // 5% пригласившему
 const WELCOME_SC = 100; // приветственный бонус приглашённому
 const ORDER_SC_RATE = 100; // 1 SC за каждые 100₽ оплаченного заказа
 

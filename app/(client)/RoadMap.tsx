@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import TasksBanner from "./TasksBanner";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import { openExternal } from "../../lib/openExternal";
 
@@ -21,6 +22,8 @@ interface WeekProgress {
 
 interface RoadMapProps {
   user: any;
+  focus?: 'tasks' | null;
+  onFocusHandled?: () => void;
 }
 
 // Обновленные награды для каждого уровня с актуальными SC
@@ -34,13 +37,15 @@ const levelRewards = [
 
 // Задания: подписки на каналы, бонус за каждое — TASK_BONUS SC
 const TASK_BONUS = 30;
+// Сколько удерживать блок заданий в поле зрения, пока догружается контент кабинета.
+const FOCUS_SETTLE_MS = 2500;
 const TASKS = [
   { id: 'telegram', icon: '📱', title: 'Telegram канал', desc: 'Подпишитесь на t.me/spor3s', url: 'https://t.me/spor3s', btnColor: 'linear-gradient(45deg, #0088cc, #00a8ff)' },
   { id: 'youtube', icon: '📺', title: 'YouTube канал', desc: 'Подпишитесь на @spor3s', url: 'https://www.youtube.com/@spor3s', btnColor: 'linear-gradient(45deg, #ff0000, #cc0000)' },
   { id: 'instagram', icon: '📸', title: 'Instagram', desc: 'Подпишитесь на @alex.spor3s', url: 'https://instagram.com/alex.spor3s', btnColor: 'linear-gradient(45deg, #e1306c, #f77737)' },
 ];
 
-export default function RoadMap({ user }: RoadMapProps) {
+export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [startMetrics, setStartMetrics] = useState<Metrics>({ memory: 5, sleep: 4, energy: 3, stress: 7 });
   const [weeklyProgress, setWeeklyProgress] = useState<WeekProgress[]>([]);
@@ -54,9 +59,6 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [currentSC, setCurrentSC] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0); // заработано за всё время — для уровня
   const [referralSC, setReferralSC] = useState(0);
-  const [checkinDoneToday, setCheckinDoneToday] = useState(false);
-  const [checkinLoading, setCheckinLoading] = useState(false);
-  const [checkinMsg, setCheckinMsg] = useState<string | null>(null);
 
   const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
   const [tasksDone, setTasksDone] = useState<Record<string, boolean>>({});
@@ -75,6 +77,62 @@ export default function RoadMap({ user }: RoadMapProps) {
   const [referralCode, setReferralCode] = useState("");
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
+  const tasksRef = useRef<HTMLDivElement>(null);
+  const [scrollToTasksPending, setScrollToTasksPending] = useState(false);
+
+  // Раскрывает блок заданий и подводит к нему. Используется и плашкой на главном
+  // экране (через проп focus), и плашкой здесь, в кабинете.
+  //
+  // Одного scrollIntoView мало, и фиксированной задержки тоже: в момент открытия
+  // кабинета ещё летят fetchSurveys/fetchReferralStats/fetchMyOrders. Пока их нет,
+  // страница короткая — скролл отрабатывает, но «приезжает» почти в начало. Затем
+  // ответы приходят, контент над блоком заданий вырастает, и блок уезжает вниз.
+  // Поэтому держим его в поле зрения, пока высота страницы меняется, но не дольше
+  // FOCUS_SETTLE_MS — и сразу отпускаем, если пользователь начал листать сам.
+  //
+  // Возвращает cleanup — вызов из эффекта обязан его вернуть, иначе размонтирование
+  // оставит висящий observer. onDone дёргается только в конце: сбросить focus раньше
+  // — значит перезапустить эффект и оборвать ещё не доехавший скролл.
+  const focusTasks = useCallback(() => {
+    setTasksOpen(true);
+    setScrollToTasksPending(true);
+  }, []);
+
+  // Приход с главного экрана. focus сбрасываем сразу: сам скролл живёт на
+  // локальном scrollToTasksPending, поэтому сброс пропа его не обрывает.
+  useEffect(() => {
+    if (focus !== 'tasks') return;
+    focusTasks();
+    onFocusHandled?.();
+  }, [focus, focusTasks]);
+
+  // Скролл вынесен в отдельный эффект намеренно. Раньше он жил в том же эффекте,
+  // что и реакция на focus, и запускался через requestAnimationFrame — кадр не успевал
+  // наступить: эффект пересоздавался (StrictMode + сброс focus) и отменял его каждый раз.
+  // Здесь якорь — собственное состояние, которое никто извне не дёргает.
+  // Позиционируем мгновенно ('auto', не 'smooth': повторные вызовы перезапускали бы
+  // анимацию с текущей точки и она бы не доезжала) и повторяем, пока догружаются
+  // данные кабинета и высота страницы ещё гуляет. Отпускаем сразу, как только
+  // пользователь начал листать сам.
+  useEffect(() => {
+    if (!scrollToTasksPending) return;
+
+    const scroll = () => tasksRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    scroll();
+
+    const poll = setInterval(scroll, 200);
+    const stop = setTimeout(() => setScrollToTasksPending(false), FOCUS_SETTLE_MS);
+    const releaseToUser = () => setScrollToTasksPending(false);
+    window.addEventListener('wheel', releaseToUser, { passive: true });
+    window.addEventListener('touchstart', releaseToUser, { passive: true });
+
+    return () => {
+      clearInterval(poll);
+      clearTimeout(stop);
+      window.removeEventListener('wheel', releaseToUser);
+      window.removeEventListener('touchstart', releaseToUser);
+    };
+  }, [scrollToTasksPending]);
 
   // Реальная история еженедельных самооценок из БД (таблица surveys)
   const fetchSurveys = async () => {
@@ -387,16 +445,6 @@ export default function RoadMap({ user }: RoadMapProps) {
     }
   };
 
-  // Статус чек-ина на сегодня
-  const fetchCheckinStatus = async () => {
-    if (!user?.id) return;
-    try {
-      const resp = await fetch(`/api/checkin?user_id=${user.id}`);
-      const data = await resp.json();
-      if (data.success) setCheckinDoneToday(!!data.doneToday);
-    } catch {}
-  };
-
   // Активный курс (восстановление состояния после перезахода)
   const fetchCourseStatus = async () => {
     if (!user?.id) return;
@@ -413,40 +461,6 @@ export default function RoadMap({ user }: RoadMapProps) {
 
   // Оплаченный заказ, к которому привязывается чек-ин/курс
   const eligibleOrder = myOrders.find((o: any) => ['paid', 'shipped', 'completed'].includes(o.status));
-
-  // Ежедневный чек-ин: +3 SC, доступен при оплаченном заказе
-  const handleDailyCheckin = async () => {
-    if (!user?.id || checkinLoading) return;
-    if (!eligibleOrder) {
-      setCheckinMsg('🍄 Чек-ин станет доступен после оплаты заказа');
-      setTimeout(() => setCheckinMsg(null), 4000);
-      return;
-    }
-    if (checkinDoneToday) return;
-    setCheckinLoading(true);
-    try {
-      const resp = await fetch('/api/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, order_id: eligibleOrder.id })
-      });
-      const data = await resp.json();
-      if (data.success) {
-        setCheckinDoneToday(true);
-        if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
-        setTotalEarned(prev => prev + (data.scEarned || 0));
-        setCheckinMsg(`✅ Отмечено! +${data.scEarned || 3} SC`);
-      } else {
-        if ((data.error || '').includes('уже')) setCheckinDoneToday(true);
-        setCheckinMsg(`⚠️ ${data.error || 'Не получилось, попробуйте позже'}`);
-      }
-    } catch {
-      setCheckinMsg('⚠️ Ошибка сети');
-    } finally {
-      setCheckinLoading(false);
-      setTimeout(() => setCheckinMsg(null), 4000);
-    }
-  };
 
   // Функция для получения реферальной статистики
   const fetchReferralStats = async () => {
@@ -519,7 +533,6 @@ export default function RoadMap({ user }: RoadMapProps) {
       checkSubscriptionBonuses();
       fetchMyOrders();
       fetchSurveys();
-      fetchCheckinStatus();
       fetchCourseStatus();
     }
   }, [user?.id]);
@@ -623,6 +636,15 @@ export default function RoadMap({ user }: RoadMapProps) {
       width: "100%",
       boxSizing: "border-box"
     }}>
+      {/* Плашка невыполненных заданий — та же, что на главном экране.
+          Здесь клик не уводит на другой экран, а раскрывает блок заданий ниже. */}
+      <TasksBanner
+        left={TASKS.length - Object.values(tasksDone).filter(Boolean).length}
+        bonusPerTask={TASK_BONUS}
+        onClick={() => { focusTasks(); }}
+        style={{ marginBottom: 20 }}
+      />
+
       {/* Информация о пользователе - компактная версия */}
       <div style={{
         background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",
@@ -914,7 +936,7 @@ export default function RoadMap({ user }: RoadMapProps) {
         
         {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
         {user?.telegram_id && /^\d+$/.test(String(user.telegram_id)) && (() => {
-          const refLink = `https://t.me/Spor3s_bot?start=${user.telegram_id}`;
+          const refLink = `https://t.me/spor3sbot?start=${user.telegram_id}`;
           const shareText = 'Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!';
           return (
             <div style={{
@@ -981,10 +1003,10 @@ export default function RoadMap({ user }: RoadMapProps) {
             🔗 Персональная реферальная ссылка появится здесь, если открыть
             приложение через Telegram:{" "}
             <span
-              onClick={() => openExternal('https://t.me/Spor3s_bot')}
+              onClick={() => openExternal('https://t.me/spor3sbot')}
               style={{ color: "#00a8ff", textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}
             >
-              @Spor3s_bot
+              @spor3sbot
             </span>
           </div>
         )}
@@ -1125,64 +1147,6 @@ export default function RoadMap({ user }: RoadMapProps) {
       </div>
 
       {SHOW_GAMIFICATION && (<>
-      {/* Гриб мухомор с сообщением */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",
-        borderRadius: "20px",
-        padding: "clamp(25px, 6vw, 30px)",
-        marginBottom: "30px",
-        border: "2px solid rgba(255, 255, 255, 0.2)",
-        textAlign: "center",
-        width: "100%",
-        boxSizing: "border-box",
-        overflow: "hidden"
-      }}>
-        <div style={{
-          fontSize: "clamp(60px, 15vw, 80px)",
-          marginBottom: "20px",
-          cursor: checkinDoneToday ? "default" : "pointer",
-          transition: "transform 0.3s ease",
-          filter: checkinDoneToday
-            ? "drop-shadow(0 4px 8px rgba(16,185,129,0.5))"
-            : "drop-shadow(0 4px 8px rgba(0,0,0,0.3))",
-          opacity: checkinLoading ? 0.5 : 1
-        }}
-        onClick={handleDailyCheckin}
-        onMouseOver={(e) => {
-          if (!checkinDoneToday) e.currentTarget.style.transform = "scale(1.1)";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-        title={checkinDoneToday ? "Сегодня уже отмечено" : "Нажми, чтобы отметить приём"}
-        >
-          {checkinDoneToday ? "✅" : "🍄"}
-        </div>
-
-        <div style={{
-          color: checkinDoneToday ? "#10b981" : "#ccc",
-          fontSize: "clamp(12px, 3vw, 14px)",
-          lineHeight: "1.5",
-          fontWeight: checkinDoneToday ? 700 : 400,
-          wordBreak: "break-word"
-        }}>
-          {checkinDoneToday
-            ? "Сегодня отмечено! +3 SC. Возвращайся завтра 🍄"
-            : eligibleOrder
-              ? "Отметь, что сегодня принял добавки → +3 SC"
-              : "Чек-ин откроется после оплаты заказа (+3 SC каждый день)"}
-        </div>
-        {checkinMsg && (
-          <div style={{
-            marginTop: "10px",
-            color: checkinMsg.startsWith("✅") ? "#10b981" : "#ffc107",
-            fontSize: "clamp(13px, 3.2vw, 15px)",
-            fontWeight: 600
-          }}>
-            {checkinMsg}
-          </div>
-        )}
-      </div>
 
       {/* Enhanced Motivational Habit Component */}
       {user?.id && (
@@ -1583,7 +1547,7 @@ export default function RoadMap({ user }: RoadMapProps) {
       </>)}
 
       {/* Задания (свёрнуты по умолчанию) */}
-      <div style={{
+      <div ref={tasksRef} style={{
         background: "linear-gradient(135deg, #0f172a, #1e293b)",
         borderRadius: "20px",
         padding: "clamp(20px, 5vw, 25px)",
