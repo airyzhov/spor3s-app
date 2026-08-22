@@ -757,7 +757,7 @@ export async function POST(req: NextRequest) {
 📱 **Проверить баланс:** откройте приложение → раздел "Прогресс"`;
     
     if (messageSource !== 'mini_app') {
-      balanceResponse += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+      balanceResponse += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
     }
     
     return NextResponse.json({ response: balanceResponse });
@@ -1391,11 +1391,11 @@ export async function POST(req: NextRequest) {
           } else           if (messageSource === 'telegram_bot') {
             // В Telegram Bot - оставляем теги для обработки ботом
             finalResponse = aiResponse;
-            finalResponse += '\n\n(Вы можете оформить заказ здесь или в приложении: 👉 t.me/spor3s_bot)';
+            finalResponse += '\n\n(Вы можете оформить заказ здесь или в приложении: 👉 t.me/spor3sbot)';
           } else {
             // В Spor3z - удаляем теги
             finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
-            finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot';
+            finalResponse += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3sbot';
           }
          }
          
@@ -1920,9 +1920,9 @@ export async function POST(req: NextRequest) {
       // Для других источников удаляем теги и добавляем ссылку
       reply = reply.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
       if (messageSource === 'telegram_bot') {
-        reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot\n\nИли укажите ФИО+телефон+адрес СДЭК для оформления здесь.';
+        reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3sbot\n\nИли укажите ФИО+телефон+адрес СДЭК для оформления здесь.';
       } else {
-        reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3s_bot';
+        reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3sbot';
       }
     }
   }
@@ -1931,8 +1931,8 @@ export async function POST(req: NextRequest) {
   reply = reply.replace(/\[remove_from_cart:[\w-]+\]/g, '').trim();
   
   // Добавляем ссылку на приложение для внешних каналов (если еще не добавлена)
-  if (messageSource !== 'mini_app' && !reply.includes('t.me/spor3s_bot')) {
-    reply += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3s_bot';
+  if (messageSource !== 'mini_app' && !reply.includes('t.me/spor3sbot')) {
+    reply += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
   }
   
   // Сохраняем сообщения в Supabase, если есть user_id

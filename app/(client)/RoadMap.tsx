@@ -936,7 +936,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         
         {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
         {user?.telegram_id && /^\d+$/.test(String(user.telegram_id)) && (() => {
-          const refLink = `https://t.me/Spor3s_bot?start=${user.telegram_id}`;
+          const refLink = `https://t.me/spor3sbot?start=${user.telegram_id}`;
           const shareText = 'Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!';
           return (
             <div style={{
@@ -1003,10 +1003,10 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
             🔗 Персональная реферальная ссылка появится здесь, если открыть
             приложение через Telegram:{" "}
             <span
-              onClick={() => openExternal('https://t.me/Spor3s_bot')}
+              onClick={() => openExternal('https://t.me/spor3sbot')}
               style={{ color: "#00a8ff", textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}
             >
-              @Spor3s_bot
+              @spor3sbot
             </span>
           </div>
         )}

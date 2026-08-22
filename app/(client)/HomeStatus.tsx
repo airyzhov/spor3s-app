@@ -59,7 +59,7 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
 
   const share = () => {
     if (!data.referralCode) return;
-    const link = `https://t.me/Spor3s_bot?start=${encodeURIComponent(data.referralCode)}`;
+    const link = `https://t.me/spor3sbot?start=${encodeURIComponent(data.referralCode)}`;
     const text = "Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!";
     openExternal(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
   };
