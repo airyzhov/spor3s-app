@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import TasksBanner from "./TasksBanner";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import { openExternal } from "../../lib/openExternal";
 
@@ -36,6 +37,8 @@ const levelRewards = [
 
 // Задания: подписки на каналы, бонус за каждое — TASK_BONUS SC
 const TASK_BONUS = 30;
+// Сколько удерживать блок заданий в поле зрения, пока догружается контент кабинета.
+const FOCUS_SETTLE_MS = 2500;
 const TASKS = [
   { id: 'telegram', icon: '📱', title: 'Telegram канал', desc: 'Подпишитесь на t.me/spor3s', url: 'https://t.me/spor3s', btnColor: 'linear-gradient(45deg, #0088cc, #00a8ff)' },
   { id: 'youtube', icon: '📺', title: 'YouTube канал', desc: 'Подпишитесь на @spor3s', url: 'https://www.youtube.com/@spor3s', btnColor: 'linear-gradient(45deg, #ff0000, #cc0000)' },
@@ -75,14 +78,61 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
   const tasksRef = useRef<HTMLDivElement>(null);
+  const [scrollToTasksPending, setScrollToTasksPending] = useState(false);
 
-  // Переход с плашки на главном экране: раскрыть задания и подвести к ним
+  // Раскрывает блок заданий и подводит к нему. Используется и плашкой на главном
+  // экране (через проп focus), и плашкой здесь, в кабинете.
+  //
+  // Одного scrollIntoView мало, и фиксированной задержки тоже: в момент открытия
+  // кабинета ещё летят fetchSurveys/fetchReferralStats/fetchMyOrders. Пока их нет,
+  // страница короткая — скролл отрабатывает, но «приезжает» почти в начало. Затем
+  // ответы приходят, контент над блоком заданий вырастает, и блок уезжает вниз.
+  // Поэтому держим его в поле зрения, пока высота страницы меняется, но не дольше
+  // FOCUS_SETTLE_MS — и сразу отпускаем, если пользователь начал листать сам.
+  //
+  // Возвращает cleanup — вызов из эффекта обязан его вернуть, иначе размонтирование
+  // оставит висящий observer. onDone дёргается только в конце: сбросить focus раньше
+  // — значит перезапустить эффект и оборвать ещё не доехавший скролл.
+  const focusTasks = useCallback(() => {
+    setTasksOpen(true);
+    setScrollToTasksPending(true);
+  }, []);
+
+  // Приход с главного экрана. focus сбрасываем сразу: сам скролл живёт на
+  // локальном scrollToTasksPending, поэтому сброс пропа его не обрывает.
   useEffect(() => {
     if (focus !== 'tasks') return;
-    setTasksOpen(true);
-    tasksRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    focusTasks();
     onFocusHandled?.();
-  }, [focus]);
+  }, [focus, focusTasks]);
+
+  // Скролл вынесен в отдельный эффект намеренно. Раньше он жил в том же эффекте,
+  // что и реакция на focus, и запускался через requestAnimationFrame — кадр не успевал
+  // наступить: эффект пересоздавался (StrictMode + сброс focus) и отменял его каждый раз.
+  // Здесь якорь — собственное состояние, которое никто извне не дёргает.
+  // Позиционируем мгновенно ('auto', не 'smooth': повторные вызовы перезапускали бы
+  // анимацию с текущей точки и она бы не доезжала) и повторяем, пока догружаются
+  // данные кабинета и высота страницы ещё гуляет. Отпускаем сразу, как только
+  // пользователь начал листать сам.
+  useEffect(() => {
+    if (!scrollToTasksPending) return;
+
+    const scroll = () => tasksRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    scroll();
+
+    const poll = setInterval(scroll, 200);
+    const stop = setTimeout(() => setScrollToTasksPending(false), FOCUS_SETTLE_MS);
+    const releaseToUser = () => setScrollToTasksPending(false);
+    window.addEventListener('wheel', releaseToUser, { passive: true });
+    window.addEventListener('touchstart', releaseToUser, { passive: true });
+
+    return () => {
+      clearInterval(poll);
+      clearTimeout(stop);
+      window.removeEventListener('wheel', releaseToUser);
+      window.removeEventListener('touchstart', releaseToUser);
+    };
+  }, [scrollToTasksPending]);
 
   // Реальная история еженедельных самооценок из БД (таблица surveys)
   const fetchSurveys = async () => {
@@ -586,6 +636,15 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       width: "100%",
       boxSizing: "border-box"
     }}>
+      {/* Плашка невыполненных заданий — та же, что на главном экране.
+          Здесь клик не уводит на другой экран, а раскрывает блок заданий ниже. */}
+      <TasksBanner
+        left={TASKS.length - Object.values(tasksDone).filter(Boolean).length}
+        bonusPerTask={TASK_BONUS}
+        onClick={() => { focusTasks(); }}
+        style={{ marginBottom: 20 }}
+      />
+
       {/* Информация о пользователе - компактная версия */}
       <div style={{
         background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",

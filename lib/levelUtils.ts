@@ -92,6 +92,9 @@ export const SC_MECHANICS = {
   motivational_habit: { amount: 25, maxPerMonth: 100, description: 'Мотивационная привычка' }
 };
 
+// Доля от суммы заказа друга, зачисляемая пригласившему в виде SC-кэшбэка.
+export const REFERRAL_PERCENT = 0.05;
+
 export function getLevelInfo(sc: number, ordersAmount: number = 0, ordersCount: number = 0): LevelInfo {
   // Находим текущий уровень
   let currentLevel = LEVEL_CONFIG[0];

@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { openExternal } from "../../lib/openExternal";
-import { SC_MECHANICS } from "../../lib/levelUtils";
+import { SC_MECHANICS, REFERRAL_PERCENT } from "../../lib/levelUtils";
+import { plural } from "../../lib/plural";
+import TasksBanner from "./TasksBanner";
 
 type Summary = {
   sc: number;
@@ -21,14 +23,6 @@ interface HomeStatusProps {
 }
 
 const OPEN_KEY = "spor3s_home_status_open";
-
-function plural(n: number, one: string, few: string, many: string) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
-  return many;
-}
 
 export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeStatusProps) {
   const [data, setData] = useState<Summary | null>(null);
@@ -133,8 +127,8 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
               <span>+{data.monthGoal.bonus} SC</span>
             </div>
             <div style={row}><span>🌟 Мотивационная привычка</span><span>до {SC_MECHANICS.motivational_habit.maxPerMonth} SC/мес</span></div>
-            <div style={row}><span>🎯 Задания: 3 подписки</span><span>+{data.tasks.bonusPerTask} SC каждое</span></div>
-            <div style={row}><span>👥 Друг оформил заказ</span><span>5% суммы в SC</span></div>
+            <div style={row}><span>🎯 Задания: {data.tasks.total} подписки</span><span>+{data.tasks.bonusPerTask} SC каждое</span></div>
+            <div style={row}><span>👥 Друг оформил заказ</span><span>{Math.round(REFERRAL_PERCENT * 100)}% суммы в SC</span></div>
             <div style={row}><span>🛒 Свой заказ</span><span>1 SC за 100 ₽</span></div>
 
             <div style={{ marginTop: 12, fontSize: "clamp(12px, 3vw, 14px)", color: "#10b981", fontWeight: 600 }}>
@@ -200,34 +194,12 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
         )}
       </div>
 
-      {data.tasks.left > 0 && (
-        <button
-          type="button"
-          onClick={onOpenTasks}
-          style={{
-            width: "100%",
-            marginTop: 10,
-            background: "rgba(255,193,7,0.12)",
-            border: "2px solid rgba(255,193,7,0.5)",
-            borderRadius: 16,
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            cursor: "pointer",
-            color: "#ffc107",
-            fontSize: "clamp(13px, 3.2vw, 15px)",
-            fontWeight: 700
-          }}
-        >
-          <span>
-            🎯 {data.tasks.left} {plural(data.tasks.left, "задание", "задания", "заданий")} не{" "}
-            {plural(data.tasks.left, "выполнено", "выполнены", "выполнены")} · +{data.tasks.left * data.tasks.bonusPerTask} SC
-          </span>
-          <span>→</span>
-        </button>
-      )}
+      <TasksBanner
+        left={data.tasks.left}
+        bonusPerTask={data.tasks.bonusPerTask}
+        onClick={onOpenTasks}
+        style={{ marginTop: 10 }}
+      />
     </div>
   );
 }
