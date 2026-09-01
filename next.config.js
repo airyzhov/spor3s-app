@@ -80,6 +80,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Своя копия Telegram WebApp SDK (см. app/layout.tsx). Кеш на год: URL версионируется
+        // через ?v=, так что при обновлении файла достаточно поднять версию в layout.
+        source: "/telegram-web-app.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ]
+      },
+      {
         // matching all API routes
         source: "/api/:path*",
         headers: [
