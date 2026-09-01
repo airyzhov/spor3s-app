@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import "./globals.css";
+import { LOADING_FAILSAFE_SCRIPT } from "../lib/loadingFailsafe";
 
 export const metadata: Metadata = {
   title: "Spor3s - Грибные добавки",
@@ -28,6 +29,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        {/* Страховка на случай, если JS-чанки не доехали: сообщение, кнопка «Обновить», маячок
+            в /api/nohydrate. Инлайн, от чанков не зависит — см. lib/loadingFailsafe.ts */}
+        <script dangerouslySetInnerHTML={{ __html: LOADING_FAILSAFE_SCRIPT }} />
       </body>
     </html>
   );

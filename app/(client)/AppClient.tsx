@@ -208,8 +208,10 @@ export default function AppClient() {
   // Обработчик клика (не используется, оставлен для совместимости)
 
   if (!mounted) {
+    // id читает инлайновая страховка из lib/loadingFailsafe.ts: пока этот блок в DOM —
+    // React не смонтировался.
     return (
-      <div style={{ textAlign: 'center', padding: '50px', color: '#fff' }}>
+      <div id="app-loading" style={{ textAlign: 'center', padding: '50px', color: '#fff' }}>
         <div style={{ fontSize: 24, marginBottom: 15 }}>⏳</div>
         <div>Загрузка...</div>
       </div>
