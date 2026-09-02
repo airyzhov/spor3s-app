@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "start-isolated",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set SUPABASE_URL=http://127.0.0.1:9/&& set NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:9/&& set SUPABASE_SERVICE_ROLE_KEY=stub&& npx next start -p 3100"],
+      "port": 3100
     }
   ]
 }
