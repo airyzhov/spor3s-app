@@ -6,6 +6,7 @@ import Cart from "./Cart";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap";
 import HomeStatus from "./HomeStatus";
+import RaffleBanner from "./RaffleBanner";
 import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
@@ -476,11 +477,18 @@ export default function AppClient() {
         </nav>
 
         {currentStep === 2 && (
-          <HomeStatus
-            userId={user?.id}
-            onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
-            onOpenCabinet={() => setCurrentStep(3)}
-          />
+          <>
+            <RaffleBanner
+              userId={user?.id}
+              telegramId={user?.telegram_id}
+              onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
+            />
+            <HomeStatus
+              userId={user?.id}
+              onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
+              onOpenCabinet={() => setCurrentStep(3)}
+            />
+          </>
         )}
 
         <main className={styles.main}>
