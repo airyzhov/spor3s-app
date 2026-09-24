@@ -26,6 +26,7 @@ function emptySummary() {
     friends: 0,
     referralEarned: 0,
     referralCode: null as string | null,
+    telegramId: null as string | null,
     tasks: { done: 0, total: TASK_CHANNELS.length, left: TASK_CHANNELS.length, bonusPerTask: TASK_BONUS },
     monthGoal: computeMonthGoal(0, false),
   };
@@ -93,6 +94,8 @@ export async function GET(req: NextRequest) {
     const level = getLevelInfo(lvl.total_sc_earned || 0, lvl.total_orders_amount || 0, lvl.orders_count || 0);
     const user = userRes.data;
     const referralCode = user ? (user.username ? "@" + user.username : (user.phone || user.telegram_id)) : null;
+    // Для ссылки-приглашения нужен числовой Telegram ID (см. lib/referralLink.ts)
+    const telegramId = user && /^\d+$/.test(String(user.telegram_id || "")) ? String(user.telegram_id) : null;
 
     return NextResponse.json({
       success: true,
@@ -109,6 +112,7 @@ export async function GET(req: NextRequest) {
       friends: (refRes.data || []).length,
       referralEarned,
       referralCode,
+      telegramId,
       tasks: { done, total: TASK_CHANNELS.length, left: TASK_CHANNELS.length - done, bonusPerTask: TASK_BONUS },
       monthGoal,
     });
