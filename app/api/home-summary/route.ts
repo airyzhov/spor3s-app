@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
-import { getLevelInfo } from "../../../lib/levelUtils";
+import { getLevelInfo, nextLevelNeeds } from "../../../lib/levelUtils";
 import { getMonthGoal } from "../../../lib/monthGoalServer";
 import { computeMonthGoal } from "../../../lib/monthGoal";
 
-// Витрина на главном экране: один запрос вместо пяти (уровень, рефералы, статусы трёх заданий).
+// Панель SC в кабинете (ScStatus): один запрос вместо пяти (уровень, рефералы, статусы трёх заданий).
 const TASK_CHANNELS = ["telegram", "youtube", "instagram"];
 const TASK_BONUS = 30;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,6 +22,7 @@ function emptySummary() {
       progress: level.progress,
       scToNext: level.scToNext,
       nextName: level.nextLevelName,
+      needs: nextLevelNeeds(0, 0, 0),
     },
     friends: 0,
     referralEarned: 0,
@@ -108,6 +109,7 @@ export async function GET(req: NextRequest) {
         progress: level.progress,
         scToNext: level.scToNext,
         nextName: level.nextLevelName,
+        needs: nextLevelNeeds(lvl.total_sc_earned || 0, lvl.total_orders_amount || 0, lvl.orders_count || 0),
       },
       friends: (refRes.data || []).length,
       referralEarned,
