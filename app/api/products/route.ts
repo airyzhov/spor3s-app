@@ -130,21 +130,21 @@ const fallbackProducts = [
     name: 'Пантерный мухомор 30г',
     price: 2000,
     description: 'Сбор Алтай. Для опытных. Дает много энергии и ресурса. *Аккуратно с дозировкой!',
-    image: '/products/mhmp30.png'
+    image: '/products/mhmp30.jpg'
   },
   {
     id: 'mhmp50',
     name: 'Пантерный мухомор 50г',
     price: 3200,
     description: 'Сбор Алтай. Для опытных. Дает много энергии и ресурса. *Аккуратно с дозировкой!',
-    image: '/products/mhmp50.png'
+    image: '/products/mhmp50.jpg'
   },
   {
     id: 'mhmp100',
     name: 'Пантерный мухомор 100г',
     price: 6000,
     description: 'Сбор Алтай. Для опытных. Дает много энергии и ресурса. *Аккуратно с дозировкой!',
-    image: '/products/mhmp100.png'
+    image: '/products/mhmp100.jpg'
   }
 ];
 
