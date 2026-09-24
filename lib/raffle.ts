@@ -1,5 +1,7 @@
 // Розыгрыш 10.10 — правила без обращений к базе, чтобы их проверяли юнит-тесты.
 // Дизайн: docs/superpowers/specs/2026-09-24-raffle-10-10-design.md
+import { plural } from './plural';
+import { referralShareUrl } from './referralLink';
 
 export const RAFFLE = {
   id: 'raffle-2026-10-10',
@@ -8,6 +10,7 @@ export const RAFFLE = {
   endsAt: '2026-10-11T00:00:00Z', // приём до 10.10 включительно, 23:59:59 GMT; сама граница не входит
   hideAfter: '2026-10-19T00:00:00Z', // через неделю после итогов кнопка на главной пропадает
   deadlineLabel: 'до 10 октября включительно (23:59 GMT — 02:59 11 октября по Москве)',
+  deadlineShortLabel: 'до 10 октября включительно',
   drawDateLabel: '12 октября',
   winnersCount: 3,
 };
@@ -103,28 +106,31 @@ export function countTasks(rows: TaskRow[]): Map<string, number> {
   return new Map(Array.from(done, ([userId, types]) => [userId, types.size]));
 }
 
-type ReferralRow = { referrer_user_id: string; referred_user_id: string; created_at: string };
+export type ReferralRow = { referrer_user_id: string; referred_user_id: string; created_at: string };
 
-// Сколько друзей засчитано каждому пригласившему (правила — §2 спеки).
-// openedApp — id тех, у кого есть строка ai_agent_status, то есть кто открывал мини-апп.
+// Засчитывается ли друг по этому приглашению (правила — §2 спеки): приглашение в окне розыгрыша,
+// друг новый, из Telegram и открыл мини-апп (openedApp — id тех, у кого есть строка ai_agent_status).
+export function countsAsFriend(r: ReferralRow, friend: FriendUser | undefined, openedApp: Set<string>): boolean {
+  const linkedAt = Date.parse(r.created_at);
+  if (linkedAt < Date.parse(RAFFLE.startsAt) || linkedAt >= Date.parse(RAFFLE.endsAt)) return false;
+  if (!friend || friend.id === r.referrer_user_id) return false;
+  if (!/^\d+$/.test(String(friend.telegram_id ?? ''))) return false;
+  if (Date.parse(friend.created_at) < linkedAt - NEW_FRIEND_SLACK_MS) return false;
+  return openedApp.has(friend.id);
+}
+
+// Сколько друзей засчитано каждому пригласившему; друг считается один раз — по самому раннему приглашению
 export function countFriends(
   referrals: ReferralRow[],
   users: Map<string, FriendUser>,
   openedApp: Set<string>,
 ): Map<string, number> {
-  const start = Date.parse(RAFFLE.startsAt);
-  const end = Date.parse(RAFFLE.endsAt);
   const counted = new Set<string>();
   const counts = new Map<string, number>();
   const ordered = referrals.slice().sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
   for (const r of ordered) {
-    const linkedAt = Date.parse(r.created_at);
     const friend = users.get(r.referred_user_id);
-    if (linkedAt < start || linkedAt >= end) continue;
-    if (!friend || friend.id === r.referrer_user_id || counted.has(friend.id)) continue;
-    if (!/^\d+$/.test(String(friend.telegram_id ?? ''))) continue;
-    if (Date.parse(friend.created_at) < linkedAt - NEW_FRIEND_SLACK_MS) continue;
-    if (!openedApp.has(friend.id)) continue;
+    if (!friend || counted.has(friend.id) || !countsAsFriend(r, friend, openedApp)) continue;
     counted.add(friend.id);
     counts.set(r.referrer_user_id, (counts.get(r.referrer_user_id) || 0) + 1);
   }
@@ -182,6 +188,86 @@ export function pickWinners<T>(pool: T[], count: number, randomInt: (maxExclusiv
     [items[i], items[j]] = [items[j], items[i]];
   }
   return items.slice(0, n);
+}
+
+// ---- Сообщения бота участникам (§11 спеки) ----
+
+export type RaffleEvent = 'task' | 'friend';
+export type TelegramButton = { text: string; url?: string; web_app?: { url: string } };
+export type TelegramNotice = { chatId: string; text: string; buttons: TelegramButton[][] };
+
+const APP_URL = 'https://ai.spor3s.ru';
+
+// О чём написать после события. Оба события случаются с человеком по разу — первое задание
+// и первый вход конкретного друга в приложение, — поэтому одно сообщение дважды не уходит.
+export function raffleNotice(
+  event: RaffleEvent,
+  progress: { tasks: number; friends: number },
+): 'joined' | 'tier_up' | null {
+  const { tasks, friends } = progress;
+  if (event === 'task') return tasks === 1 && friends >= 1 ? 'joined' : null;
+  if (tasks < 1) return null;
+  if (friends === 1) return 'joined';
+  return PRIZE_TIERS.some((t) => t.minFriends > 1 && t.minFriends === friends) ? 'tier_up' : null;
+}
+
+function nextPrizeLine(friends: number): string {
+  const next = nextPrize(friends);
+  if (!next) return 'Это максимальный приз 🔥';
+  const top = PRIZE_TIERS[PRIZE_TIERS.length - 1];
+  const more = `Пригласи ещё ${next.friendsNeeded} ${plural(next.friendsNeeded, 'друга', 'друзей', 'друзей')} — будет ${next.prize.label}`;
+  return next.prize.code === top.prize.code ? `${more}.` : `${more}, а с ${top.minFriends} друзьями — ${top.prize.label}.`;
+}
+
+export function joinedMessage(friends: number): string {
+  return [
+    '🎉 <b>Ты в розыгрыше 10.10!</b>',
+    '',
+    'Оба условия выполнены:',
+    '✅ задание на подписку',
+    `✅ друзей приглашено: ${friends}`,
+    '',
+    `Если выиграешь — <b>${prizeForFriends(friends)?.label}</b>.`,
+    nextPrizeLine(friends),
+    '',
+    `🗓 Приём заявок — ${RAFFLE.deadlineShortLabel}.`,
+    `🎲 ${RAFFLE.drawDateLabel} выберем ${RAFFLE.winnersCount} победителей и напишем им здесь.`,
+  ].join('\n');
+}
+
+export function tierUpMessage(friends: number): string {
+  const next = nextPrize(friends);
+  const nextLine = next
+    ? `Ещё ${next.friendsNeeded} ${plural(next.friendsNeeded, 'друг', 'друга', 'друзей')} — и будет ${next.prize.label}.`
+    : 'Это максимальный приз 🔥';
+  return [
+    `🚀 <b>Друзей уже ${friends}!</b>`,
+    `Если выиграешь — <b>${prizeForFriends(friends)?.label}</b>. ${nextLine}`,
+    '',
+    `🎲 Победителей выберем ${RAFFLE.drawDateLabel}.`,
+  ].join('\n');
+}
+
+// Готовое сообщение для Bot API или null, если писать не о чем, некому или приём уже закрыт
+export function buildRaffleNotice(
+  event: RaffleEvent,
+  progress: { tasks: number; friends: number },
+  telegramId: string | null | undefined,
+  now: Date = new Date(),
+): TelegramNotice | null {
+  if (raffleStage(now, false) !== 'open') return null;
+  const share = referralShareUrl(telegramId);
+  if (!share) return null; // без числового Telegram ID боту некуда писать
+  const kind = raffleNotice(event, progress);
+  if (!kind) return null;
+  return {
+    chatId: String(telegramId).trim(),
+    text: kind === 'joined' ? joinedMessage(progress.friends) : tierUpMessage(progress.friends),
+    buttons: [[
+      { text: '🎁 Открыть розыгрыш', web_app: { url: APP_URL } },
+      { text: '👥 Пригласить друзей', url: share },
+    ]],
+  };
 }
 
 // CSV для Excel с русской локалью: разделитель «;», UTF-8 с BOM, строки через CRLF
