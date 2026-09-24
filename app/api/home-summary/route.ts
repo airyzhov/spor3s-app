@@ -24,6 +24,7 @@ function emptySummary() {
       nextName: level.nextLevelName,
       needs: nextLevelNeeds(0, 0, 0),
     },
+    orders: { amount: 0, count: 0 },
     friends: 0,
     referralEarned: 0,
     referralCode: null as string | null,
@@ -111,6 +112,8 @@ export async function GET(req: NextRequest) {
         nextName: level.nextLevelName,
         needs: nextLevelNeeds(lvl.total_sc_earned || 0, lvl.total_orders_amount || 0, lvl.orders_count || 0),
       },
+      // Для окна уровней: прогресс по заказам рядом с прогрессом по SC
+      orders: { amount: lvl.total_orders_amount || 0, count: lvl.orders_count || 0 },
       friends: (refRes.data || []).length,
       referralEarned,
       referralCode,

@@ -49,7 +49,7 @@ export const LEVEL_CONFIG = [
     scRequired: 100,
     ordersAmountRequired: 0,
     ordersCountRequired: 1,
-    benefits: ['Открытие мотивационной привычки', 'Доступ к базовым функциям']
+    benefits: ['Открытие мотивационной привычки']
   },
   {
     level: 3,
@@ -59,7 +59,8 @@ export const LEVEL_CONFIG = [
     scRequired: 300,
     ordersAmountRequired: 5000,
     ordersCountRequired: 0,
-    benefits: ['Доступ к закрытому чату с экспертами', 'Участие в розыгрышах', 'Доступ к базовым функциям']
+    // Чата экспертов не будет — решение владельца 24.09: только ежемесячные розыгрыши
+    benefits: ['Ежемесячные закрытые розыгрыши']
   },
   {
     level: 4,
@@ -69,7 +70,8 @@ export const LEVEL_CONFIG = [
     scRequired: 600,
     ordersAmountRequired: 10000,
     ordersCountRequired: 0,
-    benefits: ['Постоянная 5% скидка', 'Доступ к наборам для практик', 'Доступ к базовым функциям']
+    // Скидку считает app/api/order/route.ts — и только для заказа от 10 000 ₽; текст должен совпадать
+    benefits: ['5% скидка на заказ от 10 000 ₽', 'Наборы для практик: травы, благовония, чай']
   },
   {
     level: 5,
@@ -79,9 +81,10 @@ export const LEVEL_CONFIG = [
     scRequired: 1000,
     ordersAmountRequired: 20000,
     ordersCountRequired: 0,
-    benefits: ['10% скидка навсегда', 'Мерч', 'Личные встречи', 'Живой трекинг', 'Доступ к базовым функциям']
+    benefits: ['10% скидка на заказ от 20 000 ₽', 'Мерч от бренда', 'Личные встречи', 'Живой трекинг']
   }
 ];
+// benefits — только то, что уровень добавляет: награды прошлых уровней сохраняются.
 // ЕДИНСТВЕННЫЙ источник уровней. Шкала согласована с UI (RoadMap.levelRewards):
 // 0 / 100 / 300 / 600 / 1000 SC. Уровень считается от total_sc_earned
 // (заработано за всё время), а не от текущего баланса — при трате SC уровень не падает.
@@ -170,6 +173,15 @@ export function levelNeedsText(needs: LevelNeeds): string {
   if (needs.ordersCount > 0) parts.push(`${needs.ordersCount} ${plural(needs.ordersCount, 'заказ', 'заказа', 'заказов')}`);
   if (needs.ordersAmount > 0) parts.push(`заказы на ${formatOrderAmount(needs.ordersAmount)}`);
   return parts.join(' и ');
+}
+
+// Требования уровня одной строкой: «300 SC · заказы от 5 000 ₽»; первый уровень — «с первого входа»
+export function levelRequirementText(level: (typeof LEVEL_CONFIG)[number]): string {
+  const parts: string[] = [];
+  if (level.scRequired > 0) parts.push(`${level.scRequired} SC`);
+  if (level.ordersCountRequired > 0) parts.push(`${level.ordersCountRequired} ${plural(level.ordersCountRequired, 'заказ', 'заказа', 'заказов')}`);
+  if (level.ordersAmountRequired > 0) parts.push(`заказы от ${formatOrderAmount(level.ordersAmountRequired)}`);
+  return parts.length ? parts.join(' · ') : 'с первого входа';
 }
 
 // Потолок регулярного заработка за месяц: 4 отчёта + бонус цели месяца + 4 привычки.
