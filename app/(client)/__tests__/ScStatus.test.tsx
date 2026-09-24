@@ -61,6 +61,19 @@ it('без Telegram ID кнопки приглашения нет', async () => 
   expect(screen.queryByRole('button', { name: /Пригласить/ })).toBeNull();
 });
 
+it('уровень в шапке и кнопка «Уровни и награды» открывают окно уровней', async () => {
+  mockSummary({ sc: 1000 });
+  render(<ScStatus userId={USER_ID} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Новичок ›/ }));
+  expect(screen.getByRole('dialog', { name: /Уровни и награды/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Закрыть' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: /SC/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Уровни и награды/ }));
+  expect(screen.getByRole('dialog', { name: /Уровни и награды/ })).toBeInTheDocument();
+});
+
 it('перечитывает данные, когда в кабинете начислили SC', async () => {
   mockSummary({ sc: 0 });
   const { rerender } = render(<ScStatus userId={USER_ID} refreshKey={0} />);

@@ -1,14 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { referralLink } from "../../lib/referralLink";
 import { SC_MECHANICS, REFERRAL_PERCENT, levelNeedsText, type LevelNeeds } from "../../lib/levelUtils";
 import { plural } from "../../lib/plural";
 import CopyLinkButton from "./CopyLinkButton";
+import LevelsModal from "./LevelsModal";
 
 type Summary = {
   sc: number;
   totalEarned: number;
   level: { code: string; name: string; icon: string; progress: number; scToNext: number; nextName: string | null; needs: LevelNeeds | null };
+  orders?: { amount: number; count: number };
   friends: number;
   referralEarned: number;
   telegramId: string | null;
@@ -29,6 +31,8 @@ const OPEN_KEY = "spor3s_home_status_open";
 export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
   const [data, setData] = useState<Summary | null>(null);
   const [open, setOpen] = useState(false);
+  const [levelsOpen, setLevelsOpen] = useState(false);
+  const closeLevels = useCallback(() => setLevelsOpen(false), []);
 
   useEffect(() => {
     try {
@@ -90,29 +94,48 @@ export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
         borderRadius: 16,
         overflow: "hidden"
       }}>
-        <button
-          type="button"
-          onClick={toggle}
-          style={{
-            width: "100%",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: "14px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap"
-          }}
-        >
-          <span style={chip}>💰 {data.sc} SC</span>
-          <span style={chip}>
-            👥 {data.friends} {plural(data.friends, "друг", "друга", "друзей")}
-          </span>
-          <span style={{ ...chip, color: "#ffc107" }}>{data.level.name}</span>
-          <span style={{ color: "#ccc", fontSize: 14 }}>{open ? "▲" : "▼"}</span>
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px 10px 4px" }}>
+          <button
+            type="button"
+            onClick={toggle}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap"
+            }}
+          >
+            <span style={chip}>💰 {data.sc} SC</span>
+            <span style={chip}>
+              👥 {data.friends} {plural(data.friends, "друг", "друга", "друзей")}
+            </span>
+            <span style={{ color: "#ccc", fontSize: 14 }}>{open ? "▲" : "▼"}</span>
+          </button>
+          {/* Уровень — отдельная кнопка: открывает окно уровней, а не сворачивает панель */}
+          <button
+            type="button"
+            onClick={() => setLevelsOpen(true)}
+            style={{
+              ...chip,
+              color: "#ffc107",
+              background: "rgba(255,193,7,0.12)",
+              border: "1px solid rgba(255,193,7,0.5)",
+              borderRadius: 999,
+              padding: "6px 12px",
+              cursor: "pointer",
+              flexShrink: 0
+            }}
+          >
+            {data.level.name} ›
+          </button>
+        </div>
 
         {open && (
           <div style={{ padding: "0 16px 16px" }}>
@@ -151,6 +174,25 @@ export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
               </div>
             )}
 
+            <button
+              type="button"
+              onClick={() => setLevelsOpen(true)}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                background: "rgba(255,193,7,0.12)",
+                border: "1px solid rgba(255,193,7,0.5)",
+                color: "#ffc107",
+                borderRadius: 10,
+                padding: "10px 14px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              🏆 Уровни и награды ›
+            </button>
+
             {link && (
               <div style={{ marginTop: 14 }}>
                 <CopyLinkButton
@@ -174,6 +216,15 @@ export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
           </div>
         )}
       </div>
+
+      {levelsOpen && (
+        <LevelsModal
+          totalEarned={data.totalEarned}
+          ordersAmount={data.orders?.amount ?? 0}
+          ordersCount={data.orders?.count ?? 0}
+          onClose={closeLevels}
+        />
+      )}
     </div>
   );
 }
