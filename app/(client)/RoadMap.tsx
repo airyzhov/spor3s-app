@@ -7,6 +7,7 @@ import CopyLinkButton from "./CopyLinkButton";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import { openExternal } from "../../lib/openExternal";
 import { referralLink, referralShareUrl } from "../../lib/referralLink";
+import { isGamificationTester } from "../../lib/testers";
 
 interface Metrics {
   memory: number;
@@ -56,8 +57,12 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   // Стартовая оценка отключена до подключения к API (не персистится) — не блокируем вкладку
   const [showStartAssessment, setShowStartAssessment] = useState(false);
   // Геймификация (уровни, недельные метрики, трекинг курса) скрыта до запуска.
-  // Включить обратно: SHOW_GAMIFICATION = true
-  const SHOW_GAMIFICATION = false;
+  // Пока видят только тестировщики (lib/testers.ts — аккаунт владельца). Включить всем: SHOW_GAMIFICATION = true
+  const SHOW_GAMIFICATION = isGamificationTester(user?.telegram_id);
+  // Привычке нужны таблицы user_habits / weekly_habit_reports / predefined_habits — в базе их нет
+  const HABIT_READY = false;
+  // Старый блок «Уровни и награды» считал уровень только по SC; уровни теперь в окне LevelsModal (панель SC)
+  const SHOW_OLD_LEVELS_BLOCK = false;
   const [todayMetrics, setTodayMetrics] = useState<Metrics>({ memory: 5, sleep: 5, energy: 5, stress: 5 });
   const [weeklyObservations, setWeeklyObservations] = useState("");
   const [totalEarned, setTotalEarned] = useState(0); // заработано за всё время — для уровня
@@ -1116,14 +1121,15 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       {SHOW_GAMIFICATION && (<>
 
       {/* Enhanced Motivational Habit Component */}
-      {user?.id && (
-        <MotivationalHabit 
-          userId={user.id} 
+      {HABIT_READY && user?.id && (
+        <MotivationalHabit
+          userId={user.id}
           onSCUpdate={() => setRefreshKey(k => k + 1)}
         />
       )}
 
       {/* Уровни и награды - по умолчанию показываем текущий и следующий */}
+      {SHOW_OLD_LEVELS_BLOCK && (
       <div style={{
         background: "linear-gradient(135deg, #0f172a, #1e293b)",
         borderRadius: "20px",
@@ -1392,8 +1398,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           </>
         )}
       </div>
-
-
+      )}
 
       {/* Еженедельные отметки состояния */}
       <div style={{
