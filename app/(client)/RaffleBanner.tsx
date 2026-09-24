@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { openExternal } from "../../lib/openExternal";
 import { referralShareUrl } from "../../lib/referralLink";
 import { plural } from "../../lib/plural";
-import { RAFFLE, type RaffleView } from "../../lib/raffle";
+import { RAFFLE, prizeRulesText, type RaffleView } from "../../lib/raffle";
 
 interface RaffleBannerProps {
   userId?: string;
@@ -121,8 +121,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
             ) : (
               <>
                 <div style={line}>
-                  {RAFFLE.winnersCount} победителя. Приз зависит от числа приглашённых друзей: 1–3 — 1 добавка на выбор,
-                  4–5 — 2 добавки на выбор, 6 и больше — комплекс добавок.
+                  {RAFFLE.winnersCount} победителя. Приз зависит от числа приглашённых друзей: {prizeRulesText()}.
                 </div>
 
                 {data.stage === "open" && !me && (

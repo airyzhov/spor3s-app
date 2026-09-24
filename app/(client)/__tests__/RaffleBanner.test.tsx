@@ -59,7 +59,8 @@ it('участнику показывает приз и сколько друз�
   mockRaffle({ stage: 'open', me: me(1, 4), winners: null });
   await renderOpened();
   expect(screen.getByRole('button', { name: /Ты участвуешь/ })).toBeInTheDocument();
-  expect(screen.getByText(/Если выиграешь — 2 добавки на выбор\. Пригласи ещё 2 друзей — будет комплекс добавок/)).toBeInTheDocument();
+  expect(screen.getByText(/1–2 друга — 1 добавка на выбор, 3–4 друга — 2 добавки на выбор, 5 и больше — комплекс/)).toBeInTheDocument();
+  expect(screen.getByText(/Если выиграешь — 2 добавки на выбор\. Пригласи ещё 1 друга — будет комплекс добавок/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /К заданиям/ })).toBeNull();
 });
 

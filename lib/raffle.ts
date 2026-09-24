@@ -50,12 +50,21 @@ export type RaffleView = {
   winners: { name: string; prize: Prize | null }[] | null;
 };
 
-// Приз победителя по числу его друзей: 1–3 → 1 добавка, 4–5 → 2 добавки, 6+ → комплекс
+// Приз победителя по числу его друзей: 1–2 → 1 добавка, 3–4 → 2 добавки, 5+ → комплекс
 const PRIZE_TIERS: { minFriends: number; prize: Prize }[] = [
   { minFriends: 1, prize: { code: 'one', label: '1 добавка на выбор' } },
-  { minFriends: 4, prize: { code: 'two', label: '2 добавки на выбор' } },
-  { minFriends: 6, prize: { code: 'set', label: 'комплекс добавок' } },
+  { minFriends: 3, prize: { code: 'two', label: '2 добавки на выбор' } },
+  { minFriends: 5, prize: { code: 'set', label: 'комплекс добавок' } },
 ];
+
+// «1–2 друга — 1 добавка на выбор, 3–4 друга — …, 5 и больше — …» — одна строка для кнопки и бота
+export function prizeRulesText(): string {
+  return PRIZE_TIERS.map((tier, i) => {
+    const next = PRIZE_TIERS[i + 1];
+    const range = next ? `${tier.minFriends}–${next.minFriends - 1} друга` : `${tier.minFriends} и больше`;
+    return `${range} — ${tier.prize.label}`;
+  }).join(', ');
+}
 
 export function prizeForFriends(friends: number): Prize | null {
   let prize: Prize | null = null;
