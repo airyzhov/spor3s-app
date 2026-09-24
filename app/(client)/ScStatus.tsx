@@ -1,15 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { openExternal } from "../../lib/openExternal";
-import { referralShareUrl } from "../../lib/referralLink";
-import { SC_MECHANICS, REFERRAL_PERCENT } from "../../lib/levelUtils";
+import { referralLink } from "../../lib/referralLink";
+import { SC_MECHANICS, REFERRAL_PERCENT, levelNeedsText, type LevelNeeds } from "../../lib/levelUtils";
 import { plural } from "../../lib/plural";
-import TasksBanner from "./TasksBanner";
+import CopyLinkButton from "./CopyLinkButton";
 
 type Summary = {
   sc: number;
   totalEarned: number;
-  level: { code: string; name: string; icon: string; progress: number; scToNext: number; nextName: string | null };
+  level: { code: string; name: string; icon: string; progress: number; scToNext: number; nextName: string | null; needs: LevelNeeds | null };
   friends: number;
   referralEarned: number;
   telegramId: string | null;
@@ -17,15 +16,17 @@ type Summary = {
   monthGoal: { reportsDone: number; reportsTarget: number; bonus: number; bonusPaid: boolean; completed: boolean };
 };
 
-interface HomeStatusProps {
+interface ScStatusProps {
   userId?: string;
-  onOpenTasks: () => void;
-  onOpenCabinet: () => void;
+  // Меняется после начисления SC в кабинете (задание) — панель перечитывает данные
+  refreshKey?: number;
 }
 
+// Ключ остался с тех пор, как панель жила на главном экране: свёрнута/раскрыта — как привык человек
 const OPEN_KEY = "spor3s_home_status_open";
 
-export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeStatusProps) {
+// Панель в кабинете: SC, друзья, уровень, как заработать SC. Данные — /api/home-summary.
+export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
   const [data, setData] = useState<Summary | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -44,11 +45,11 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
         const json = await resp.json();
         if (!cancelled && json?.success) setData(json);
       } catch {
-        // витрина необязательна — молча остаёмся без неё
+        // панель необязательна — молча остаёмся без неё
       }
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   if (!data) return null;
 
@@ -58,10 +59,8 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
     try { localStorage.setItem(OPEN_KEY, next ? "1" : "0"); } catch {}
   };
 
-  const shareUrl = referralShareUrl(data.telegramId);
-  const share = () => {
-    if (shareUrl) openExternal(shareUrl);
-  };
+  const link = referralLink(data.telegramId);
+  const needs = data.level.needs;
 
   const chip = {
     display: "flex",
@@ -84,7 +83,7 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
   };
 
   return (
-    <div style={{ padding: "0 20px", marginBottom: 20 }}>
+    <div style={{ marginBottom: 20 }}>
       <div style={{
         background: "linear-gradient(135deg, rgba(255,0,204,0.12), rgba(51,51,255,0.12))",
         border: "2px solid rgba(255,255,255,0.15)",
@@ -134,29 +133,32 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
               1 SC = 1 ₽ скидки, до 30% суммы заказа
             </div>
 
-            {data.level.nextName && (
+            {needs && (
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#ccc", marginBottom: 6 }}>
-                  До уровня {data.level.nextName}: {data.level.scToNext} SC
+                  До уровня {needs.name}: ещё {levelNeedsText(needs)}
                 </div>
-                <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
-                  <div style={{
-                    width: `${Math.round(data.level.progress * 100)}%`,
-                    height: "100%",
-                    background: "linear-gradient(45deg, #ff00cc, #3333ff)"
-                  }} />
-                </div>
+                {/* Полоса — только про SC: когда их хватает, а не хватает заказов, полная полоса обманывала бы */}
+                {needs.sc > 0 && (
+                  <div style={{ height: 8, borderRadius: 4, background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
+                    <div style={{
+                      width: `${Math.round(data.level.progress * 100)}%`,
+                      height: "100%",
+                      background: "linear-gradient(45deg, #ff00cc, #3333ff)"
+                    }} />
+                  </div>
+                )}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              {shareUrl && (
-                <button
-                  type="button"
-                  onClick={share}
+            {link && (
+              <div style={{ marginTop: 14 }}>
+                <CopyLinkButton
+                  link={link}
+                  label="👥 Пригласить друга"
+                  fullWidth
                   style={{
-                    flex: 1,
-                    minWidth: 140,
+                    width: "100%",
                     background: "linear-gradient(45deg, #ff00cc, #3333ff)",
                     color: "#fff",
                     border: "none",
@@ -166,39 +168,12 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
                     fontWeight: 700,
                     cursor: "pointer"
                   }}
-                >
-                  👥 Пригласить друга
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onOpenCabinet}
-                style={{
-                  flex: 1,
-                  minWidth: 140,
-                  background: "rgba(255,255,255,0.12)",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.25)",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer"
-                }}
-              >
-                🎁 Открыть кабинет
-              </button>
-            </div>
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      <TasksBanner
-        left={data.tasks.left}
-        bonusPerTask={data.tasks.bonusPerTask}
-        onClick={onOpenTasks}
-        style={{ marginTop: 10 }}
-      />
     </div>
   );
 }

@@ -5,8 +5,7 @@ import Chat from "./chat";
 import Cart from "./Cart";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap";
-import HomeStatus from "./HomeStatus";
-import RaffleBanner from "./RaffleBanner";
+import { RaffleTeaser } from "./RaffleBanner";
 import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
@@ -64,7 +63,7 @@ export default function AppClient() {
   const [error, setError] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
   // Куда проскроллить в Кабинете после перехода с главного экрана
-  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | null>(null);
+  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -476,19 +475,13 @@ export default function AppClient() {
           </button>
         </nav>
 
+        {/* На главной — только строка розыгрыша; он сам, SC и уровень живут в кабинете */}
         {currentStep === 2 && (
-          <>
-            <RaffleBanner
-              userId={user?.id}
-              telegramId={user?.telegram_id}
-              onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
-            />
-            <HomeStatus
-              userId={user?.id}
-              onOpenTasks={() => { setCabinetFocus('tasks'); setCurrentStep(3); }}
-              onOpenCabinet={() => setCurrentStep(3)}
-            />
-          </>
+          <RaffleTeaser
+            userId={user?.id}
+            telegramId={user?.telegram_id}
+            onOpen={() => { setCabinetFocus('raffle'); setCurrentStep(3); }}
+          />
         )}
 
         <main className={styles.main}>

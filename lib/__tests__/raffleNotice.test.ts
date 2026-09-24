@@ -90,8 +90,8 @@ describe('готовое сообщение для бота', () => {
     expect(notice.text).toContain('Ты в розыгрыше');
     const [open, invite] = notice.buttons.flat();
     expect(open).toEqual({ text: '🎁 Открыть розыгрыш', web_app: { url: 'https://ai.spor3s.ru' } });
-    expect(invite.text).toBe('👥 Пригласить друзей');
-    expect(new URL(invite.url!).searchParams.get('url')).toBe('https://t.me/spor3sbot?start=54993853');
+    // «Пригласить» копирует реферальную ссылку — как одноимённая кнопка в приложении
+    expect(invite).toEqual({ text: '👥 Пригласить друзей', copy_text: { text: 'https://t.me/spor3sbot?start=54993853' } });
   });
 
   it('на 3-м друге — сообщение о выросшем призе', () => {

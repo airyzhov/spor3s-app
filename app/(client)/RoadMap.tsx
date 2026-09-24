@@ -1,8 +1,12 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import TasksBanner from "./TasksBanner";
+import RaffleBanner from "./RaffleBanner";
+import ScStatus from "./ScStatus";
+import CopyLinkButton from "./CopyLinkButton";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import { openExternal } from "../../lib/openExternal";
+import { referralLink, referralShareUrl } from "../../lib/referralLink";
 
 interface Metrics {
   memory: number;
@@ -22,7 +26,7 @@ interface WeekProgress {
 
 interface RoadMapProps {
   user: any;
-  focus?: 'tasks' | null;
+  focus?: 'tasks' | 'raffle' | null;
   onFocusHandled?: () => void;
 }
 
@@ -56,8 +60,12 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   const SHOW_GAMIFICATION = false;
   const [todayMetrics, setTodayMetrics] = useState<Metrics>({ memory: 5, sleep: 5, energy: 5, stress: 5 });
   const [weeklyObservations, setWeeklyObservations] = useState("");
-  const [currentSC, setCurrentSC] = useState(0);
   const [totalEarned, setTotalEarned] = useState(0); // заработано за всё время — для уровня
+  // Растёт после начисления за задание: панель SC и розыгрыш наверху перечитывают свои данные
+  const [refreshKey, setRefreshKey] = useState(0);
+  // Пришли со строки розыгрыша на главной — карточка розыгрыша открыта сразу
+  const [raffleExpand, setRaffleExpand] = useState(false);
+  const raffleRef = useRef<HTMLDivElement>(null);
   const [referralSC, setReferralSC] = useState(0);
 
   const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
@@ -100,9 +108,16 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
 
   // Приход с главного экрана. focus сбрасываем сразу: сам скролл живёт на
   // локальном scrollToTasksPending, поэтому сброс пропа его не обрывает.
+  // Розыгрыш — первый блок кабинета, над ним ничего не догружается: хватает одного скролла.
   useEffect(() => {
-    if (focus !== 'tasks') return;
-    focusTasks();
+    if (focus === 'tasks') {
+      focusTasks();
+    } else if (focus === 'raffle') {
+      setRaffleExpand(true);
+      raffleRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+    } else {
+      return;
+    }
     onFocusHandled?.();
   }, [focus, focusTasks]);
 
@@ -194,7 +209,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         }].sort((a, b) => a.week - b.week));
         setCurrentWeek(prev => prev + 1);
         setWeeklyObservations("");
-        if (typeof data.currentBalance === 'number') setCurrentSC(data.currentBalance);
+        setRefreshKey(k => k + 1); // баланс в панели SC
         setTotalEarned(prev => prev + (data.scEarned || 0));
         setSaveProgressMsg(data.scLimitReached
           ? `✅ Неделя ${savedWeek} сохранена (без SC — исчерпан месячный лимит 100 SC)`
@@ -278,8 +293,8 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
 
       if (data.success) {
         setTasksDone(prev => ({ ...prev, [channelType]: true }));
-        // Обновляем баланс SC
-        setCurrentSC(prev => prev + data.bonus);
+        // Баланс в панели SC и условие розыгрыша «задание выполнено» — перечитать
+        setRefreshKey(k => k + 1);
         
         // Показываем красивое уведомление об успехе
         const notification = document.createElement('div');
@@ -320,9 +335,10 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         }, 4000);
         
       } else {
-        // Если бонус уже получен, обновляем состояние
+        // Если бонус уже получен, обновляем состояние (раньше здесь звалась несуществующая
+        // setSubscribeSuccess — ReferenceError уходил в catch и человек видел «Ошибка сети»)
         if (data.error && data.error.includes('уже получен')) {
-          setSubscribeSuccess(channelType);
+          setTasksDone(prev => ({ ...prev, [channelType]: true }));
         }
         
         // Показываем уведомление об ошибке
@@ -475,7 +491,6 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         setReferralCode(data.stats.referralCode);
         setReferralBonus(data.stats.referralEarned);
         setInvitedCount(data.stats.totalReferrals);
-        if (typeof data.stats.balance === 'number') setCurrentSC(data.stats.balance);
         if (typeof data.stats.totalEarned === 'number') setTotalEarned(data.stats.totalEarned);
       }
     } catch (error) {
@@ -636,73 +651,27 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       width: "100%",
       boxSizing: "border-box"
     }}>
-      {/* Плашка невыполненных заданий — та же, что на главном экране.
-          Здесь клик не уводит на другой экран, а раскрывает блок заданий ниже. */}
+      {/* Розыгрыш — первым: на главной от него осталась только строка-ссылка сюда (RaffleTeaser) */}
+      <div ref={raffleRef}>
+        <RaffleBanner
+          userId={user?.id}
+          telegramId={user?.telegram_id}
+          onOpenTasks={focusTasks}
+          expand={raffleExpand}
+          refreshKey={refreshKey}
+        />
+      </div>
+
+      {/* SC, друзья, уровень и как заработать SC (раньше — на главном экране) */}
+      <ScStatus userId={user?.id} refreshKey={refreshKey} />
+
+      {/* Плашка невыполненных заданий: клик раскрывает блок заданий ниже */}
       <TasksBanner
         left={TASKS.length - Object.values(tasksDone).filter(Boolean).length}
         bonusPerTask={TASK_BONUS}
         onClick={() => { focusTasks(); }}
         style={{ marginBottom: 20 }}
       />
-
-      {/* Информация о пользователе - компактная версия */}
-      <div style={{
-        background: "linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(51, 51, 255, 0.1))",
-        borderRadius: 16,
-        padding: "clamp(15px, 4vw, 20px)",
-        marginBottom: 25,
-        border: "2px solid #ff00cc",
-        textAlign: "center",
-        width: "100%",
-        boxSizing: "border-box",
-        overflow: "hidden"
-      }}>
-        <div style={{
-          fontSize: "clamp(12px, 3vw, 14px)",
-          color: "#fff",
-          fontWeight: 600,
-          marginBottom: 6
-        }}>
-          1 Spor3s Coin = 1 рубль
-        </div>
-        {/* Технический ID/username больше не показываем (не должен светиться dev-user/temp-user).
-            Персональная реферальная ссылка — ниже, в блоке «Реферальная система». */}
-
-        {/* Компактное отображение коинов */}
-        <div style={{
-          display: "flex",
-          gap: "clamp(10px, 2vw, 15px)",
-          justifyContent: "center",
-          flexWrap: "wrap",
-          marginTop: "10px",
-          width: "100%"
-        }}>
-          <div style={{ 
-            background: "linear-gradient(45deg, #ff00cc, #3333ff)",
-            color: "white",
-            padding: "clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px)",
-            borderRadius: "15px",
-            fontSize: "clamp(14px, 3.5vw, 18px)",
-            fontWeight: "bold",
-            display: "inline-block",
-            whiteSpace: "nowrap"
-          }}>
-            💰 {currentSC} SC
-          </div>
-          <div style={{
-            background: "linear-gradient(45deg, #10b981, #059669)",
-            color: "white",
-            padding: "clamp(8px, 2vw, 10px) clamp(15px, 3vw, 20px)",
-            borderRadius: "15px",
-            fontSize: "clamp(14px, 3.5vw, 18px)",
-            fontWeight: "bold",
-            display: "inline-block",
-            whiteSpace: "nowrap"
-          }}>
-            🎁 {referralBonus} ₽ реф.
-          </div>
-        </div>
-      </div>
 
       {SHOW_GAMIFICATION && (<>
       {/* Информация о начале курса */}
@@ -935,9 +904,8 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         </div>
         
         {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
-        {user?.telegram_id && /^\d+$/.test(String(user.telegram_id)) && (() => {
-          const refLink = `https://t.me/spor3sbot?start=${user.telegram_id}`;
-          const shareText = 'Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!';
+        {referralLink(user?.telegram_id) && (() => {
+          const refLink = referralLink(user.telegram_id)!;
           return (
             <div style={{
               background: "rgba(255, 255, 255, 0.1)",
@@ -963,17 +931,16 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
                 {refLink}
               </div>
               <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                <button
-                  onClick={() => { navigator.clipboard.writeText(refLink); alert('Ссылка скопирована!'); }}
+                <CopyLinkButton
+                  link={refLink}
+                  label="📋 Скопировать"
                   style={{
                     background: "#ff00cc", color: "#fff", border: "none", borderRadius: 8,
                     padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
                   }}
-                >
-                  📋 Скопировать
-                </button>
+                />
                 <button
-                  onClick={() => openExternal(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`)}
+                  onClick={() => openExternal(referralShareUrl(user.telegram_id)!)}
                   style={{
                     background: "linear-gradient(45deg, #0088cc, #00a8ff)", color: "#fff", border: "none", borderRadius: 8,
                     padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
@@ -987,7 +954,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         })()}
 
         {/* Гость из браузера: ссылки нет — подсказываем открыть через Telegram */}
-        {!(user?.telegram_id && /^\d+$/.test(String(user.telegram_id))) && (
+        {!referralLink(user?.telegram_id) && (
           <div style={{
             background: "rgba(0, 136, 204, 0.15)",
             border: "1px solid rgba(0, 168, 255, 0.5)",
@@ -1021,7 +988,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
             boxSizing: "border-box"
           }}>
             <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px" }}>
-              {user?.telegram_id && /^\d+$/.test(String(user.telegram_id))
+              {referralLink(user?.telegram_id)
                 ? "Или код для ввода при заказе:"
                 : "Ваш реферальный код:"}
             </div>
@@ -1152,7 +1119,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       {user?.id && (
         <MotivationalHabit 
           userId={user.id} 
-          onSCUpdate={(newSC) => setCurrentSC(prev => prev + newSC)}
+          onSCUpdate={() => setRefreshKey(k => k + 1)}
         />
       )}
 

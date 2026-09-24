@@ -1,7 +1,7 @@
 // Розыгрыш 10.10 — правила без обращений к базе, чтобы их проверяли юнит-тесты.
 // Дизайн: docs/superpowers/specs/2026-09-24-raffle-10-10-design.md
 import { plural } from './plural';
-import { referralShareUrl } from './referralLink';
+import { referralLink } from './referralLink';
 
 export const RAFFLE = {
   id: 'raffle-2026-10-10',
@@ -38,7 +38,7 @@ export type RaffleParticipant = {
 export type RaffleWinner = { user_id: string; name: string; friends: number; prize: Prize | null };
 export type RaffleDraw = { drawn_at: string; participants: RaffleParticipant[]; winners: RaffleWinner[] };
 
-// Ответ /api/raffle для кнопки на главной
+// Ответ /api/raffle для карточки в кабинете и строки на главной
 export type RaffleMe = {
   tasks: number;
   friends: number;
@@ -193,7 +193,8 @@ export function pickWinners<T>(pool: T[], count: number, randomInt: (maxExclusiv
 // ---- Сообщения бота участникам (§11 спеки) ----
 
 export type RaffleEvent = 'task' | 'friend';
-export type TelegramButton = { text: string; url?: string; web_app?: { url: string } };
+// copy_text — кнопка, которая копирует текст в буфер (Bot API 7.11)
+export type TelegramButton = { text: string; url?: string; web_app?: { url: string }; copy_text?: { text: string } };
 export type TelegramNotice = { chatId: string; text: string; buttons: TelegramButton[][] };
 
 const APP_URL = 'https://ai.spor3s.ru';
@@ -256,8 +257,8 @@ export function buildRaffleNotice(
   now: Date = new Date(),
 ): TelegramNotice | null {
   if (raffleStage(now, false) !== 'open') return null;
-  const share = referralShareUrl(telegramId);
-  if (!share) return null; // без числового Telegram ID боту некуда писать
+  const link = referralLink(telegramId);
+  if (!link) return null; // без числового Telegram ID боту некуда писать
   const kind = raffleNotice(event, progress);
   if (!kind) return null;
   return {
@@ -265,7 +266,8 @@ export function buildRaffleNotice(
     text: kind === 'joined' ? joinedMessage(progress.friends) : tierUpMessage(progress.friends),
     buttons: [[
       { text: '🎁 Открыть розыгрыш', web_app: { url: APP_URL } },
-      { text: '👥 Пригласить друзей', url: share },
+      // Как «Пригласить» в приложении: просто копирует реферальную ссылку
+      { text: '👥 Пригласить друзей', copy_text: { text: link } },
     ]],
   };
 }
