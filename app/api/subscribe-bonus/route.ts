@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 import { creditSC } from "../../../lib/referral";
+import { notifyRaffle } from "../../../lib/raffleNotify";
 
 const BONUS_AMOUNT = 30; // 30 SC за каждое задание
 const CHANNELS: Record<string, string> = {
@@ -53,6 +54,13 @@ export async function POST(req: NextRequest) {
       sourceType: `subscribe_${channel_type}`,
       description: `Бонус за задание: ${CHANNELS[channel_type]}`,
     });
+
+    // Первое задание может закрыть условия розыгрыша — тогда бот поздравит (lib/raffleNotify.ts)
+    try {
+      await notifyRaffle(user_id, "task");
+    } catch (e) {
+      console.error("[raffle] уведомление участнику:", e);
+    }
 
     return NextResponse.json({
       success: true,
