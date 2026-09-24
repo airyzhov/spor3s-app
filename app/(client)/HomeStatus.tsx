@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { openExternal } from "../../lib/openExternal";
+import { referralShareUrl } from "../../lib/referralLink";
 import { SC_MECHANICS, REFERRAL_PERCENT } from "../../lib/levelUtils";
 import { plural } from "../../lib/plural";
 import TasksBanner from "./TasksBanner";
@@ -11,7 +12,7 @@ type Summary = {
   level: { code: string; name: string; icon: string; progress: number; scToNext: number; nextName: string | null };
   friends: number;
   referralEarned: number;
-  referralCode: string | null;
+  telegramId: string | null;
   tasks: { done: number; total: number; left: number; bonusPerTask: number };
   monthGoal: { reportsDone: number; reportsTarget: number; bonus: number; bonusPaid: boolean; completed: boolean };
 };
@@ -57,11 +58,9 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
     try { localStorage.setItem(OPEN_KEY, next ? "1" : "0"); } catch {}
   };
 
+  const shareUrl = referralShareUrl(data.telegramId);
   const share = () => {
-    if (!data.referralCode) return;
-    const link = `https://t.me/spor3sbot?start=${encodeURIComponent(data.referralCode)}`;
-    const text = "Грибные добавки СПОРС 🍄 Перейди по моей ссылке — получишь 100 SC (100₽) на первый заказ!";
-    openExternal(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
+    if (shareUrl) openExternal(shareUrl);
   };
 
   const chip = {
@@ -151,7 +150,7 @@ export default function HomeStatus({ userId, onOpenTasks, onOpenCabinet }: HomeS
             )}
 
             <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              {data.referralCode && (
+              {shareUrl && (
                 <button
                   type="button"
                   onClick={share}

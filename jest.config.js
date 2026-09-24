@@ -4,7 +4,8 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
+    // tsconfig держит jsx: preserve (JSX компилирует Next), а Jest должен его исполнить сам
+    '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: { jsx: 'react-jsx' } }],
     // Именованный конфиг (не babel.config.js): у корневого babel.config.js Next.js
     // отключает SWC и весь prod-билд идёт через Babel — этот файл виден только Jest.
     '^.+\\.(js|jsx)$': ['babel-jest', { configFile: path.resolve(__dirname, 'babel.config.test.js') }],
