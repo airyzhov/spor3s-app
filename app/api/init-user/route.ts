@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../supabaseServerClient';
 import { getOrCreateUser } from '../../../lib/initUserHandler';
+import { notifyReferrerOfNewFriend } from '../../../lib/raffleNotify';
 console.log('[init-user route] typeof getOrCreateUser:', typeof getOrCreateUser);
 
 export async function POST(request: NextRequest) {
@@ -20,6 +21,13 @@ export async function POST(request: NextRequest) {
     const userSource = source || 'mini_app';
     console.log('[init-user] Creating/updating AI agent status for source:', userSource);
 
+    // Строки ещё нет — это первый вход в приложение (её же розыгрыш считает признаком «друг открыл приложение»)
+    const { data: seenBefore } = await supabaseServer
+      .from('ai_agent_status')
+      .select('user_id')
+      .eq('user_id', id)
+      .maybeSingle();
+
     await supabaseServer
       .from('ai_agent_status')
       .upsert({
@@ -30,6 +38,15 @@ export async function POST(request: NextRequest) {
         auto_mode: true,
         last_activity: new Date().toISOString(),
       }, { onConflict: 'user_id' });
+
+    // Первый вход друга, пришедшего по ссылке, — повод написать пригласившему (lib/raffleNotify.ts)
+    if (!seenBefore) {
+      try {
+        await notifyReferrerOfNewFriend(id);
+      } catch (e) {
+        console.error('[raffle] уведомление пригласившему:', e);
+      }
+    }
 
     return NextResponse.json({ id, source: userSource });
   } catch (e: any) {

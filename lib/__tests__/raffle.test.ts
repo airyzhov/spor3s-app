@@ -7,6 +7,7 @@ import {
   raffleStage,
   prizeForFriends,
   nextPrize,
+  prizeRulesText,
   isEligible,
   countTasks,
   countFriends,
@@ -45,10 +46,10 @@ describe('призы по числу своих друзей', () => {
   it.each([
     [0, null],
     [1, 'one'],
-    [3, 'one'],
+    [2, 'one'],
+    [3, 'two'],
     [4, 'two'],
-    [5, 'two'],
-    [6, 'set'],
+    [5, 'set'],
     [10, 'set'],
   ])('%i друзей → %s', (friends, code) => {
     expect(prizeForFriends(friends as number)?.code ?? null).toBe(code);
@@ -56,9 +57,15 @@ describe('призы по числу своих друзей', () => {
 
   it('подсказывает, сколько друзей до следующего приза', () => {
     expect(nextPrize(0)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(1) });
-    expect(nextPrize(1)).toEqual({ friendsNeeded: 3, prize: prizeForFriends(4) });
-    expect(nextPrize(5)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(6) });
-    expect(nextPrize(6)).toBeNull();
+    expect(nextPrize(1)).toEqual({ friendsNeeded: 2, prize: prizeForFriends(3) });
+    expect(nextPrize(4)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(5) });
+    expect(nextPrize(5)).toBeNull();
+  });
+
+  it('правила призов одной строкой — для кнопки и сообщений бота', () => {
+    expect(prizeRulesText()).toBe(
+      '1–2 друга — 1 добавка на выбор, 3–4 друга — 2 добавки на выбор, 5 и больше — комплекс добавок',
+    );
   });
 });
 

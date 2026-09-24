@@ -3,10 +3,10 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import RaffleBanner from '../RaffleBanner';
+import RaffleBanner, { RaffleTeaser } from '../RaffleBanner';
 import { prizeForFriends, nextPrize } from '../../../lib/raffle';
 
-// Кнопка «Розыгрыш 10.10» на главной: что видит человек в каждой стадии розыгрыша.
+// Розыгрыш 10.10: карточка в кабинете и строка на главной — что видит человек в каждой стадии.
 // Ответ /api/raffle подменяем — здесь проверяется только отображение.
 
 const TG_ID = '54993853';
@@ -55,11 +55,50 @@ it('показывает прогресс по условиям и ведёт к
   expect(onOpenTasks).toHaveBeenCalled();
 });
 
+it('«Пригласить» копирует реферальную ссылку и подтверждает это', async () => {
+  const writeText = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  mockRaffle({ stage: 'open', me: me(0, 0), winners: null });
+  await renderOpened();
+  fireEvent.click(screen.getByRole('button', { name: /Пригласить/ }));
+  expect(await screen.findByRole('button', { name: /Ссылка скопирована/ })).toBeInTheDocument();
+  expect(writeText).toHaveBeenCalledWith(`https://t.me/spor3sbot?start=${TG_ID}`);
+});
+
+it('раскрывается сразу, если пришли со строки на главной', async () => {
+  mockRaffle({ stage: 'open', me: me(0, 0), winners: null });
+  render(<RaffleBanner userId={USER_ID} telegramId={TG_ID} onOpenTasks={jest.fn()} expand />);
+  expect(await screen.findByText(/Выполни задание на подписку/)).toBeInTheDocument();
+});
+
+describe('строка на главной', () => {
+  it('показывает статус участника и ведёт в кабинет', async () => {
+    mockRaffle({ stage: 'open', me: me(1, 1), winners: null });
+    const onOpen = jest.fn();
+    render(<RaffleTeaser userId={USER_ID} telegramId={TG_ID} onOpen={onOpen} />);
+    const row = await screen.findByRole('button', { name: /Розыгрыш 10\.10.*Ты участвуешь.*→/ });
+    // золотая рамка карточки, а не «border: none» заголовка
+    expect(row.style.border).toMatch(/^2px solid/);
+    fireEvent.click(row);
+    expect(onOpen).toHaveBeenCalled();
+    // подробности — только в кабинете
+    expect(screen.queryByText(/Выполни задание/)).toBeNull();
+  });
+
+  it('пропадает после окончания розыгрыша', async () => {
+    mockRaffle({ stage: 'hidden', me: null, winners: null });
+    const { container } = render(<RaffleTeaser userId={USER_ID} telegramId={TG_ID} onOpen={jest.fn()} />);
+    await waitFor(() => expect((global as any).fetch).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
 it('участнику показывает приз и сколько друзей до следующего', async () => {
   mockRaffle({ stage: 'open', me: me(1, 4), winners: null });
   await renderOpened();
   expect(screen.getByRole('button', { name: /Ты участвуешь/ })).toBeInTheDocument();
-  expect(screen.getByText(/Если выиграешь — 2 добавки на выбор\. Пригласи ещё 2 друзей — будет комплекс добавок/)).toBeInTheDocument();
+  expect(screen.getByText(/1–2 друга — 1 добавка на выбор, 3–4 друга — 2 добавки на выбор, 5 и больше — комплекс/)).toBeInTheDocument();
+  expect(screen.getByText(/Если выиграешь — 2 добавки на выбор\. Пригласи ещё 1 друга — будет комплекс добавок/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /К заданиям/ })).toBeNull();
 });
 

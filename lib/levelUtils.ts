@@ -1,5 +1,6 @@
 // 🎯 НОВАЯ СИСТЕМА УРОВНЕЙ SPOR3S-APP
 // Обновленные утилиты для работы с уровнями и SC
+import { plural } from './plural';
 
 export interface LevelInfo {
   level: number;
@@ -138,6 +139,37 @@ export function getLevelInfo(sc: number, ordersAmount: number = 0, ordersCount: 
     nextLevelName: nextLevel?.name || null,
     benefits: currentLevel.benefits
   };
+}
+
+// Чего не хватает до следующего уровня. Уровень требует и SC, и заказов: с 1000 SC,
+// но без заказов человек остаётся Новичком — тогда sc = 0, а ordersCount = 1.
+// null — уровень максимальный.
+export interface LevelNeeds {
+  name: string;
+  sc: number;
+  ordersAmount: number;
+  ordersCount: number;
+}
+
+export function nextLevelNeeds(sc: number, ordersAmount: number = 0, ordersCount: number = 0): LevelNeeds | null {
+  const info = getLevelInfo(sc, ordersAmount, ordersCount);
+  const next = LEVEL_CONFIG.find(l => l.level === info.nextLevel);
+  if (!next) return null;
+  return {
+    name: next.name,
+    sc: Math.max(0, next.scRequired - sc),
+    ordersAmount: Math.max(0, next.ordersAmountRequired - ordersAmount),
+    ordersCount: Math.max(0, next.ordersCountRequired - ordersCount),
+  };
+}
+
+// «200 SC и заказы на 5 000 ₽» — для строки «До уровня …: ещё …»
+export function levelNeedsText(needs: LevelNeeds): string {
+  const parts: string[] = [];
+  if (needs.sc > 0) parts.push(`${needs.sc} SC`);
+  if (needs.ordersCount > 0) parts.push(`${needs.ordersCount} ${plural(needs.ordersCount, 'заказ', 'заказа', 'заказов')}`);
+  if (needs.ordersAmount > 0) parts.push(`заказы на ${formatOrderAmount(needs.ordersAmount)}`);
+  return parts.join(' и ');
 }
 
 // Потолок регулярного заработка за месяц: 4 отчёта + бонус цели месяца + 4 привычки.

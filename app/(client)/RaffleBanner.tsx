@@ -1,22 +1,47 @@
 "use client";
 import { useEffect, useState, type ReactNode } from "react";
-import { openExternal } from "../../lib/openExternal";
-import { referralShareUrl } from "../../lib/referralLink";
+import { referralLink } from "../../lib/referralLink";
 import { plural } from "../../lib/plural";
-import { RAFFLE, type RaffleView } from "../../lib/raffle";
+import { RAFFLE, prizeRulesText, type RaffleMe, type RaffleView } from "../../lib/raffle";
+import CopyLinkButton from "./CopyLinkButton";
 
 interface RaffleBannerProps {
   userId?: string;
   telegramId?: string;
   onOpenTasks: () => void;
+  // Раскрыть карточку сразу — пришли со строки розыгрыша на главной
+  expand?: boolean;
+  // Меняется после выполнения задания в кабинете — прогресс перечитывается
+  refreshKey?: number;
 }
 
 const OPEN_KEY = "spor3s_raffle_open";
 
-// Кнопка «Розыгрыш 10.10» на главном экране: условия, личный прогресс, итоги.
+const card = {
+  background: "linear-gradient(135deg, rgba(255,193,7,0.18), rgba(255,0,204,0.14))",
+  border: "2px solid rgba(255,193,7,0.6)",
+  borderRadius: 16,
+  overflow: "hidden" as const,
+};
+
+const header = {
+  width: "100%",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  padding: "14px 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  color: "#fff",
+  textAlign: "left" as const,
+};
+
+// Розыгрыш 10.10: полная карточка живёт в кабинете, на главной — строка RaffleTeaser, ведущая сюда.
 // Правила и сроки — lib/raffle.ts, данные — /api/raffle.
-export default function RaffleBanner({ userId, telegramId, onOpenTasks }: RaffleBannerProps) {
-  const [data, setData] = useState<RaffleView | null>(null);
+export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, refreshKey }: RaffleBannerProps) {
+  const data = useRaffleView(userId, refreshKey);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -26,19 +51,8 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const resp = await fetch(`/api/raffle?user_id=${encodeURIComponent(userId)}`);
-        const json = await resp.json();
-        if (!cancelled && json?.success) setData(json);
-      } catch {
-        // розыгрыш необязателен — без данных кнопку не показываем
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [userId]);
+    if (expand) setOpen(true);
+  }, [expand]);
 
   if (!data || data.stage === "hidden") return null;
 
@@ -48,17 +62,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
     try { localStorage.setItem(OPEN_KEY, next ? "1" : "0"); } catch {}
   };
 
-  // Участвовать можно только из Telegram: без числового ID нет ссылки-приглашения
-  const shareUrl = referralShareUrl(telegramId);
-  const me = shareUrl ? data.me : null;
-  const conditionsDone = me ? Number(me.tasks >= 1) + Number(me.friends >= 1) : 0;
-
-  const status =
-    data.stage === "drawn" ? "🏆 Итоги"
-    : me?.eligible ? "✅ Ты участвуешь"
-    : data.stage === "closed" ? "Приём закрыт"
-    : me ? `${conditionsDone} из 2 условий`
-    : "Условия";
+  const { link, me } = myProgress(data, telegramId);
 
   const line = { fontSize: "clamp(12px, 3vw, 14px)", color: "#ddd", lineHeight: 1.5 };
   const actionBtn = {
@@ -74,36 +78,10 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
   };
 
   return (
-    <div style={{ padding: "0 20px", marginBottom: 12 }}>
-      <div style={{
-        background: "linear-gradient(135deg, rgba(255,193,7,0.18), rgba(255,0,204,0.14))",
-        border: "2px solid rgba(255,193,7,0.6)",
-        borderRadius: 16,
-        overflow: "hidden"
-      }}>
-        <button
-          type="button"
-          onClick={toggle}
-          style={{
-            width: "100%",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: "14px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            color: "#fff",
-            textAlign: "left"
-          }}
-        >
-          <span style={{ fontSize: "clamp(14px, 3.6vw, 17px)", fontWeight: 800 }}>
-            🎁 {RAFFLE.title} — выиграй добавки
-          </span>
-          <span style={{ fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, color: "#ffc107", whiteSpace: "nowrap" }}>
-            {status} {open ? "▲" : "▼"}
-          </span>
+    <div style={{ marginBottom: 20 }}>
+      <div style={card}>
+        <button type="button" onClick={toggle} style={header}>
+          <Title status={raffleStatus(data, me)} mark={open ? "▲" : "▼"} />
         </button>
 
         {open && (
@@ -121,8 +99,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
             ) : (
               <>
                 <div style={line}>
-                  {RAFFLE.winnersCount} победителя. Приз зависит от числа приглашённых друзей: 1–3 — 1 добавка на выбор,
-                  4–5 — 2 добавки на выбор, 6 и больше — комплекс добавок.
+                  {RAFFLE.winnersCount} победителя. Приз зависит от числа приглашённых друзей: {prizeRulesText()}.
                 </div>
 
                 {data.stage === "open" && !me && (
@@ -131,7 +108,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
                   </div>
                 )}
 
-                {data.stage === "open" && me && (
+                {data.stage === "open" && me && link && (
                   <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
                     <Condition done={me.tasks >= 1} text="Выполни задание на подписку в кабинете">
                       {me.tasks < 1 && (
@@ -142,7 +119,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
                       done={me.friends >= 1}
                       text={`Пригласи друга: он должен перейти по твоей ссылке и открыть приложение. Друзей: ${me.friends}`}
                     >
-                      <button type="button" onClick={() => openExternal(shareUrl!)} style={actionBtn}>👥 Пригласить</button>
+                      <CopyLinkButton link={link} label="👥 Пригласить" style={actionBtn} />
                     </Condition>
                   </div>
                 )}
@@ -166,6 +143,71 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks }: Raffle
         )}
       </div>
     </div>
+  );
+}
+
+// Строка «🎁 Розыгрыш 10.10 →» на главной: тот же заголовок и статус, но ведёт в кабинет
+export function RaffleTeaser({ userId, telegramId, onOpen }: { userId?: string; telegramId?: string; onOpen: () => void }) {
+  const data = useRaffleView(userId);
+  if (!data || data.stage === "hidden") return null;
+  const { me } = myProgress(data, telegramId);
+
+  return (
+    <div style={{ padding: "0 20px", marginBottom: 12 }}>
+      {/* card после header: его фон и рамка должны перекрыть «background/border: none» заголовка */}
+      <button type="button" onClick={onOpen} style={{ ...header, ...card }}>
+        <Title status={raffleStatus(data, me)} mark="→" />
+      </button>
+    </div>
+  );
+}
+
+function useRaffleView(userId?: string, refreshKey?: number): RaffleView | null {
+  const [data, setData] = useState<RaffleView | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch(`/api/raffle?user_id=${encodeURIComponent(userId)}`);
+        const json = await resp.json();
+        if (!cancelled && json?.success) setData(json);
+      } catch {
+        // розыгрыш необязателен — без данных кнопку не показываем
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, refreshKey]);
+
+  return data;
+}
+
+// Участвовать можно только из Telegram: без числового ID нет ссылки-приглашения, а прогресс не считаем
+function myProgress(data: RaffleView, telegramId?: string): { link: string | null; me: RaffleMe | null } {
+  const link = referralLink(telegramId);
+  return { link, me: link ? data.me : null };
+}
+
+function raffleStatus(data: RaffleView, me: RaffleMe | null): string {
+  const conditionsDone = me ? Number(me.tasks >= 1) + Number(me.friends >= 1) : 0;
+  return data.stage === "drawn" ? "🏆 Итоги"
+    : me?.eligible ? "✅ Ты участвуешь"
+    : data.stage === "closed" ? "Приём закрыт"
+    : me ? `${conditionsDone} из 2 условий`
+    : "Условия";
+}
+
+function Title({ status, mark }: { status: string; mark: string }) {
+  return (
+    <>
+      <span style={{ fontSize: "clamp(14px, 3.6vw, 17px)", fontWeight: 800 }}>
+        🎁 {RAFFLE.title} — выиграй добавки
+      </span>
+      <span style={{ fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, color: "#ffc107", whiteSpace: "nowrap" }}>
+        {status} {mark}
+      </span>
+    </>
   );
 }
 
