@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { matchesOrder, matchesUser } from "../../lib/adminSearch";
+import { card, input, btn } from "./styles";
+import RaffleAdmin from "./RaffleAdmin";
 
 type Stats = {
   totalUsers: number;
@@ -30,33 +32,6 @@ function TgUser({ username, telegram_id }: { username?: string | null; telegram_
   }
   return <span style={{ color: "#64748b" }}>—</span>;
 }
-
-const card: React.CSSProperties = {
-  background: "#1e293b",
-  borderRadius: 12,
-  padding: "16px 20px",
-  border: "1px solid #334155",
-};
-const input: React.CSSProperties = {
-  width: "100%",
-  padding: 12,
-  borderRadius: 8,
-  border: "1px solid #475569",
-  background: "#0f172a",
-  color: "#fff",
-  fontSize: 14,
-  boxSizing: "border-box",
-};
-const btn: React.CSSProperties = {
-  background: "linear-gradient(45deg, #ff00cc, #3333ff)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "12px 20px",
-  fontSize: 14,
-  fontWeight: "bold",
-  cursor: "pointer",
-};
 
 export default function AdminPage() {
   const [secretInput, setSecretInput] = useState("");
@@ -275,6 +250,9 @@ export default function AdminPage() {
           onChange={(e) => setSearch(e.target.value)}
           style={{ ...input, marginBottom: 20 }}
         />
+
+        {/* Розыгрыш */}
+        {secret && <RaffleAdmin secret={secret} search={search} />}
 
         {/* Заказы / продажи */}
         <div style={{ ...card, marginBottom: 28 }}>
