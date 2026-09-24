@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { matchesOrder, matchesUser } from "../../lib/adminSearch";
 
 type Stats = {
   totalUsers: number;
@@ -72,6 +73,9 @@ export default function AdminPage() {
   const [coinAmount, setCoinAmount] = useState("");
   const [coinDesc, setCoinDesc] = useState("");
   const [coinMsg, setCoinMsg] = useState("");
+
+  // Поиск по номеру заказа, Telegram ID или @логину — фильтрует заказы и балансы
+  const [search, setSearch] = useState("");
 
   // Ссылка на внешнюю общую таблицу (Google Sheets) — задаётся в .env.local
   const sheetUrl = process.env.NEXT_PUBLIC_SHEET_URL;
@@ -184,6 +188,11 @@ export default function AdminPage() {
 
   const ORDER_STATUSES = ["pending", "paid", "shipped", "completed", "cancelled"];
 
+  const searching = search.trim() !== "";
+  const shownOrders = orders.filter((o) => matchesOrder(o, search));
+  const shownUsers = users.filter((u) => matchesUser(u, search));
+  const countLabel = (shown: number, total: number) => (searching ? `${shown} из ${total}` : `${total}`);
+
   const wrap: React.CSSProperties = {
     minHeight: "100vh",
     background: "#0b1220",
@@ -258,11 +267,22 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Поиск */}
+        <input
+          type="search"
+          placeholder="🔍 Поиск: номер заказа, Telegram ID или @логин"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ ...input, marginBottom: 20 }}
+        />
+
         {/* Заказы / продажи */}
         <div style={{ ...card, marginBottom: 28 }}>
-          <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 14 }}>🛒 Заказы ({orders.length})</h2>
+          <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 14 }}>🛒 Заказы ({countLabel(shownOrders.length, orders.length)})</h2>
           {orders.length === 0 ? (
             <div style={{ color: "#94a3b8", fontSize: 14 }}>Пока заказов нет.</div>
+          ) : shownOrders.length === 0 ? (
+            <div style={{ color: "#94a3b8", fontSize: 14 }}>Ничего не найдено.</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -281,10 +301,12 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((o) => (
+                  {shownOrders.map((o) => (
                     <tr key={o.id} style={{ borderTop: "1px solid #334155", verticalAlign: "top" }}>
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap", color: "#cbd5e1" }}>
                         {o.created_at ? new Date(o.created_at).toLocaleDateString("ru-RU") : "—"}
+                        {/* Начало номера — тот же номер, что в уведомлении о заказе: «#…» */}
+                        <div style={{ color: "#64748b", fontSize: 11, fontFamily: "monospace" }}>#{String(o.id).slice(0, 8)}</div>
                       </td>
                       <td style={{ padding: "8px 8px" }}>{o.fio || "—"}</td>
                       <td style={{ padding: "8px 8px", whiteSpace: "nowrap" }}><TgUser username={o.username} telegram_id={o.telegram_id} /></td>
@@ -375,7 +397,10 @@ export default function AdminPage() {
 
         {/* Балансы пользователей */}
         <div style={card}>
-          <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 14 }}>👥 Балансы пользователей ({users.length})</h2>
+          <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 14 }}>👥 Балансы пользователей ({countLabel(shownUsers.length, users.length)})</h2>
+          {searching && shownUsers.length === 0 ? (
+            <div style={{ color: "#94a3b8", fontSize: 14 }}>Ничего не найдено.</div>
+          ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
@@ -387,7 +412,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {users
+                {shownUsers
                   .slice()
                   .sort((a, b) => b.balance - a.balance)
                   .map((u) => (
@@ -401,6 +426,7 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       </div>
     </div>

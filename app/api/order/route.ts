@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. SC за заказ начисляются ПРИ ОПЛАТЕ (статус paid), а не при создании —
+    // 7. SC за заказ начисляются ПРИ ОПЛАТЕ (статус paid, shipped или completed), а не при создании —
     //    иначе баланс накручивается неоплаченными заказами.
     //    См. app/api/admin/orders/route.ts → creditOrderScOnPaid.
 
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 9. Реферальные начисления перенесены на смену статуса заказа на "paid"
+    // 9. Реферальные начисления перенесены на смену статуса заказа на оплаченный (paid / shipped / completed)
     //    (см. app/api/admin/orders/route.ts → processReferralOnPaid).
     //    Здесь же сохраняем телефон покупателя в его профиль, чтобы он мог
     //    выступать реферером по номеру телефона.

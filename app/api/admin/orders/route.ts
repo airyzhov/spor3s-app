@@ -3,6 +3,7 @@ import { supabaseServer } from '../../../supabaseServerClient';
 import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
 import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC } from '../../../../lib/referral';
 import { REFERRAL_PERCENT } from '../../../../lib/levelUtils';
+import { isPaidStatus } from '../../../../lib/orderStatus';
 
 const WELCOME_SC = 100; // приветственный бонус приглашённому
 const ORDER_SC_RATE = 100; // 1 SC за каждые 100₽ оплаченного заказа
@@ -190,8 +191,10 @@ export async function PATCH(req: NextRequest) {
   const { error } = await supabaseServer.from('orders').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // При оплате — начисляем SC за заказ и рефералку (не валим ответ, если что-то пошло не так)
-  if (status === 'paid') {
+  // Заказ стал оплаченным (оплачен, отправлен или выполнен) — начисляем SC за заказ и рефералку.
+  // Начисления привязаны к номеру заказа: переход paid → shipped → completed их не задвоит.
+  // Ответ не валим, если что-то пошло не так.
+  if (isPaidStatus(status)) {
     try {
       await creditOrderScOnPaid(id);
     } catch (e) {
