@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { matchesOrder, matchesUser } from "../../lib/adminSearch";
+import { ORDER_STATUS_LABELS } from "../../lib/orderStatus";
 import { card, input, btn } from "./styles";
 import RaffleAdmin from "./RaffleAdmin";
 
@@ -161,7 +162,7 @@ export default function AdminPage() {
     return arr.map((i: any) => `${i.name || i.id || "товар"}${i.quantity ? ` ×${i.quantity}` : ""}`).join(", ");
   };
 
-  const ORDER_STATUSES = ["pending", "paid", "shipped", "completed", "cancelled"];
+  const ORDER_STATUSES = Object.keys(ORDER_STATUS_LABELS);
 
   const searching = search.trim() !== "";
   const shownOrders = orders.filter((o) => matchesOrder(o, search));
@@ -302,7 +303,7 @@ export default function AdminPage() {
                           style={{ ...input, padding: 6, width: "auto", fontSize: 12 }}
                         >
                           {ORDER_STATUSES.map((s) => (
-                            <option key={s} value={s}>{s}</option>
+                            <option key={s} value={s}>{ORDER_STATUS_LABELS[s]}</option>
                           ))}
                         </select>
                       </td>

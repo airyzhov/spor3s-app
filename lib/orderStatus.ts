@@ -3,6 +3,16 @@
 // или «выполнен», минуя «оплачен». Начисления привязаны к номеру заказа, повтор не задвоит.
 export const PAID_STATUSES = ['paid', 'shipped', 'completed'];
 
+// Названия статусов — одни для админки и «Моих заказов» покупателя.
+// completed — «Доставлен» (решение владельца 25.09; код статуса прежний)
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: '⏳ В обработке',
+  paid: '💰 Оплачен',
+  shipped: '🚚 Отправлен',
+  completed: '✅ Доставлен',
+  cancelled: '❌ Отменён',
+};
+
 export function isPaidStatus(status: string | null | undefined): boolean {
   return !!status && PAID_STATUSES.includes(status);
 }

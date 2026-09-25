@@ -4,6 +4,7 @@ import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
 import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC, recalcOrderTotals } from '../../../../lib/referral';
 import { REFERRAL_PERCENT } from '../../../../lib/levelUtils';
 import { isPaidStatus } from '../../../../lib/orderStatus';
+import { notifyCourseStart } from '../../../../lib/courseNotify';
 
 const WELCOME_SC = 100; // приветственный бонус приглашённому
 const ORDER_SC_RATE = 100; // 1 SC за каждые 100₽ оплаченного заказа
@@ -188,6 +189,8 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'нет полей для обновления' }, { status: 400 });
   }
+  // Прежний статус и покупатель — для сообщения «отметьте начало курса» и пересчёта суммы заказов
+  const { data: before } = await supabaseServer.from('orders').select('status, user_id').eq('id', id).maybeSingle();
   const { error } = await supabaseServer.from('orders').update(patch).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -209,12 +212,20 @@ export async function PATCH(req: NextRequest) {
 
   // Сумма оплаченных заказов клиента (от неё зависят Мастер и Легенда со скидкой) меняется при любой
   // смене статуса: заказ оплатили — прибавилась, отменили или вернули в «ожидает» — убавилась.
-  if (status !== undefined) {
+  if (status !== undefined && before?.user_id) {
     try {
-      const { data: order } = await supabaseServer.from('orders').select('user_id').eq('id', id).single();
-      if (order?.user_id) await recalcOrderTotals(order.user_id);
+      await recalcOrderTotals(before.user_id);
     } catch (e) {
       console.error('[levels] ошибка пересчёта суммы заказов:', e);
+    }
+  }
+
+  // Заказ стал «✅ Доставлен» (completed) — бот зовёт покупателя отметить начало курса (lib/courseNotify.ts)
+  if (status !== undefined && before?.user_id) {
+    try {
+      await notifyCourseStart(before.user_id, before.status, status);
+    } catch (e) {
+      console.error('[course] ошибка сообщения о начале курса:', e);
     }
   }
 

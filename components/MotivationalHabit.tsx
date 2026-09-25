@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { HABIT_WEEKS, HABIT_WEEK_SC, cleanHabitName, type HabitView, type WeekState } from "../lib/habit";
 import { levelNeedsText } from "../lib/levelUtils";
+import CabinetSection from "../app/(client)/CabinetSection";
 
 interface MotivationalHabitProps {
   userId: string;
@@ -103,19 +104,11 @@ export default function MotivationalHabit({ userId, onSCUpdate }: MotivationalHa
   const active = !!habit && !!status && !status.finished;
   const presetIcon = (name: string) => view?.presets.find((p) => p.name === name)?.icon ?? "🌟";
   const canStart = !busy && (!!picked || !!cleanHabitName(custom));
+  // Коротко в заголовке свёрнутого раздела
+  const summary = !view ? "" : !view.tableReady ? "скоро" : !view.access ? "🔒" : active && status ? `неделя ${status.week} из ${HABIT_WEEKS}` : "выбрать";
 
   return (
-    <div style={{
-      background: "linear-gradient(135deg, #0f172a, #1e293b)",
-      borderRadius: 20,
-      padding: "clamp(18px, 5vw, 25px)",
-      marginBottom: 30,
-      border: "2px solid rgba(255,255,255,0.1)",
-      color: "#fff",
-      boxSizing: "border-box",
-      width: "100%",
-    }}>
-      <div style={{ fontSize: "clamp(18px, 4.5vw, 20px)", fontWeight: 700, marginBottom: 6 }}>🌟 Мотивационная привычка</div>
+    <CabinetSection title="🌟 Мотивационная привычка" summary={summary} storageKey="spor3s_habit_open">
       <div style={{ ...text, color: "#aaa", marginBottom: 14 }}>
         4 недели · отчёт раз в неделю · +{HABIT_WEEK_SC} SC за каждую неделю, когда получилось (до {HABIT_WEEK_SC * HABIT_WEEKS} SC)
       </div>
@@ -246,7 +239,7 @@ export default function MotivationalHabit({ userId, onSCUpdate }: MotivationalHa
 
       {message && <div style={{ ...text, color: "#10b981", fontWeight: 600, marginTop: 12 }}>{message}</div>}
       {error && <div style={{ ...text, color: "#ff6b6b", marginTop: 12 }}>{error}</div>}
-    </div>
+    </CabinetSection>
   );
 }
 

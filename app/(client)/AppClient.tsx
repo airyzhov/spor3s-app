@@ -12,6 +12,7 @@ import MotivationalHabit from "../../components/MotivationalHabit";
 import SCGiftForm from "../../components/SCGiftForm";
 import { useState, useEffect, useRef } from "react";
 import { openExternal } from "../../lib/openExternal";
+import { cabinetFocusFromUrl } from "../../lib/course";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -63,10 +64,15 @@ export default function AppClient() {
   const [error, setError] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
   // Куда проскроллить в Кабинете после перехода с главного экрана
-  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | null>(null);
+  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | 'course' | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    // Кнопка бота «Отметить начало курса» открывает приложение с ?open=course — сразу в кабинет, к курсу
+    if (cabinetFocusFromUrl(window.location.search) === 'course') {
+      setCabinetFocus('course');
+      setCurrentStep(3);
+    }
   }, []);
 
   console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);

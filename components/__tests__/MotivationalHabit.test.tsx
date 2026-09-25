@@ -35,6 +35,17 @@ function mockResponses(...bodies: object[]) {
 
 const postBody = (fetchMock: jest.Mock, call: number) => JSON.parse(fetchMock.mock.calls[call][1].body);
 
+// Раздел изначально свёрнут (CabinetSection); остальные тесты смотрят содержимое — раскрываем, как человек
+beforeEach(() => localStorage.setItem('spor3s_habit_open', '1'));
+
+it('изначально свёрнута: в заголовке — идущая неделя, содержимого нет', async () => {
+  localStorage.clear();
+  mockResponses(activeView(8, [{ week_number: 1, is_completed: true, sc_earned: 25 }]));
+  render(<MotivationalHabit userId={USER_ID} />);
+  expect(await screen.findByRole('button', { name: /Мотивационная привычка.*неделя 2 из 4/ })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: /Получилось/ })).toBeNull();
+});
+
 it('пока SQL не выполнен — обещает, что скоро', async () => {
   mockResponses(view({ tableReady: false }));
   render(<MotivationalHabit userId={USER_ID} />);
