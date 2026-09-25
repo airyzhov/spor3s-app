@@ -4,6 +4,7 @@ import { searchInstructionsServer, getUserOrdersServer, getUserMessagesServer, g
 import { supabaseServer } from "../../supabaseServerClient";
 import { scenariosPrompt } from "../../ai/scenarios";
 import { ContentManager } from "../../../lib/contentManager";
+import { aiEndpoint, AI_GREETING } from "../../../lib/aiConsultant";
 
 // КРИТИЧНО: Храним ключ в переменной модуля, НЕ в process.env
 // Next.js заменяет process.env.* на литералы при компиляции!
@@ -742,24 +743,25 @@ export async function POST(req: NextRequest) {
   const userMessage = message.toLowerCase();
   const balanceKeywords = ['коин', 'балл', 'spor3s coin', 'сколько у меня', 'мой баланс', 'моих коинов', 'баллов у меня'];
   if (balanceKeywords.some(keyword => userMessage.includes(keyword))) {
-    let balanceResponse = `Spor3s Coins (SC) — это внутренняя валюта нашей платформы! 
-    
-🪙 **Как зарабатывать SC:**
-• Ежедневные чекины 
-• Прохождение опросов
-• Покупки товаров
-• Реферальная программа
+    // Способы заработать — те же, что в панели SC кабинета (app/(client)/ScStatus.tsx)
+    let balanceResponse = `Spor3s Coins (SC) — внутренняя валюта магазина: 1 SC = 1 ₽ скидки.
 
-💰 **Как тратить SC:**
-• Скидки до 30% от суммы заказа
-• Обмен на товары
+🪙 Как заработать SC:
+• Задания на подписку — +30 SC за каждое
+• Отчёт о самочувствии раз в неделю — +25 SC
+• Мотивационная привычка — до 100 SC в месяц
+• Друг оформил заказ по вашей ссылке — 5% суммы
+• Свой оплаченный заказ — 1 SC за каждые 100 ₽
 
-📱 **Проверить баланс:** откройте приложение → раздел "Прогресс"`;
-    
-    if (messageSource !== 'mini_app') {
+💰 Как потратить: скидка до 30% суммы заказа.
+
+📱 Баланс и уровень — в магазине, раздел «Кабинет».`;
+
+    // В боте путь в магазин — кнопка под сообщением (tg-bot/replies.ts)
+    if (messageSource !== 'mini_app' && messageSource !== 'telegram_bot') {
       balanceResponse += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
     }
-    
+
     return NextResponse.json({ response: balanceResponse });
   }
 
@@ -1178,17 +1180,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Общий ответ для неопределенных запросов
-    return `Привет! Я консультант по грибным добавкам СПОРС.
-
-Помогу подобрать добавки для ваших целей:
-
-🧠 **Память и концентрация** → Ежовик
-😴 **Сон и стресс** → Мухомор  
-⚡ **Энергия и выносливость** → Кордицепс
-🦋 **Щитовидная железа** → Цистозира
-🎯 **Все вместе** → Комплекс 4 в 1
-
-Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!`;
+    return AI_GREETING;
   }
 
   async function fetchCompletion(msgs) {
@@ -1246,15 +1238,17 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
        
-      // Используем OpenAI API напрямую
-       const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      // Провайдер — по ключу: OpenRouter (sk-or-…) или OpenAI; модель — AI_MODEL (lib/aiConsultant.ts)
+      const ai = aiEndpoint(OR_TOKEN, process.env.AI_MODEL);
+       const response = await fetch(ai.url, {
          method: "POST",
          headers: {
            "Authorization": `Bearer ${OR_TOKEN}`,
            "Content-Type": "application/json",
+           ...(ai.provider === "openrouter" ? { "HTTP-Referer": "https://ai.spor3s.ru", "X-Title": "SPOR3S" } : {}),
          },
          body: JSON.stringify({
-           model: "gpt-4o-mini",
+           model: ai.model,
            messages: [
              { role: "system", content: aiPrompt },
             ...msgs  // Передаем всю историю диалога
@@ -1269,11 +1263,9 @@ export async function POST(req: NextRequest) {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Не удалось прочитать ошибку');
-        console.error('[AI API] ❌ HTTP Error от OpenAI:', response.status, response.statusText);
-        console.error('[AI API] ❌ Error details:', errorText);
-        console.error('[AI API] ❌ Используемый токен (первые 20 символов):', OR_TOKEN ? OR_TOKEN.substring(0, 20) + '...' : 'НЕ НАЙДЕН');
-        console.error('[AI API] ❌ URL запроса: https://api.openai.com/v1/chat/completions');
-        console.error('[AI API] ❌ Модель: gpt-4o-mini');
+        // Без символов ключа в логах — только провайдер и модель
+        console.error('[AI API] ❌ HTTP Error:', ai.provider, ai.model, response.status, response.statusText);
+        console.error('[AI API] ❌ Error details:', errorText.slice(0, 500));
         
         // FALLBACK: Если OpenAI не работает, используем интеллектуальный ответ
         console.log('[AI API] ⚠️ OpenAI недоступен, используем fallback ответ');
@@ -1391,7 +1383,7 @@ export async function POST(req: NextRequest) {
           } else           if (messageSource === 'telegram_bot') {
             // В Telegram Bot - оставляем теги для обработки ботом
             finalResponse = aiResponse;
-            finalResponse += '\n\n(Вы можете оформить заказ здесь или в приложении: 👉 t.me/spor3sbot)';
+            finalResponse += '\n\n(Можно оформить заказ здесь или в магазине — кнопка «🛒 Открыть магазин» ниже)';
           } else {
             // В Spor3z - удаляем теги
             finalResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
@@ -1920,7 +1912,7 @@ export async function POST(req: NextRequest) {
       // Для других источников удаляем теги и добавляем ссылку
       reply = reply.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
       if (messageSource === 'telegram_bot') {
-        reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3sbot\n\nИли укажите ФИО+телефон+адрес СДЭК для оформления здесь.';
+        reply += '\n\nОформить можно в магазине — кнопка «🛒 Открыть магазин» ниже.\n\nИли укажите ФИО, телефон и адрес СДЭК, чтобы оформить здесь.';
       } else {
         reply += '\n\nДобавил все в корзину, продолжи оформление в приложении:\n👉 t.me/spor3sbot';
       }
@@ -1930,8 +1922,9 @@ export async function POST(req: NextRequest) {
   // Заменяем теги remove_from_cart
   reply = reply.replace(/\[remove_from_cart:[\w-]+\]/g, '').trim();
   
-  // Добавляем ссылку на приложение для внешних каналов (если еще не добавлена)
-  if (messageSource !== 'mini_app' && !reply.includes('t.me/spor3sbot')) {
+  // Добавляем ссылку на приложение для внешних каналов (если еще не добавлена).
+  // В боте вместо ссылки — кнопка «🛒 Открыть магазин» под сообщением (tg-bot/replies.ts).
+  if (messageSource !== 'mini_app' && messageSource !== 'telegram_bot' && !reply.includes('t.me/spor3sbot')) {
     reply += '\n\nДля быстрого оформления используйте приложение: 👉 t.me/spor3sbot';
   }
   

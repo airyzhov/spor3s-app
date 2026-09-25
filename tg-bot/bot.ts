@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
+import { shopKeyboard, botFallbackReply } from './replies';
 
 // Загружаем .env и .env.local (.env.local имеет приоритет)
 // __dirname в dist/ указывает на compiled код, поэтому поднимаемся на уровень выше
@@ -134,140 +135,10 @@ async function callAI(message: string, context: any[], userId: string, telegramI
   }
 }
 
-// Интеллектуальный fallback для Telegram бота
+// Интеллектуальный fallback для Telegram бота — тексты в replies.ts
 function generateIntelligentFallback(message: string, context: any[]): string {
-  const lastMessage = message.toLowerCase();
-  
   console.log('[spor3s_bot] Генерируем интеллектуальный fallback ответ');
-  console.log('[spor3s_bot] Последнее сообщение:', lastMessage);
-  
-  // Анализируем намерение пользователя
-  if (lastMessage.includes('ежовик') || lastMessage.includes('память') || lastMessage.includes('концентрация')) {
-    return `Отлично! Ежовик гребенчатый отлично помогает с памятью, концентрацией и обучением.
-
-В какой форме предпочитаете:
-• Капсулы (удобно принимать, 120 капсул на месяц за 1100₽)
-• Порошок (быстрее эффект, 100г на месяц за 1100₽)
-
-И на какой срок:
-• Месяц (для начала)
-• 3 месяца (курс, экономично)
-• 6 месяцев (максимальный эффект)
-
-Также у вас уже есть опыт приема добавок или начинаете впервые?
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('мухомор') || lastMessage.includes('сон') || lastMessage.includes('стресс')) {
-    return `Отлично! Мухомор красный отлично помогает со сном, стрессом и тревожностью.
-
-В какой форме предпочитаете:
-• Капсулы (удобно принимать, 60 капсул на месяц за 1400₽)
-• Порошок (быстрее эффект, 30г на месяц за 1400₽)
-
-И на какой срок:
-• Месяц (для начала)
-• 3 месяца (курс, экономично)
-
-Также у вас уже есть опыт приема добавок или начинаете впервые?
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('кордицепс') || lastMessage.includes('энергия') || lastMessage.includes('выносливость')) {
-    return `Отлично! Кордицепс Милитарис плодовые тела отлично помогает с энергией, выносливостью и спортивными результатами.
-
-В какой форме предпочитаете:
-• Порошок плодовые тела (50г на месяц за 800₽)
-• Порошок плодовые тела (150г на 3 месяца за 2000₽)
-
-Также у вас уже есть опыт приема добавок или начинаете впервые?
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('цистозира') || lastMessage.includes('щитовидка') || lastMessage.includes('йод')) {
-    return `Отлично! Цистозира отлично помогает с щитовидной железой и гормональной системой.
-
-В какой форме предпочитаете:
-• Порошок (30г на месяц за 500₽)
-• Порошок (90г на 3 месяца за 1350₽)
-
-Также у вас уже есть опыт приема добавок или начинаете впервые?
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('комплекс') || lastMessage.includes('4 в 1') || lastMessage.includes('все вместе')) {
-    return `Отлично! Комплекс 4 в 1 включает все основные добавки для максимального эффекта.
-
-Варианты:
-• 4 в 1 (месяц) - 3300₽
-• 4 в 1 (3 месяца) - 9000₽
-
-Включает: Ежовик + Мухомор + Кордицепс + Цистозира
-
-Также у вас уже есть опыт приема добавок или начинаете впервые?
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('порошок') || lastMessage.includes('капсулы')) {
-    // Пользователь уточняет форму - продолжаем диалог
-    return `Отлично! ${lastMessage.includes('порошок') ? 'Порошок' : 'Капсулы'} - хороший выбор!
-
-Теперь уточните срок:
-• Месяц (для начала)
-• 3 месяца (курс, экономично)
-• 6 месяцев (максимальный эффект)
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  if (lastMessage.includes('месяц') || lastMessage.includes('3 месяца') || lastMessage.includes('6 месяцев')) {
-    // Пользователь выбрал срок - предлагаем оформить
-    return `Отлично! Вы выбрали ${lastMessage.includes('3 месяца') ? '3 месяца' : lastMessage.includes('6 месяцев') ? '6 месяцев' : 'месяц'}.
-
-Теперь добавлю в корзину и вы сможете оформить заказ!
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-  }
-  
-  // Общий ответ для неопределенных запросов
-  return `Привет! Я консультант по грибным добавкам СПОРС.
-
-Помогу подобрать добавки для ваших целей:
-
-🧠 **Память и концентрация** → Ежовик
-😴 **Сон и стресс** → Мухомор  
-⚡ **Энергия и выносливость** → Кордицепс
-🦋 **Щитовидная железа** → Цистозира
-🎯 **Все вместе** → Комплекс 4 в 1
-
-Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!
-
-Для быстрого оформления используйте приложение: 👉 t.me/spor3sbot`;
-}
-
-// Генерация корректной deep-link для Mini App
-async function buildMiniAppLink(telegramId: string): Promise<string> {
-  const botUsername = process.env.BOT_USERNAME || 'spor3sbot';
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
-  try {
-    const resp = await fetch(`${baseUrl}/api/generate-auth-code`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegram_id: telegramId })
-    });
-    if (resp.ok) {
-      const data: any = await resp.json();
-      if (data?.auth_code) {
-        return `https://t.me/${botUsername}?startapp=${encodeURIComponent(data.auth_code)}`;
-      }
-    }
-  } catch {}
-  return `https://t.me/${botUsername}`;
+  return botFallbackReply(message);
 }
 
 // Функция для создания заказа
@@ -858,12 +729,12 @@ bot.on('text', async (ctx) => {
       let cleanAiResponse = aiResponse.replace(/\[add_to_cart:[\w-]+\]/g, '').trim();
       
       // Формируем вопрос об уточнении формы
-      const clarificationMessage = `📋 **Уточните форму продукта:**
+      const clarificationMessage = `📋 Уточните форму продукта:
 
 Для ${clarificationProduct.name} доступны две формы:
 
-• **Порошок** - быстрее эффект, удобно для опытных пользователей
-• **Капсулы** - удобно принимать, идеально для новичков
+• Порошок - быстрее эффект, удобно для опытных пользователей
+• Капсулы - удобно принимать, идеально для новичков
 
 Какую форму вы предпочитаете? Напишите "порошок" или "капсулы".`;
 
@@ -1052,12 +923,12 @@ bot.on('text', async (ctx) => {
           pendingOrderCache.set(telegram_id, { orderData, timestamp: Date.now() });
           
           // Формируем сообщение с деталями заказа
-          const orderDetails = `📋 **Подтвердите заказ:**\n\n` +
-            `📦 **Товары:**\n${orderItems.map(item => `• ${item.name} - ${item.price}₽`).join('\n')}\n\n` +
-            `💰 **Сумма:** ${total}₽\n\n` +
-            `👤 **ФИО:** ${fio}\n` +
-            `📞 **Телефон:** ${phone}\n` +
-            `📍 **Адрес:** ${address}\n\n` +
+          const orderDetails = `📋 Подтвердите заказ:\n\n` +
+            `📦 Товары:\n${orderItems.map(item => `• ${item.name} - ${item.price}₽`).join('\n')}\n\n` +
+            `💰 Сумма: ${total}₽\n\n` +
+            `👤 ФИО: ${fio}\n` +
+            `📞 Телефон: ${phone}\n` +
+            `📍 Адрес: ${address}\n\n` +
             `✅ Напишите "да" или "подтверждаю" для создания заказа\n` +
             `❌ Или укажите, что нужно изменить`;
           
@@ -1094,20 +965,9 @@ bot.on('text', async (ctx) => {
       }
     }
     
-    // Проверяем, содержит ли ответ команды для заказа
-    if (aiResponse.includes('[order_now:') || aiResponse.includes('заказ') || aiResponse.includes('оформить')) {
-      // Добавляем кнопку для оформления заказа
-      const appLink = await buildMiniAppLink(telegram_id);
-      const keyboard = {
-        inline_keyboard: [[
-          { text: '🛒 Открыть магазин', url: appLink }
-        ]]
-      };
-      await ctx.reply(aiResponse, { reply_markup: keyboard });
-    } else {
-      const appLink = await buildMiniAppLink(telegram_id);
-      await ctx.reply(`${aiResponse}\n\nОформить в Mini App: ${appLink}`);
-    }
+    // Ответ + кнопка «🛒 Открыть магазин» (web_app). Раньше дописывалась ссылка t.me/…?startapp=<код>,
+    // которая без главного мини-приложения просто открывала этот же чат (см. replies.ts)
+    await ctx.reply(aiResponse, { reply_markup: shopKeyboard(process.env.NEXT_PUBLIC_BASE_URL) });
 
   } catch (error: any) {
     console.error('Error processing message:', error);
