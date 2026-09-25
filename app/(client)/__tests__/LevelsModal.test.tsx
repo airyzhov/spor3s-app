@@ -33,7 +33,7 @@ it('показывает все пять уровней с требования�
   expect(plain(levelCard('expert').textContent)).toContain('300 SC · заказы от 5 000 ₽');
   expect(levelCard('expert').textContent).toContain('Ежемесячные закрытые розыгрыши');
   expect(levelCard('expert').textContent).not.toMatch(/чат/i);
-  expect(plain(levelCard('master').textContent)).toContain('5% скидка на заказ от 10 000 ₽');
+  expect(plain(levelCard('master').textContent)).toContain('5% скидка на любой заказ');
 });
 
 it('Эксперту показывает пройденные уровни и прогресс по сумме заказов до Мастера', () => {
@@ -57,4 +57,9 @@ it('закрывается крестиком, тапом по фону и кл�
   fireEvent.click(dialog.parentElement!);
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(onClose).toHaveBeenCalledTimes(3);
+});
+
+it('поясняет, что в сумму заказов идут только оплаченные', () => {
+  const { dialog } = renderModal();
+  expect(dialog.textContent).toMatch(/Сумма заказов — только оплаченные заказы/);
 });

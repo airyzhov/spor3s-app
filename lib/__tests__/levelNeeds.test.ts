@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 import { nextLevelNeeds, levelNeedsText, levelRequirementText, LEVEL_CONFIG } from '../levelUtils';
+import { levelDiscountPercent } from '../orderPricing';
 
 // Уровень требует и SC, и заказов (LEVEL_CONFIG). Строка «До уровня …» должна говорить,
 // чего именно не хватает, — а не «−900 SC», когда SC с запасом, но заказов нет.
@@ -43,14 +44,15 @@ describe('levelRequirementText', () => {
   });
 });
 
-// Скидку уровня считает app/api/order/route.ts: 5% Мастеру на заказ от 10 000 ₽, 10% Легенде — от 20 000 ₽.
-// Описание в окне уровней не должно обещать больше, чем даёт корзина.
+// Скидку уровня считает корзина (lib/orderPricing.ts): Мастеру 5%, Легенде 10% — на любой заказ.
+// Описание в окне уровней должно обещать ровно столько же.
 describe('описания наград', () => {
   const benefits = (code: string) => plain(LEVEL_CONFIG.find((l) => l.code === code)!.benefits.join(' '));
 
   it('скидки описаны так, как их считает корзина', () => {
-    expect(benefits('master')).toContain('5% скидка на заказ от 10 000 ₽');
-    expect(benefits('legend')).toContain('10% скидка на заказ от 20 000 ₽');
+    expect(benefits('master')).toContain(`${levelDiscountPercent('master')}% скидка на любой заказ`);
+    expect(benefits('legend')).toContain(`${levelDiscountPercent('legend')}% скидка на любой заказ`);
+    for (const code of ['novice', 'collector', 'expert']) expect(benefits(code)).not.toMatch(/скидк/);
   });
 
   it('у Эксперта — ежемесячные розыгрыши, без чата', () => {
