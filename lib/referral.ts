@@ -1,6 +1,6 @@
 import { supabaseServer } from '../app/supabaseServerClient';
-import { getLevelInfo, LEVEL_CONFIG } from './levelUtils';
-import { paidOrderTotals } from './orderStatus';
+import { getLevelInfo, LEVEL_CONFIG, REFERRAL_WELCOME_SC } from './levelUtils';
+import { isPaidStatus, paidOrderTotals } from './orderStatus';
 
 // Нормализуем телефон к виду 79998887766 (11 цифр, ведущая 7). Возвращаем null, если не похоже на телефон.
 export function normalizePhone(raw: string | null | undefined): string | null {
@@ -164,4 +164,55 @@ export async function creditSC(params: {
   } catch (e) {
     console.error('[levels] ошибка пересчёта уровня:', e);
   }
+}
+
+// Имя пригласившего для текстов: @username или «друг», если ника нет
+async function inviterName(referrerUserId: string): Promise<string> {
+  const { data } = await supabaseServer.from('users').select('username').eq('id', referrerUserId).maybeSingle();
+  return data?.username ? `@${data.username}` : 'друг';
+}
+
+// Кто пригласил пользователя (реф-ссылка бота или реф-код оплаченного заказа) и сколько приветственных
+// SC он уже получил — для панели SC (/api/home-summary) и формы заказа (/api/referral-stats).
+// null — не приглашён.
+export async function getInvitedBy(userId: string): Promise<{ name: string; welcomeSc: number } | null> {
+  const { data: link } = await supabaseServer
+    .from('referrals').select('referrer_user_id').eq('referred_user_id', userId).limit(1);
+  if (!link || !link.length) return null;
+  const { data: welcome } = await supabaseServer
+    .from('sc_transactions').select('amount').eq('user_id', userId).eq('source_type', 'referral_welcome');
+  return {
+    name: await inviterName(link[0].referrer_user_id),
+    welcomeSc: (welcome || []).reduce((sum: number, t: { amount: number | null }) => sum + (t.amount || 0), 0),
+  };
+}
+
+// Приветственные SC приглашённому — сразу, один раз и только тому, кто ещё не покупал (решение
+// владельца 25.09). Зовут при каждом входе в магазин (/api/init-user) и при оплате заказа (реф-код
+// из формы или заказ через бота до первого входа). orderId — оплачиваемый заказ: сам он прежней
+// покупкой не считается и становится source_id начисления. true — начислили сейчас.
+export async function grantReferralWelcome(userId: string, opts: { orderId?: string } = {}): Promise<boolean> {
+  const { data: link } = await supabaseServer
+    .from('referrals').select('id, referrer_user_id').eq('referred_user_id', userId).limit(1);
+  if (!link || !link.length) return false;
+
+  const { data: prior } = await supabaseServer
+    .from('sc_transactions').select('id').eq('user_id', userId).eq('source_type', 'referral_welcome').limit(1);
+  if (prior && prior.length) return false;
+
+  const { data: orders, error } = await supabaseServer.from('orders').select('id, status').eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  const boughtBefore = (orders || []).some(
+    (o: { id: string; status: string | null }) => o.id !== opts.orderId && isPaidStatus(o.status)
+  );
+  if (boughtBefore) return false;
+
+  await creditSC({
+    userId,
+    amount: REFERRAL_WELCOME_SC,
+    sourceType: 'referral_welcome',
+    sourceId: opts.orderId || link[0].id,
+    description: `Приветственный бонус: вас пригласил ${await inviterName(link[0].referrer_user_id)}`,
+  });
+  return true;
 }
