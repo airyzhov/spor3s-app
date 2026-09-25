@@ -59,8 +59,6 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   // Геймификация (уровни, недельные метрики, трекинг курса) скрыта до запуска.
   // Пока видят только тестировщики (lib/testers.ts — аккаунт владельца). Включить всем: SHOW_GAMIFICATION = true
   const SHOW_GAMIFICATION = isGamificationTester(user?.telegram_id);
-  // Привычке нужны таблицы user_habits / weekly_habit_reports / predefined_habits — в базе их нет
-  const HABIT_READY = false;
   // Старый блок «Уровни и награды» считал уровень только по SC; уровни теперь в окне LevelsModal (панель SC)
   const SHOW_OLD_LEVELS_BLOCK = false;
   const [todayMetrics, setTodayMetrics] = useState<Metrics>({ memory: 5, sleep: 5, energy: 5, stress: 5 });
@@ -1120,8 +1118,9 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
 
       {SHOW_GAMIFICATION && (<>
 
-      {/* Enhanced Motivational Habit Component */}
-      {HABIT_READY && user?.id && (
+      {/* Мотивационная привычка (награда Собирателя). Пока motivational_habits.sql не выполнен
+          в Supabase, карточка пишет «скоро» */}
+      {user?.id && (
         <MotivationalHabit
           userId={user.id}
           onSCUpdate={() => setRefreshKey(k => k + 1)}
