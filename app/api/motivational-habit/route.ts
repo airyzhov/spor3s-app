@@ -1,321 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "../../supabaseServerClient";
-import { creditSC, alreadyCredited } from "../../../lib/referral";
+import { getHabitView, startHabit, submitHabitReport, HabitError } from "../../../lib/habitServer";
 
-// GET - Get user's current habit status and available habits
+// Мотивационная привычка (награда уровня 🌿 Собиратель): правила — lib/habit.ts, база — lib/habitServer.ts.
+export const dynamic = "force-dynamic";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function fail(e: unknown) {
+  if (e instanceof HabitError) return NextResponse.json({ error: e.message }, { status: e.status });
+  console.error("[habit]", e);
+  return NextResponse.json({ error: "Не получилось, попробуй ещё раз" }, { status: 500 });
+}
+
+// GET ?user_id= — доступ, идущая привычка с неделями, готовые привычки на выбор
 export async function GET(req: NextRequest) {
+  const userId = new URL(req.url).searchParams.get("user_id") || "";
+  if (!UUID_RE.test(userId)) return NextResponse.json({ error: "user_id required" }, { status: 400 });
   try {
-    const { searchParams } = new URL(req.url);
-    const user_id = searchParams.get('user_id');
-    
-    if (!user_id) {
-      return NextResponse.json({ error: "user_id required" }, { status: 400 });
-    }
-
-    // 1. Check user level access
-    const { data: userLevel, error: levelError } = await supabaseServer
-      .from("user_levels")
-      .select("has_motivational_habit, level_code, current_level")
-      .eq("user_id", user_id)
-      .single();
-
-    if (levelError) {
-      return NextResponse.json({ error: levelError.message }, { status: 500 });
-    }
-
-    // 2. Get current active habit
-    const { data: currentHabit, error: habitError } = await supabaseServer
-      .from("user_habits")
-      .select("*")
-      .eq("user_id", user_id)
-      .eq("is_active", true)
-      .single();
-
-    // 3. Get weekly reports for current habit
-    let weeklyReports = [];
-    if (currentHabit) {
-      const { data: reports, error: reportsError } = await supabaseServer
-        .from("weekly_habit_reports")
-        .select("*")
-        .eq("habit_id", currentHabit.id)
-        .order("week_number", { ascending: true });
-
-      if (!reportsError) {
-        weeklyReports = reports || [];
-      }
-    }
-
-    // 4. Get predefined habits for selection
-    const { data: predefinedHabits, error: predefinedError } = await supabaseServer
-      .from("predefined_habits")
-      .select("*")
-      .eq("is_active", true)
-      .order("name", { ascending: true });
-
-    // 5. Calculate habit progress
-    let habitProgress = null;
-    if (currentHabit) {
-      const completedWeeks = weeklyReports.filter(r => r.is_completed).length;
-      const remainingWeeks = 4 - currentHabit.current_week;
-      const isMonthComplete = completedWeeks >= 4;
-      
-      habitProgress = {
-        currentWeek: currentHabit.current_week,
-        completedWeeks,
-        remainingWeeks,
-        isMonthComplete,
-        progressPercentage: (completedWeeks / 4) * 100
-      };
-    }
-
-    return NextResponse.json({
-      hasAccess: userLevel.has_motivational_habit,
-      currentLevel: userLevel.current_level,
-      levelCode: userLevel.level_code,
-      currentHabit,
-      weeklyReports,
-      habitProgress,
-      predefinedHabits: predefinedHabits || [],
-      canSelectNewHabit: !currentHabit || (currentHabit && habitProgress?.isMonthComplete)
-    });
+    return NextResponse.json({ success: true, ...(await getHabitView(userId)) });
   } catch (e) {
-    console.error('Get motivational habit error:', e);
-    return NextResponse.json({ error: "Ошибка получения информации о привычках" }, { status: 500 });
+    return fail(e);
   }
 }
 
-// POST - Create new habit or submit weekly report
+// POST { user_id, action: 'start', name } — начать привычку на 4 недели
+// POST { user_id, action: 'report', is_completed, note? } — отчёт за идущую неделю (+25 SC за «получилось»)
 export async function POST(req: NextRequest) {
+  let body: any;
   try {
-    const { user_id, action, ...data } = await req.json();
-    
-    if (!user_id) {
-      return NextResponse.json({ error: "user_id required" }, { status: 400 });
-    }
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Неверный запрос" }, { status: 400 });
+  }
+  const userId = String(body?.user_id || "");
+  if (!UUID_RE.test(userId)) return NextResponse.json({ error: "user_id required" }, { status: 400 });
 
-    // 1. Check user level access
-    const { data: userLevel, error: levelError } = await supabaseServer
-      .from("user_levels")
-      .select("has_motivational_habit")
-      .eq("user_id", user_id)
-      .single();
-
-    if (levelError) {
-      return NextResponse.json({ error: levelError.message }, { status: 500 });
+  try {
+    if (body.action === "start") {
+      return NextResponse.json({ success: true, ...(await startHabit(userId, body.name)) });
     }
-
-    if (!userLevel.has_motivational_habit) {
-      return NextResponse.json({ 
-        error: "Мотивационная привычка доступна с уровня '🌿 Собиратель' (100 SC + ≥1 заказ)" 
-      }, { status: 403 });
+    if (body.action === "report") {
+      if (typeof body.is_completed !== "boolean") {
+        return NextResponse.json({ error: "is_completed required" }, { status: 400 });
+      }
+      const { view, scEarned, week } = await submitHabitReport(userId, body.is_completed, body.note);
+      return NextResponse.json({ success: true, ...view, scEarned, reportedWeek: week });
     }
-
-    if (action === 'create_habit') {
-      return await createNewHabit(user_id, data);
-    } else if (action === 'submit_report') {
-      return await submitWeeklyReport(user_id, data);
-    } else {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-    }
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (e) {
-    console.error('Post motivational habit error:', e);
-    return NextResponse.json({ error: "Ошибка обработки запроса" }, { status: 500 });
+    return fail(e);
   }
 }
-
-// Create new habit
-async function createNewHabit(user_id: string, data: any) {
-  const { habit_name, habit_type, description } = data;
-  
-  if (!habit_name) {
-    return NextResponse.json({ error: "Название привычки обязательно" }, { status: 400 });
-  }
-
-  // Check if user already has an active habit
-  const { data: existingHabit, error: checkError } = await supabaseServer
-    .from("user_habits")
-    .select("id")
-    .eq("user_id", user_id)
-    .eq("is_active", true)
-    .single();
-
-  if (existingHabit) {
-    return NextResponse.json({ error: "У вас уже есть активная привычка" }, { status: 400 });
-  }
-
-  // Create new habit
-  const startDate = new Date();
-  const endDate = new Date();
-  endDate.setDate(startDate.getDate() + 28); // 4 weeks
-
-  const { data: newHabit, error: createError } = await supabaseServer
-    .from("user_habits")
-    .insert([{
-      user_id,
-      habit_name,
-      habit_type,
-      description,
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0],
-      current_week: 1,
-      is_active: true,
-      total_completed_weeks: 0
-    }])
-    .select()
-    .single();
-
-  if (createError) {
-    return NextResponse.json({ error: createError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    success: true,
-    habit: newHabit,
-    message: `Привычка "${habit_name}" создана! Начинайте отслеживать свой прогресс.`
-  });
-}
-
-// Submit weekly report
-async function submitWeeklyReport(user_id: string, data: any) {
-  const { habit_id, week_number, is_completed, completion_reason, photo_url, feedback_text } = data;
-  
-  if (!habit_id || !week_number) {
-    return NextResponse.json({ error: "habit_id и week_number обязательны" }, { status: 400 });
-  }
-
-  // Check if habit exists and belongs to user
-  const { data: habit, error: habitError } = await supabaseServer
-    .from("user_habits")
-    .select("*")
-    .eq("id", habit_id)
-    .eq("user_id", user_id)
-    .eq("is_active", true)
-    .single();
-
-  if (habitError || !habit) {
-    return NextResponse.json({ error: "Привычка не найдена" }, { status: 404 });
-  }
-
-  // Check if report already exists for this week
-  const { data: existingReport, error: reportError } = await supabaseServer
-    .from("weekly_habit_reports")
-    .select("id, sc_earned")
-    .eq("habit_id", habit_id)
-    .eq("week_number", week_number)
-    .single();
-
-  // Calculate SC earned
-  let scEarned = 0;
-  if (is_completed) {
-    scEarned = 25;
-  } else if (completion_reason && completion_reason.trim()) {
-    scEarned = 5;
-  }
-
-  // Insert or update weekly report
-  const reportData = {
-    user_id,
-    habit_id,
-    week_number,
-    report_date: new Date().toISOString().split('T')[0],
-    is_completed,
-    completion_reason,
-    photo_url,
-    feedback_text,
-    sc_earned: scEarned,
-    report_submitted_at: new Date().toISOString()
-  };
-
-  let upsertError;
-  if (existingReport) {
-    // Update existing report
-    const { error } = await supabaseServer
-      .from("weekly_habit_reports")
-      .update(reportData)
-      .eq("id", existingReport.id);
-    upsertError = error;
-  } else {
-    // Create new report
-    const { error } = await supabaseServer
-      .from("weekly_habit_reports")
-      .insert([reportData]);
-    upsertError = error;
-  }
-
-  if (upsertError) {
-    return NextResponse.json({ error: upsertError.message }, { status: 500 });
-  }
-
-  // Начисляем SC в единый леджер (sc_transactions + user_levels, пересчёт уровня внутри).
-  // При повторной отправке отчёта за ту же неделю (уже с начислением) — не начисляем снова.
-  if (existingReport && (existingReport.sc_earned || 0) > 0) {
-    scEarned = 0;
-  }
-  if (scEarned > 0) {
-    try {
-      await creditSC({
-        userId: user_id,
-        amount: scEarned,
-        sourceType: "habit_completion",
-        sourceId: habit_id,
-        description: `Мотивационная привычка — неделя ${week_number}`,
-      });
-    } catch (e) {
-      console.error("Error creating SC transaction:", e);
-    }
-  }
-
-  // Update habit progress
-  const { data: updatedReports, error: countError } = await supabaseServer
-    .from("weekly_habit_reports")
-    .select("is_completed")
-    .eq("habit_id", habit_id)
-    .eq("is_completed", true);
-
-  const completedWeeks = updatedReports?.length || 0;
-
-  const { error: updateError } = await supabaseServer
-    .from("user_habits")
-    .update({
-      current_week: Math.max(habit.current_week, week_number),
-      total_completed_weeks: completedWeeks,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", habit_id);
-
-  if (updateError) {
-    console.error("Error updating habit progress:", updateError);
-  }
-
-  // Check if month is complete
-  const isMonthComplete = completedWeeks >= 4;
-  let monthCompletionMessage = "";
-  
-  if (isMonthComplete && !(await alreadyCredited(habit_id, "habit_monthly_bonus"))) {
-    // Бонус за все 4 недели — в единый леджер, один раз на привычку
-    try {
-      await creditSC({
-        userId: user_id,
-        amount: 20,
-        sourceType: "habit_monthly_bonus",
-        sourceId: habit_id,
-        description: "Бонус за полное выполнение месяца мотивационной привычки",
-      });
-      monthCompletionMessage = "🎉 Поздравляем! Вы завершили месяц мотивационной привычки. +20 SC бонус!";
-    } catch (e) {
-      console.error("Error creating monthly bonus:", e);
-    }
-  }
-
-  return NextResponse.json({
-    success: true,
-    scEarned: scEarned,
-    isMonthComplete,
-    monthCompletionMessage,
-    message: is_completed 
-      ? `Отлично! Привычка выполнена. +${scEarned} SC`
-      : completion_reason 
-        ? `Спасибо за объяснение. +${scEarned} SC`
-        : "Отчет сохранен"
-  });
-} 
