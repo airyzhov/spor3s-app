@@ -8,7 +8,7 @@ import MotivationalHabit from "../../components/MotivationalHabit";
 import CabinetSection from "./CabinetSection";
 import CourseSection from "./CourseSection";
 import { openExternal } from "../../lib/openExternal";
-import { referralLink, referralShareUrl } from "../../lib/referralLink";
+import { referralLink, referralShareUrl, REFERRAL_TERMS } from "../../lib/referralLink";
 import { isGamificationTester } from "../../lib/testers";
 import { ORDER_STATUS_LABELS, PAID_STATUSES } from "../../lib/orderStatus";
 
@@ -478,7 +478,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           marginBottom: "20px",
           wordBreak: "break-word"
         }}>
-          Получай 5% от заказов друзей, они получат приветственные 100SC
+          {REFERRAL_TERMS}
         </div>
         
         {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
