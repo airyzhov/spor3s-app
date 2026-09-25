@@ -166,6 +166,15 @@ export async function creditSC(params: {
   }
 }
 
+// Есть ли у пользователя оплаченные заказы (paid / shipped / completed); exceptOrderId — не считать этот
+async function hasPaidOrders(userId: string, exceptOrderId?: string): Promise<boolean> {
+  const { data: orders, error } = await supabaseServer.from('orders').select('id, status').eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  return (orders || []).some(
+    (o: { id: string; status: string | null }) => o.id !== exceptOrderId && isPaidStatus(o.status)
+  );
+}
+
 // Имя пригласившего для текстов: @username или «друг», если ника нет
 async function inviterName(referrerUserId: string): Promise<string> {
   const { data } = await supabaseServer.from('users').select('username').eq('id', referrerUserId).maybeSingle();
@@ -200,12 +209,7 @@ export async function grantReferralWelcome(userId: string, opts: { orderId?: str
     .from('sc_transactions').select('id').eq('user_id', userId).eq('source_type', 'referral_welcome').limit(1);
   if (prior && prior.length) return false;
 
-  const { data: orders, error } = await supabaseServer.from('orders').select('id, status').eq('user_id', userId);
-  if (error) throw new Error(error.message);
-  const boughtBefore = (orders || []).some(
-    (o: { id: string; status: string | null }) => o.id !== opts.orderId && isPaidStatus(o.status)
-  );
-  if (boughtBefore) return false;
+  if (await hasPaidOrders(userId, opts.orderId)) return false;
 
   await creditSC({
     userId,
@@ -215,4 +219,85 @@ export async function grantReferralWelcome(userId: string, opts: { orderId?: str
     description: `Приветственный бонус: вас пригласил ${await inviterName(link[0].referrer_user_id)}`,
   });
   return true;
+}
+
+// ——— Поле «Код друга» в кабинете (решение владельца 25.09) ———
+
+const TG_ID = /^\d{5,15}$/;
+
+// Код пригласившего: @username или числовой Telegram ID. Телефон не принимаем — перебором номеров
+// можно было бы узнавать, кто из них покупатель.
+export function parseInviterCode(raw: unknown): { kind: 'telegram_id' | 'username'; value: string } | null {
+  const code = String(raw ?? '').trim().replace(/^@/, '');
+  if (TG_ID.test(code)) return { kind: 'telegram_id', value: code };
+  if (/^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(code)) return { kind: 'username', value: code };
+  return null;
+}
+
+// Свой код для друга: @username, а без ника — Telegram ID (не телефон). null — гость без Telegram.
+export function ownReferralCode(user: { username?: string | null; telegram_id?: string | null } | null): string | null {
+  if (!user) return null;
+  if (user.username) return '@' + user.username;
+  const id = String(user.telegram_id ?? '');
+  return TG_ID.test(id) ? id : null;
+}
+
+export class ReferralClaimError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+// Точное совпадение без учёта регистра: в ilike _ и % — подстановочные знаки, экранируем
+function likeExact(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => '\\' + c);
+}
+
+async function isTelegramUser(userId: string): Promise<boolean> {
+  const { data } = await supabaseServer.from('users').select('telegram_id').eq('id', userId).maybeSingle();
+  return !!data && TG_ID.test(String(data.telegram_id ?? ''));
+}
+
+async function hasInviter(userId: string): Promise<boolean> {
+  const { data } = await supabaseServer.from('referrals').select('id').eq('referred_user_id', userId).limit(1);
+  return !!(data && data.length);
+}
+
+// Показывать ли поле «Код друга»: пользователь Telegram, пригласившего ещё нет, оплаченных заказов нет
+export async function canEnterInviterCode(userId: string): Promise<boolean> {
+  if (!(await isTelegramUser(userId)) || (await hasInviter(userId))) return false;
+  return !(await hasPaidOrders(userId));
+}
+
+// Привязать пригласившего по коду из кабинета и сразу начислить приветственные SC (grantReferralWelcome).
+// Ошибки для человека — ReferralClaimError со статусом ответа API.
+export async function claimReferral(userId: string, rawCode: unknown): Promise<{ name: string; welcomeSc: number }> {
+  const code = parseInviterCode(rawCode);
+  if (!code) throw new ReferralClaimError(400, 'Введите @username или Telegram ID друга');
+  if (!(await isTelegramUser(userId))) throw new ReferralClaimError(403, 'Код друга можно ввести в приложении из Telegram');
+
+  const users = supabaseServer.from('users').select('id, telegram_id');
+  const { data: found } = await (code.kind === 'telegram_id'
+    ? users.eq('telegram_id', code.value)
+    : users.ilike('username', likeExact(code.value))
+  ).limit(1);
+  const referrer = found?.[0];
+  // Только настоящие пользователи Telegram: «заочные» pending-… из реф-кодов заказов не в счёт
+  if (!referrer || !TG_ID.test(String(referrer.telegram_id ?? ''))) {
+    throw new ReferralClaimError(404, 'Не нашли такого пользователя — проверьте код');
+  }
+  if (referrer.id === userId) throw new ReferralClaimError(400, 'Это ваш собственный код — отправьте его друзьям');
+  if (await hasInviter(userId)) throw new ReferralClaimError(409, 'Пригласивший у вас уже есть');
+  if (await hasPaidOrders(userId)) throw new ReferralClaimError(409, 'Код друга можно ввести только до первой покупки');
+
+  const { error } = await supabaseServer.from('referrals').insert([{
+    referrer_user_id: referrer.id,
+    referred_user_id: userId,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  }]);
+  if (error) throw new Error(error.message);
+
+  await grantReferralWelcome(userId);
+  return (await getInvitedBy(userId)) ?? { name: 'друг', welcomeSc: 0 };
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
-import { getInvitedBy } from "../../../lib/referral";
+import { getInvitedBy, ownReferralCode, canEnterInviterCode } from "../../../lib/referral";
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
     }
 
-    // Реферальный код для шеринга: username (с @) или телефон
-    const referralCode = user.username ? '@' + user.username : (user.phone || user.telegram_id);
+    // Свой код для друга: @username, а без ника — Telegram ID (телефон не показываем)
+    const referralCode = ownReferralCode(user);
 
     // Баланс SC (тратимый) + всего заработано (для уровня — уровень не падает при тратах)
     const { data: level } = await supabaseServer
@@ -74,6 +74,8 @@ export async function GET(req: NextRequest) {
         balance,
         totalEarned,
         invitedBy,
+        // Поле «Код друга» в кабинете: Telegram-пользователь без пригласившего и без покупок
+        canEnterInviterCode: await canEnterInviterCode(user_id),
         levelCode: level?.level_code || 'novice',
         levelName: level?.current_level || '🌱 Новичок',
         totalReferrals: referrals?.length || 0,

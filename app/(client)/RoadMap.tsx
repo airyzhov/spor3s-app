@@ -9,6 +9,8 @@ import CabinetSection from "./CabinetSection";
 import CourseSection from "./CourseSection";
 import { openExternal } from "../../lib/openExternal";
 import { referralLink, referralShareUrl, REFERRAL_TERMS } from "../../lib/referralLink";
+import { REFERRAL_WELCOME_SC } from "../../lib/levelUtils";
+import InviterCodeForm from "./InviterCodeForm";
 import { isGamificationTester } from "../../lib/testers";
 import { ORDER_STATUS_LABELS, PAID_STATUSES } from "../../lib/orderStatus";
 
@@ -469,7 +471,11 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       )}
 
       {/* Реферальная система */}
-      <CabinetSection title="🎁 Реферальная система" summary={`приглашено: ${invitedCount}`} storageKey="spor3s_referral_open">
+      <CabinetSection
+        title="🎁 Реферальная система"
+        summary={referralStats?.canEnterInviterCode ? `код друга → +${REFERRAL_WELCOME_SC} SC` : `приглашено: ${invitedCount}`}
+        storageKey="spor3s_referral_open"
+      >
       <div style={{ textAlign: "center" }}>
         <div style={{
           color: "#fff",
@@ -480,7 +486,23 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
         }}>
           {REFERRAL_TERMS}
         </div>
-        
+
+        {/* Кто пригласил — или поле «Код друга» для того, кто пришёл без ссылки и ещё не покупал */}
+        {referralStats?.invitedBy ? (
+          <div style={{ marginBottom: 15, fontSize: "clamp(13px, 3.3vw, 15px)", color: "#10b981", fontWeight: 600 }}>
+            🤝 Вас пригласил {referralStats.invitedBy.name}
+            {referralStats.invitedBy.welcomeSc > 0 && ` · 🎁 +${referralStats.invitedBy.welcomeSc} SC`}
+          </div>
+        ) : referralStats?.canEnterInviterCode && user?.id ? (
+          <InviterCodeForm
+            userId={user.id}
+            onClaimed={() => {
+              fetchReferralStats();
+              setRefreshKey(k => k + 1);
+            }}
+          />
+        ) : null}
+
         {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
         {referralLink(user?.telegram_id) && (() => {
           const refLink = referralLink(user.telegram_id)!;
@@ -567,7 +589,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           }}>
             <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px" }}>
               {referralLink(user?.telegram_id)
-                ? "Или код для ввода при заказе:"
+                ? "Или ваш код — друг введёт его в кабинете или при заказе:"
                 : "Ваш реферальный код:"}
             </div>
             <div style={{
