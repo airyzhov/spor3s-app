@@ -3,6 +3,7 @@ import { supabaseServer } from "../../supabaseServerClient";
 import { getLevelInfo, nextLevelNeeds } from "../../../lib/levelUtils";
 import { getMonthGoal } from "../../../lib/monthGoalServer";
 import { computeMonthGoal } from "../../../lib/monthGoal";
+import { getInvitedBy } from "../../../lib/referral";
 
 // Панель SC в кабинете (ScStatus): один запрос вместо пяти (уровень, рефералы, статусы трёх заданий).
 const TASK_CHANNELS = ["telegram", "youtube", "instagram"];
@@ -29,6 +30,7 @@ function emptySummary() {
     referralEarned: 0,
     referralCode: null as string | null,
     telegramId: null as string | null,
+    invitedBy: null as { name: string; welcomeSc: number } | null,
     tasks: { done: 0, total: TASK_CHANNELS.length, left: TASK_CHANNELS.length, bonusPerTask: TASK_BONUS },
     monthGoal: computeMonthGoal(0, false),
   };
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
     // (та же двойная проверка, что в app/api/check-subscription-status/route.ts).
     const subscribeTypes = TASK_CHANNELS.map(c => `subscribe_${c}`);
 
-    const [levelRes, refRes, txRes, legacyRes, userRes, monthGoal] = await Promise.all([
+    const [levelRes, refRes, txRes, legacyRes, userRes, monthGoal, invitedBy] = await Promise.all([
       supabaseServer
         .from("user_levels")
         .select("current_sc_balance, total_sc_earned, total_orders_amount, orders_count")
@@ -68,6 +70,7 @@ export async function GET(req: NextRequest) {
         .in("type", subscribeTypes),
       supabaseServer.from("users").select("username, phone, telegram_id").eq("id", user_id).maybeSingle(),
       getMonthGoal(user_id),
+      getInvitedBy(user_id),
     ]);
 
     if (levelRes.error) console.error("home-summary error: user_levels query failed for user", user_id, ":", levelRes.error);
@@ -118,6 +121,8 @@ export async function GET(req: NextRequest) {
       referralEarned,
       referralCode,
       telegramId,
+      // Кто пригласил и сколько приветственных SC уже начислено — строка в панели SC
+      invitedBy,
       tasks: { done, total: TASK_CHANNELS.length, left: TASK_CHANNELS.length - done, bonusPerTask: TASK_BONUS },
       monthGoal,
     });

@@ -45,7 +45,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [coinsToUse, setCoinsToUse] = useState(0);
   const [pdConsent, setPdConsent] = useState(false);
   // Пригласивший уже закреплён (реф-ссылка бота) — поле кода блокируется
-  const [invitedBy, setInvitedBy] = useState<{ username: string | null; telegram_id: string | null } | null>(null);
+  const [invitedBy, setInvitedBy] = useState<{ name: string; welcomeSc: number } | null>(null);
   // SC за всё время и оплаченные заказы — от них уровень, а от уровня скидка (lib/orderPricing.ts)
   const [levelTotals, setLevelTotals] = useState<{ totalScEarned: number; ordersAmount: number; ordersCount: number } | null>(null);
   const { clearCart } = useCart();
@@ -601,7 +601,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
                 fontSize: 14,
                 fontWeight: 600
               }}>
-                ✅ Вас пригласил {invitedBy.username ? `@${invitedBy.username}` : `ID ${invitedBy.telegram_id}`}
+                ✅ Вас пригласил {invitedBy.name}
               </div>
             ) : (
               <input

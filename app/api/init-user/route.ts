@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../supabaseServerClient';
 import { getOrCreateUser } from '../../../lib/initUserHandler';
 import { notifyReferrerOfNewFriend } from '../../../lib/raffleNotify';
+import { grantReferralWelcome } from '../../../lib/referral';
 console.log('[init-user route] typeof getOrCreateUser:', typeof getOrCreateUser);
 
 export async function POST(request: NextRequest) {
@@ -46,6 +47,13 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         console.error('[raffle] уведомление пригласившему:', e);
       }
+    }
+
+    // Пришёл по приглашению и ещё не покупал — приветственные SC сразу, при входе в магазин
+    try {
+      await grantReferralWelcome(id);
+    } catch (e) {
+      console.error('[referral] приветственный бонус:', e);
     }
 
     return NextResponse.json({ id, source: userSource });
