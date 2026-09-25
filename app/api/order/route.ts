@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
-import { normalizePhone } from "../../../lib/referral";
+import { normalizePhone, recalcOrderTotals } from "../../../lib/referral";
+import { priceOrder } from "../../../lib/orderPricing";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,37 +37,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Рассчитываем скидки на основе уровня
-    let levelDiscount = 0;
-    let levelDiscountPercent = 0;
-    
-    if (userLevel) {
-      const levelCode = userLevel.level_code || 'novice';
-      const totalAmount = total || 0;
-      
-      // Скидки по уровням
-      if (levelCode === 'master' && totalAmount >= 10000) { // Мастер
-        levelDiscountPercent = 5;
-        levelDiscount = Math.floor(totalAmount * 0.05);
-      } else if (levelCode === 'legend' && totalAmount >= 20000) { // Легенда
-        levelDiscountPercent = 10;
-        levelDiscount = Math.floor(totalAmount * 0.10);
-      }
-    }
-
-    // 3. Проверяем и применяем SC скидку
-    let scDiscount = 0;
-    let coinsToApply = Math.min(coins_to_use, scBalance);
-    
-    if (coinsToApply > 0) {
-      const maxScDiscount = Math.floor(total * 0.30); // Максимум 30% от суммы заказа
-      scDiscount = Math.min(coinsToApply, maxScDiscount);
-      coinsToApply = scDiscount; // Обновляем количество используемых монет
-    }
-
-    // 4. Рассчитываем итоговую сумму
+    // 2–4. Скидка уровня (Мастер 5%, Легенда 10% — на любой заказ) и списание SC (до 30%).
+    //    Уровень — по SC и оплаченным заказам до этого заказа; тот же расчёт показывает форма заказа.
+    const price = priceOrder({
+      total: total || 0,
+      coinsRequested: coins_to_use,
+      scBalance,
+      totalScEarned: userLevel?.total_sc_earned || 0,
+      ordersAmount: userLevel?.total_orders_amount || 0,
+      ordersCount: userLevel?.orders_count || 0,
+    });
+    const { levelDiscount, levelDiscountPercent, scDiscount, finalTotal } = price;
+    const coinsToApply = scDiscount;
     const totalDiscount = levelDiscount + scDiscount;
-    const finalTotal = Math.max(0, total - totalDiscount);
 
     // 5. Создаем заказ
     const { data, error } = await supabaseServer.from("orders").insert([
@@ -137,29 +120,13 @@ export async function POST(req: NextRequest) {
     //    иначе баланс накручивается неоплаченными заказами.
     //    См. app/api/admin/orders/route.ts → creditOrderScOnPaid.
 
-    // 8. Обновляем информацию о заказах в уровне пользователя
+    // 8. Сумма заказов для уровня — только оплаченные: новый заказ «ожидает» и засчитается,
+    //    когда админка переведёт его в оплаченные (app/api/admin/orders → recalcOrderTotals)
     if (user_id) {
-      const { data: existingOrders, error: ordersError } = await supabaseServer
-        .from("orders")
-        .select("total")
-        .eq("user_id", user_id);
-
-      if (!ordersError) {
-        const totalOrdersAmount = existingOrders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
-        const ordersCount = existingOrders?.length || 0;
-
-        const { error: updateLevelError } = await supabaseServer
-          .from("user_levels")
-          .update({
-            total_orders_amount: totalOrdersAmount,
-            orders_count: ordersCount,
-            updated_at: new Date().toISOString()
-          })
-          .eq("user_id", user_id);
-
-        if (updateLevelError) {
-          console.error("❌ Ошибка обновления уровня пользователя:", updateLevelError);
-        }
+      try {
+        await recalcOrderTotals(user_id);
+      } catch (e) {
+        console.error("❌ Ошибка пересчёта суммы заказов:", e);
       }
     }
 

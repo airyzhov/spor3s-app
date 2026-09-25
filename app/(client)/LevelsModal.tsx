@@ -130,7 +130,7 @@ export default function LevelsModal({ totalEarned, ordersAmount, ordersCount, on
 
         <div style={{ ...text, fontSize: 12, color: "#aaa", marginTop: 14 }}>
           Уровень считается по SC, заработанным за всё время: если потратить SC на скидку, уровень не упадёт.
-          Награды прошлых уровней сохраняются.
+          Сумма заказов — только оплаченные заказы. Награды прошлых уровней сохраняются.
         </div>
       </div>
     </div>,

@@ -39,6 +39,7 @@ export const LEVEL_CONFIG = [
     scRequired: 0,
     ordersAmountRequired: 0,
     ordersCountRequired: 0,
+    discountPercent: 0,
     benefits: ['Доступ к базовым функциям']
   },
   {
@@ -49,6 +50,7 @@ export const LEVEL_CONFIG = [
     scRequired: 100,
     ordersAmountRequired: 0,
     ordersCountRequired: 1,
+    discountPercent: 0,
     benefits: ['Открытие мотивационной привычки']
   },
   {
@@ -60,6 +62,7 @@ export const LEVEL_CONFIG = [
     ordersAmountRequired: 5000,
     ordersCountRequired: 0,
     // Чата экспертов не будет — решение владельца 24.09: только ежемесячные розыгрыши
+    discountPercent: 0,
     benefits: ['Ежемесячные закрытые розыгрыши']
   },
   {
@@ -70,8 +73,9 @@ export const LEVEL_CONFIG = [
     scRequired: 600,
     ordersAmountRequired: 10000,
     ordersCountRequired: 0,
-    // Скидку считает app/api/order/route.ts — и только для заказа от 10 000 ₽; текст должен совпадать
-    benefits: ['5% скидка на заказ от 10 000 ₽', 'Наборы для практик: травы, благовония, чай']
+    // Скидка на любой заказ (решение владельца 25.09); считает lib/orderPricing.ts, текст должен совпадать
+    discountPercent: 5,
+    benefits: ['5% скидка на любой заказ', 'Наборы для практик: травы, благовония, чай']
   },
   {
     level: 5,
@@ -81,7 +85,8 @@ export const LEVEL_CONFIG = [
     scRequired: 1000,
     ordersAmountRequired: 20000,
     ordersCountRequired: 0,
-    benefits: ['10% скидка на заказ от 20 000 ₽', 'Мерч от бренда', 'Личные встречи', 'Живой трекинг']
+    discountPercent: 10,
+    benefits: ['10% скидка на любой заказ', 'Мерч от бренда', 'Личные встречи', 'Живой трекинг']
   }
 ];
 // benefits — только то, что уровень добавляет: награды прошлых уровней сохраняются.

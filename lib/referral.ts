@@ -1,5 +1,6 @@
 import { supabaseServer } from '../app/supabaseServerClient';
 import { getLevelInfo, LEVEL_CONFIG } from './levelUtils';
+import { paidOrderTotals } from './orderStatus';
 
 // Нормализуем телефон к виду 79998887766 (11 цифр, ведущая 7). Возвращаем null, если не похоже на телефон.
 export function normalizePhone(raw: string | null | undefined): string | null {
@@ -96,6 +97,21 @@ export async function recalcUserLevel(userId: string): Promise<void> {
     has_vip_access: levelNum >= 5,
     updated_at: new Date().toISOString(),
   }).eq('user_id', userId);
+}
+
+// Сумма и число заказов для уровня — только оплаченные (paid / shipped / completed): от этой суммы
+// зависят Мастер и Легенда, а с ними скидка на любой заказ. Вызывается при создании заказа и при
+// смене его статуса в админке; следом пересчитывается уровень.
+export async function recalcOrderTotals(userId: string): Promise<void> {
+  const { data: orders, error } = await supabaseServer.from('orders').select('status, total').eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  const { amount, count } = paidOrderTotals(orders || []);
+  await supabaseServer.from('user_levels').update({
+    total_orders_amount: amount,
+    orders_count: count,
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', userId);
+  await recalcUserLevel(userId);
 }
 
 // Начислить SC: запись в sc_transactions + обновление баланса в user_levels (создаём строку при отсутствии).

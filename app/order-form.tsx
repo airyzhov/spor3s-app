@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useCart } from "./CartContext";
 import { openExternal } from "../lib/openExternal";
+import { priceOrder } from "../lib/orderPricing";
 
 interface OrderFormProps {
   products?: any[];
@@ -45,9 +46,11 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
   const [pdConsent, setPdConsent] = useState(false);
   // Пригласивший уже закреплён (реф-ссылка бота) — поле кода блокируется
   const [invitedBy, setInvitedBy] = useState<{ username: string | null; telegram_id: string | null } | null>(null);
+  // SC за всё время и оплаченные заказы — от них уровень, а от уровня скидка (lib/orderPricing.ts)
+  const [levelTotals, setLevelTotals] = useState<{ totalScEarned: number; ordersAmount: number; ordersCount: number } | null>(null);
   const { clearCart } = useCart();
 
-  // Загружаем баланс SC пользователя (для списания) и привязку к пригласившему
+  // Загружаем баланс SC пользователя (для списания), привязку к пригласившему и уровень (для скидки)
   useEffect(() => {
     if (!userId) return;
     fetch(`/api/referral-stats?user_id=${userId}`)
@@ -55,6 +58,14 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
       .then(d => {
         if (d?.stats && typeof d.stats.balance === 'number') setScBalance(d.stats.balance);
         if (d?.stats?.invitedBy) setInvitedBy(d.stats.invitedBy);
+      })
+      .catch(() => {});
+    fetch(`/api/home-summary?user_id=${userId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success) {
+          setLevelTotals({ totalScEarned: d.totalEarned || 0, ordersAmount: d.orders?.amount || 0, ordersCount: d.orders?.count || 0 });
+        }
       })
       .catch(() => {});
   }, [userId]);
@@ -485,6 +496,24 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
                     {selectedItems.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0)}₽
                   </span>
                 </div>
+                {/* Скидка уровня (Мастер 5%, Легенда 10%) — та же, что посчитает корзина */}
+                {levelTotals && (() => {
+                  const price = priceOrder({
+                    total: selectedItems.reduce((s: number, it: any) => s + (it.price || 0) * (it.quantity || 1), 0),
+                    coinsRequested: coinsToUse,
+                    scBalance,
+                    ...levelTotals,
+                  });
+                  if (price.levelDiscount <= 0) return null;
+                  return (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 14, color: "#10b981", fontWeight: 600 }}>
+                        {price.levelName}: скидка {price.levelDiscountPercent}% — −{price.levelDiscount} ₽
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>К оплате: {price.finalTotal} ₽</div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : (
@@ -659,7 +688,9 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
                 </div>
                 {coinsToUse > 0 && (
                   <div style={{ fontSize: 13, color: "#10b981", fontWeight: 600, marginTop: 8 }}>
-                    Скидка {coinsToUse} ₽ — к оплате {Math.max(0, total - coinsToUse)} ₽
+                    Скидка SC {coinsToUse} ₽ — к оплате {levelTotals
+                      ? priceOrder({ total, coinsRequested: coinsToUse, scBalance, ...levelTotals }).finalTotal
+                      : Math.max(0, total - coinsToUse)} ₽
                   </div>
                 )}
               </div>

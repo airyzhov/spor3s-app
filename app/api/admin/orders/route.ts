@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../supabaseServerClient';
 import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
-import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC } from '../../../../lib/referral';
+import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC, recalcOrderTotals } from '../../../../lib/referral';
 import { REFERRAL_PERCENT } from '../../../../lib/levelUtils';
 import { isPaidStatus } from '../../../../lib/orderStatus';
 
@@ -204,6 +204,17 @@ export async function PATCH(req: NextRequest) {
       await processReferralOnPaid(id);
     } catch (e) {
       console.error('[referral] ошибка начисления при оплате:', e);
+    }
+  }
+
+  // Сумма оплаченных заказов клиента (от неё зависят Мастер и Легенда со скидкой) меняется при любой
+  // смене статуса: заказ оплатили — прибавилась, отменили или вернули в «ожидает» — убавилась.
+  if (status !== undefined) {
+    try {
+      const { data: order } = await supabaseServer.from('orders').select('user_id').eq('id', id).single();
+      if (order?.user_id) await recalcOrderTotals(order.user_id);
+    } catch (e) {
+      console.error('[levels] ошибка пересчёта суммы заказов:', e);
     }
   }
 
