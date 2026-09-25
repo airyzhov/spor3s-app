@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
+import { parseCourseDuration } from "../../../lib/course";
 
 // GET ?user_id= — активный курс пользователя (для восстановления состояния в UI)
 export async function GET(req: NextRequest) {
@@ -23,12 +24,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const { user_id, course_duration } = await req.json();
-    
-    if (!user_id || !course_duration) {
-      return NextResponse.json({ error: "Необходимы user_id и course_duration" }, { status: 400 });
+
+    if (!user_id) {
+      return NextResponse.json({ error: "Необходим user_id" }, { status: 400 });
     }
 
-    if (!['1', '3', '6'].includes(course_duration)) {
+    // Кнопка «Я начал(а) курс» срок не спрашивает — тогда 1 месяц (lib/course.ts)
+    const months = parseCourseDuration(course_duration);
+    if (months === null) {
       return NextResponse.json({ error: "Неверная длительность курса. Допустимые значения: 1, 3, 6" }, { status: 400 });
     }
 
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
       .from("user_courses")
       .insert([{
         user_id,
-        course_duration: parseInt(course_duration),
+        course_duration: months,
         start_date: new Date().toISOString(),
         status: "active",
         created_at: new Date().toISOString()
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true,
       course: newCourse,
-      message: `Курс на ${course_duration} месяц(ев) успешно начат!`
+      message: "Курс начат! Раз в неделю отмечай самочувствие и получай SC."
     });
 
   } catch (e) {
