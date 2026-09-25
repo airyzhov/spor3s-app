@@ -104,6 +104,10 @@ export const SC_MECHANICS = {
 // Доля от суммы заказа друга, зачисляемая пригласившему в виде SC-кэшбэка.
 export const REFERRAL_PERCENT = 0.05;
 
+// Приветственные SC другу, пришедшему по приглашению: сразу, один раз и только тому, кто ещё
+// не покупал (lib/referral.ts grantReferralWelcome). Бот пишет ту же сумму (tg-bot/replies.ts).
+export const REFERRAL_WELCOME_SC = 100;
+
 export function getLevelInfo(sc: number, ordersAmount: number = 0, ordersCount: number = 0): LevelInfo {
   // Находим текущий уровень
   let currentLevel = LEVEL_CONFIG[0];

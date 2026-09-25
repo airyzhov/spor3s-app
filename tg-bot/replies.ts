@@ -107,3 +107,14 @@ export function botFallbackReply(message: string): string {
 
 Что вас интересует? Расскажите о ваших целях, и я подберу оптимальный вариант!`;
 }
+
+// Ответ другу, пришедшему по реферальной ссылке. eligible — ещё не покупал: сайт начислит ему
+// 100 SC при входе в магазин (lib/referral.ts grantReferralWelcome, REFERRAL_WELCOME_SC).
+export function referralWelcomeText(refName: string, eligible: boolean): string {
+  if (!eligible) return `🎁 Вас пригласил ${refName}!\n\nВыбирайте грибные добавки 👇`;
+  return (
+    `🎁 Вас пригласил ${refName}!\n\n` +
+    `Дарим вам 100 SC (= 100 ₽ скидки) — они уже ждут в кабинете. Списать можно при заказе, до 30% суммы.\n\n` +
+    `Выбирайте грибные добавки 👇`
+  );
+}

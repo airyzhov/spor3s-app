@@ -14,6 +14,7 @@ type Summary = {
   friends: number;
   referralEarned: number;
   telegramId: string | null;
+  invitedBy?: { name: string; welcomeSc: number } | null;
   tasks: { done: number; total: number; left: number; bonusPerTask: number };
   monthGoal: { reportsDone: number; reportsTarget: number; bonus: number; bonusPaid: boolean; completed: boolean };
 };
@@ -136,6 +137,14 @@ export default function ScStatus({ userId, refreshKey }: ScStatusProps) {
             {data.level.name} ›
           </button>
         </div>
+
+        {/* Пришёл по приглашению — видно всегда, без раскрытия панели */}
+        {data.invitedBy && (
+          <div style={{ padding: "0 16px 10px", fontSize: "clamp(12px, 3vw, 14px)", color: "#10b981", fontWeight: 600 }}>
+            🤝 Вас пригласил {data.invitedBy.name}
+            {data.invitedBy.welcomeSc > 0 && ` · 🎁 +${data.invitedBy.welcomeSc} SC`}
+          </div>
+        )}
 
         {open && (
           <div style={{ padding: "0 16px 16px" }}>

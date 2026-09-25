@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
+import { getInvitedBy } from "../../../lib/referral";
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,21 +36,8 @@ export async function GET(req: NextRequest) {
       .select(`id, status, created_at, referred_user_id, referred_user:users!referrals_referred_user_id_fkey(telegram_id, username)`)
       .eq("referrer_user_id", user_id);
 
-    // Кто пригласил ЭТОГО пользователя (привязка по реф-ссылке бота или прошлому заказу)
-    let invitedBy: { username: string | null; telegram_id: string | null } | null = null;
-    const { data: inviterLink } = await supabaseServer
-      .from("referrals")
-      .select("referrer_user_id")
-      .eq("referred_user_id", user_id)
-      .limit(1);
-    if (inviterLink && inviterLink.length) {
-      const { data: inviter } = await supabaseServer
-        .from("users")
-        .select("username, telegram_id")
-        .eq("id", inviterLink[0].referrer_user_id)
-        .single();
-      if (inviter) invitedBy = { username: inviter.username, telegram_id: inviter.telegram_id };
-    }
+    // Кто пригласил ЭТОГО пользователя (реф-ссылка бота или реф-код оплаченного заказа)
+    const invitedBy = await getInvitedBy(user_id);
 
     // Заработано на рефералке (сумма начислений 5%) + разбивка по приглашённым:
     // source_id кэшбэк-транзакции = id заказа, заказ знает покупателя (referred user)

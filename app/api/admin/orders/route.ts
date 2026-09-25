@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '../../../supabaseServerClient';
 import { isAdmin, adminUnauthorized } from '../../../../lib/adminAuth';
-import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC, recalcOrderTotals } from '../../../../lib/referral';
+import { normalizePhone, getOrCreateReferrerByCode, alreadyCredited, creditSC, recalcOrderTotals, grantReferralWelcome } from '../../../../lib/referral';
 import { REFERRAL_PERCENT } from '../../../../lib/levelUtils';
 import { isPaidStatus } from '../../../../lib/orderStatus';
 import { notifyCourseStart } from '../../../../lib/courseNotify';
 
-const WELCOME_SC = 100; // приветственный бонус приглашённому
 const ORDER_SC_RATE = 100; // 1 SC за каждые 100₽ оплаченного заказа
 
 // Список заказов для админки (учёт продаж).
@@ -132,24 +131,9 @@ async function processReferralOnPaid(orderId: string) {
     }
   }
 
-  // 2) Приглашённому — приветственные 100 SC (только за первый оплаченный заказ)
-  if (order.user_id && !(await alreadyCredited(order.id, 'referral_welcome'))) {
-    const { data: prior } = await supabaseServer
-      .from('sc_transactions')
-      .select('id')
-      .eq('user_id', order.user_id)
-      .eq('source_type', 'referral_welcome')
-      .limit(1);
-    if (!prior || !prior.length) {
-      await creditSC({
-        userId: order.user_id,
-        amount: WELCOME_SC,
-        sourceType: 'referral_welcome',
-        sourceId: order.id,
-        description: `Приветственный бонус за заказ по реф-коду #${order.id}`,
-      });
-    }
-  }
+  // 2) Приглашённому — приветственные SC, если до этого заказа он не покупал и ещё не получал их
+  //    (обычно они приходят раньше — при первом входе в магазин по приглашению)
+  if (order.user_id) await grantReferralWelcome(order.user_id, { orderId: order.id });
 }
 
 // Начисление SC за сам заказ при оплате (1 SC за каждые 100₽). Идемпотентно по source_id.

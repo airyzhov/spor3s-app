@@ -12,7 +12,11 @@ import { nextLevelNeeds } from '../../../lib/levelUtils';
 
 const USER_ID = '11111111-2222-4333-8444-555555555555';
 
-function mockSummary({ sc, telegramId = '54993853' }: { sc: number; telegramId?: string | null }) {
+function mockSummary({ sc, telegramId = '54993853', invitedBy = null }: {
+  sc: number;
+  telegramId?: string | null;
+  invitedBy?: { name: string; welcomeSc: number } | null;
+}) {
   const needs = nextLevelNeeds(sc, 0, 0);
   (global as any).fetch = jest.fn().mockResolvedValue({
     json: async () => ({
@@ -23,6 +27,7 @@ function mockSummary({ sc, telegramId = '54993853' }: { sc: number; telegramId?:
       friends: 0,
       referralEarned: 0,
       telegramId,
+      invitedBy,
       tasks: { done: 0, total: 3, left: 3, bonusPerTask: 30 },
       monthGoal: { reportsDone: 0, reportsTarget: 4, bonus: 50, bonusPaid: false, completed: false },
     }),
@@ -81,4 +86,23 @@ it('перечитывает данные, когда в кабинете нач
   mockSummary({ sc: 30 });
   rerender(<ScStatus userId={USER_ID} refreshKey={1} />);
   expect(await screen.findByText('💰 30 SC')).toBeInTheDocument();
+});
+
+it('приглашённому сразу видно, кто пригласил, и приветственные SC — без раскрытия панели', async () => {
+  mockSummary({ sc: 100, invitedBy: { name: '@web3grow', welcomeSc: 100 } });
+  render(<ScStatus userId={USER_ID} />);
+  expect(await screen.findByText('🤝 Вас пригласил @web3grow · 🎁 +100 SC')).toBeInTheDocument();
+});
+
+it('пока бонус не начислен — только кто пригласил', async () => {
+  mockSummary({ sc: 0, invitedBy: { name: 'друг', welcomeSc: 0 } });
+  render(<ScStatus userId={USER_ID} />);
+  expect(await screen.findByText('🤝 Вас пригласил друг')).toBeInTheDocument();
+});
+
+it('без приглашения строки нет', async () => {
+  mockSummary({ sc: 0 });
+  render(<ScStatus userId={USER_ID} />);
+  await screen.findByText('💰 0 SC');
+  expect(screen.queryByText(/Вас пригласил/)).toBeNull();
 });
