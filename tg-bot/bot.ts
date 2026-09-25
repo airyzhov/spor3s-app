@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import path from 'path';
-import { shopKeyboard, botFallbackReply } from './replies';
+import { shopKeyboard, botFallbackReply, referralWelcomeText } from './replies';
 
 // Загружаем .env и .env.local (.env.local имеет приоритет)
 // __dirname в dist/ указывает на compiled код, поэтому поднимаемся на уровень выше
@@ -305,14 +305,14 @@ async function handleReferralStart(ctx: any, referrerTgId: string): Promise<void
     created_at: new Date().toISOString(),
   }]);
 
+  // Ещё не покупал — сайт начислит 100 SC при входе в магазин (lib/referral.ts grantReferralWelcome).
+  // Оплаченные статусы — как PAID_STATUSES в lib/orderStatus.ts (бот не видит lib/).
+  const { data: paid, error: paidError } = await supabase
+    .from('orders').select('id').eq('user_id', invited.id).in('status', ['paid', 'shipped', 'completed']).limit(1);
+  const eligible = !paidError && !(paid && paid.length);
+
   const refName = referrer.username ? `@${referrer.username}` : 'друг';
-  await ctx.reply(
-    `🎁 Вас пригласил ${refName}!\n\n` +
-    `За первый оплаченный заказ вы получите 100 SC (= 100 ₽ скидки на будущие покупки), ` +
-    `а бонусы начисляются автоматически — ничего вводить не нужно.\n\n` +
-    `Выбирайте грибные добавки 👇`,
-    openShop
-  );
+  await ctx.reply(referralWelcomeText(refName, eligible), openShop);
 }
 
 // /start <auth_code> - привязка аккаунта, /start <telegram_id> - реферальная ссылка

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { shopKeyboard, botFallbackReply } from '../replies';
+import { shopKeyboard, botFallbackReply, referralWelcomeText } from '../replies';
 
 // Ответы бота. Раньше к каждому ответу дописывалась ссылка t.me/spor3sbot?startapp=<код> —
 // у @spor3sbot нет главного мини-приложения (getMe: has_main_web_app = false), и такая ссылка
@@ -36,5 +36,20 @@ describe('botFallbackReply — ответ, когда ИИ недоступен'
 
   it('на вопрос про ежовик — формы и цены ежовика', () => {
     expect(botFallbackReply('Хочу ежовик')).toMatch(/Ежовик гребенчатый[\s\S]*Капсулы[\s\S]*Порошок/);
+  });
+});
+
+describe('referralWelcomeText — ответ другу по реферальной ссылке', () => {
+  it('ещё не покупал — 100 SC сразу, они уже в кабинете', () => {
+    const text = referralWelcomeText('@web3grow', true);
+    expect(text).toMatch(/^🎁 Вас пригласил @web3grow!/);
+    expect(text).toMatch(/Дарим вам 100 SC \(= 100 ₽ скидки\) — они уже ждут в кабинете/);
+    expect(text).not.toMatch(/первый оплаченный заказ/);
+  });
+
+  it('уже покупал — без обещания SC', () => {
+    const text = referralWelcomeText('друг', false);
+    expect(text).toMatch(/^🎁 Вас пригласил друг!/);
+    expect(text).not.toMatch(/SC/);
   });
 });
