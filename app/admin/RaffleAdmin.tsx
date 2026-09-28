@@ -4,17 +4,25 @@ import { matchesUser } from "../../lib/adminSearch";
 import { RAFFLE, type RaffleDraw, type RaffleParticipant, type RaffleWinner } from "../../lib/raffle";
 import { btn, card } from "./styles";
 
-type AdminRaffle = { participants: RaffleParticipant[]; draw: RaffleDraw | null; tableReady: boolean };
+type AdminRaffle = {
+  participants: RaffleParticipant[];
+  draw: RaffleDraw | null;
+  tableReady: boolean;
+  // Рассылка о розыгрыше: сколько пользователей бота её ещё не получали (и не нажали «Участвую»)
+  announce?: { tableReady: boolean; pending: number };
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Раздел «Розыгрыш 10.10»: учёт участников, выгрузка для Excel, выбор победителей на камеру.
+// Раздел «Розыгрыш 10.10»: учёт участников, выгрузка для Excel, рассылка о розыгрыше, выбор победителей на камеру.
 export default function RaffleAdmin({ secret, search }: { secret: string; search: string }) {
   const [data, setData] = useState<AdminRaffle | null>(null);
   const [error, setError] = useState("");
   const [drawing, setDrawing] = useState(false);
   const [reel, setReel] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<RaffleWinner[]>([]);
+  const [announcing, setAnnouncing] = useState(false);
+  const [announceResult, setAnnounceResult] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +50,25 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
     a.download = `${RAFFLE.id}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Рассылка о розыгрыше — только по нажатию владельца; одному человеку сервер пишет один раз
+  const announce = async (pending: number) => {
+    if (!window.confirm(`Отправить сообщение о розыгрыше ${pending} пользователям бота? Каждому — один раз.`)) return;
+    setError("");
+    setAnnounceResult("");
+    setAnnouncing(true);
+    try {
+      const r = await fetch("/api/admin/raffle/announce", { method: "POST", headers: { "x-admin-secret": secret } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Ошибка рассылки");
+      setAnnounceResult(`Отправлено: ${d.sent} · не дошло: ${d.failed} (не запускали бота)`);
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "Ошибка рассылки");
+    } finally {
+      setAnnouncing(false);
+    }
   };
 
   // Только визуал для записи экрана: победители уже выбраны и сохранены сервером.
@@ -89,6 +116,8 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
 
   const acceptingEntries = Date.now() < Date.parse(RAFFLE.endsAt);
   const eligibleCount = data.participants.filter((p) => p.eligible).length;
+  const joinedCount = data.participants.filter((p) => p.joined).length;
+  const pending = data.announce?.pending ?? 0;
   const canDraw = !acceptingEntries && eligibleCount > 0;
   const rows = data.participants.filter((p) =>
     matchesUser({ id: p.user_id, telegram_id: p.telegram_id, username: p.username }, search)
@@ -99,7 +128,8 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
     <div style={{ ...card, marginBottom: 28 }}>
       <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 6 }}>🎁 {RAFFLE.title}</h2>
       <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 14 }}>
-        Участвуют (оба условия): <b style={{ color: "#fff" }}>{eligibleCount}</b> · с прогрессом: {data.participants.length} ·
+        Участвуют (задание + «Участвую»): <b style={{ color: "#fff" }}>{eligibleCount}</b> · нажали «Участвую»: {joinedCount} ·
+        с прогрессом: {data.participants.length} ·
         приём {RAFFLE.deadlineLabel}, итоги {RAFFLE.drawDateLabel}
       </div>
 
@@ -154,6 +184,31 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
         )}
       </div>
 
+      {acceptingEntries && (
+        <div style={{ background: "#0f172a", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+          {!data.announce?.tableReady ? (
+            <div style={{ color: "#fbbf24", fontSize: 14 }}>
+              Чтобы работали кнопка «Участвую» и рассылка, выполни <code>raffle_entries.sql</code> в Supabase → SQL Editor.
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => announce(pending)}
+                disabled={announcing || pending === 0}
+                style={{ ...btn, padding: "10px 16px", opacity: pending === 0 ? 0.4 : 1, cursor: pending === 0 ? "default" : "pointer" }}
+              >
+                {announcing ? "⏳ Отправляем…" : `📣 Рассказать о розыгрыше (${pending} чел.)`}
+              </button>
+              <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 8 }}>
+                Сообщение в боте всем, кто ещё не нажал «Участвую»: как участвовать и призы; выполнившим задание — «осталось
+                нажать». Каждому — один раз; дойдёт только тем, кто запускал @spor3sbot.
+              </div>
+              {announceResult && <div style={{ color: "#10b981", fontSize: 13, marginTop: 6 }}>{announceResult}</div>}
+            </>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
         <button onClick={downloadCsv} style={{ ...btn, background: "#0f766e", padding: "8px 14px" }}>
           ⬇️ Скачать таблицу (Excel)
@@ -175,6 +230,7 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
                 <th style={cell}>Telegram ID</th>
                 <th style={{ ...cell, textAlign: "right" }}>Заданий</th>
                 <th style={{ ...cell, textAlign: "right" }}>Друзей</th>
+                <th style={cell}>«Участвую»</th>
                 <th style={cell}>Участвует</th>
                 <th style={cell}>Приз при победе</th>
               </tr>
@@ -186,6 +242,7 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
                   <td style={{ ...cell, fontFamily: "monospace", color: "#cbd5e1" }}>{p.telegram_id || "—"}</td>
                   <td style={{ ...cell, textAlign: "right" }}>{p.tasks}</td>
                   <td style={{ ...cell, textAlign: "right" }}>{p.friends}</td>
+                  <td style={cell}>{p.joined ? "✅" : "—"}</td>
                   <td style={cell}>{p.eligible ? "✅" : "—"}</td>
                   <td style={cell}>{p.prize?.label || "—"}</td>
                 </tr>
