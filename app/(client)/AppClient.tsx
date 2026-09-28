@@ -68,9 +68,11 @@ export default function AppClient() {
 
   useEffect(() => {
     setMounted(true);
-    // Кнопка бота «Отметить начало курса» открывает приложение с ?open=course — сразу в кабинет, к курсу
-    if (cabinetFocusFromUrl(window.location.search) === 'course') {
-      setCabinetFocus('course');
+    // Кнопки бота открывают приложение с ?open=course («Отметить начало курса») или ?open=raffle
+    // («Открыть розыгрыш») — сразу в кабинет, к нужному разделу
+    const focus = cabinetFocusFromUrl(window.location.search);
+    if (focus) {
+      setCabinetFocus(focus);
       setCurrentStep(3);
     }
   }, []);

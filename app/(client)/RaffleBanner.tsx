@@ -39,10 +39,12 @@ const header = {
 };
 
 // Розыгрыш 10.10: полная карточка живёт в кабинете, на главной — строка RaffleTeaser, ведущая сюда.
-// Правила и сроки — lib/raffle.ts, данные — /api/raffle.
+// Правила и сроки — lib/raffle.ts, данные — /api/raffle. С 28.09 участник = задание + кнопка «Участвую».
 export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, refreshKey }: RaffleBannerProps) {
-  const data = useRaffleView(userId, refreshKey);
+  const [data, setData] = useRaffleView(userId, refreshKey);
   const [open, setOpen] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -63,6 +65,30 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, 
   };
 
   const { link, me } = myProgress(data, telegramId);
+
+  // «✋ Участвую»: сервер проверяет задание и срок приёма, в ответ — обновлённый прогресс
+  const join = async () => {
+    if (!userId || joining) return;
+    setJoining(true);
+    setJoinError(null);
+    try {
+      const resp = await fetch("/api/raffle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId, action: "join" }),
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json?.success) {
+        setJoinError(json?.error || "Не получилось, попробуй ещё раз");
+        return;
+      }
+      if (data) setData({ ...data, me: json.me });
+    } catch {
+      setJoinError("Нет связи — попробуй ещё раз");
+    } finally {
+      setJoining(false);
+    }
+  };
 
   const line = { fontSize: "clamp(12px, 3vw, 14px)", color: "#ddd", lineHeight: 1.5 };
   const actionBtn = {
@@ -115,12 +141,31 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, 
                         <button type="button" onClick={onOpenTasks} style={actionBtn}>К заданиям →</button>
                       )}
                     </Condition>
-                    <Condition
-                      done={me.friends >= 1}
-                      text={`Пригласи друга: он должен перейти по твоей ссылке и открыть приложение. Друзей: ${me.friends}`}
-                    >
-                      <CopyLinkButton link={link} label="👥 Пригласить" style={actionBtn} />
+                    <Condition done={me.joined} text="Нажми «✋ Участвую»">
+                      {!me.joined && (
+                        <button
+                          type="button"
+                          onClick={join}
+                          disabled={me.tasks < 1 || joining}
+                          style={me.tasks < 1 ? { ...actionBtn, background: "rgba(255,255,255,0.15)", cursor: "not-allowed" } : actionBtn}
+                        >
+                          {joining ? "⏳" : "✋ Участвую"}
+                        </button>
+                      )}
                     </Condition>
+                    {!me.joined && me.tasks < 1 && (
+                      <div style={{ ...line, fontSize: 12, color: "#aaa" }}>Сначала выполни задание — потом нажми «Участвую».</div>
+                    )}
+                    {joinError && (
+                      <div role="alert" style={{ ...line, color: "#ff6b6b" }}>{joinError}</div>
+                    )}
+                    {/* Друзья — не условие, а рост приза */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ ...line, color: "#fff", flex: "1 1 180px" }}>
+                        👥 Друзей: {me.friends} — друг должен перейти по твоей ссылке и открыть магазин
+                      </span>
+                      <CopyLinkButton link={link} label="👥 Пригласить" style={actionBtn} />
+                    </div>
                   </div>
                 )}
 
@@ -128,7 +173,9 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, 
                   <div style={{ ...line, marginTop: 12, color: "#10b981", fontWeight: 700 }}>
                     ✅ Ты участвуешь! Если выиграешь — {me.prize?.label}.
                     {data.stage === "open" && me.next &&
-                      ` Пригласи ещё ${me.next.friendsNeeded} ${plural(me.next.friendsNeeded, "друга", "друзей", "друзей")} — будет ${me.next.prize.label}.`}
+                      ` ${me.friends === 0
+                        ? "Пригласи друга"
+                        : `Пригласи ещё ${me.next.friendsNeeded} ${plural(me.next.friendsNeeded, "друга", "друзей", "друзей")}`} — будет ${me.next.prize.label}.`}
                   </div>
                 )}
 
@@ -148,7 +195,7 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks, expand, 
 
 // Строка «🎁 Розыгрыш 10.10 →» на главной: тот же заголовок и статус, но ведёт в кабинет
 export function RaffleTeaser({ userId, telegramId, onOpen }: { userId?: string; telegramId?: string; onOpen: () => void }) {
-  const data = useRaffleView(userId);
+  const [data] = useRaffleView(userId);
   if (!data || data.stage === "hidden") return null;
   const { me } = myProgress(data, telegramId);
 
@@ -162,7 +209,7 @@ export function RaffleTeaser({ userId, telegramId, onOpen }: { userId?: string; 
   );
 }
 
-function useRaffleView(userId?: string, refreshKey?: number): RaffleView | null {
+function useRaffleView(userId?: string, refreshKey?: number): [RaffleView | null, (view: RaffleView) => void] {
   const [data, setData] = useState<RaffleView | null>(null);
 
   useEffect(() => {
@@ -180,7 +227,7 @@ function useRaffleView(userId?: string, refreshKey?: number): RaffleView | null 
     return () => { cancelled = true; };
   }, [userId, refreshKey]);
 
-  return data;
+  return [data, setData];
 }
 
 // Участвовать можно только из Telegram: без числового ID нет ссылки-приглашения, а прогресс не считаем
@@ -190,7 +237,8 @@ function myProgress(data: RaffleView, telegramId?: string): { link: string | nul
 }
 
 function raffleStatus(data: RaffleView, me: RaffleMe | null): string {
-  const conditionsDone = me ? Number(me.tasks >= 1) + Number(me.friends >= 1) : 0;
+  // Условия участия — задание и «Участвую»; друзья только увеличивают приз
+  const conditionsDone = me ? Number(me.tasks >= 1) + Number(me.joined) : 0;
   return data.stage === "drawn" ? "🏆 Итоги"
     : me?.eligible ? "✅ Ты участвуешь"
     : data.stage === "closed" ? "Приём закрыт"
