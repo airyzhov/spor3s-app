@@ -109,6 +109,13 @@ export function openedMiniApp(row?: { last_activity: string | null; created_at: 
   return Date.parse(row.last_activity) > Date.parse(row.created_at);
 }
 
+// last_activity для входа в мини-апп (/api/init-user): «сейчас», но строго позже created_at строки —
+// created_at ставят часы базы, и если часы сервера отстают, вход иначе не засчитался бы
+export function openedAt(row: { created_at: string | null } | null | undefined, now: number): string {
+  const created = row?.created_at ? Date.parse(row.created_at) : NaN;
+  return new Date(Number.isNaN(created) ? now : Math.max(now, created + 1000)).toISOString();
+}
+
 type TaskRow = { user_id: string; source_type: string; created_at: string };
 
 // Сколько разных подписочных заданий каждый выполнил до конца приёма
@@ -221,6 +228,12 @@ export type TelegramNotice = { chatId: string; text: string; buttons: TelegramBu
 export const RAFFLE_APP_URL = 'https://ai.spor3s.ru/?open=raffle';
 
 export type RaffleProgress = { tasks: number; friends: number; joined: boolean };
+
+// Личный прогресс для карточки: участвует ли, приз при победе и что даст следующий друг
+export function raffleMe(progress: RaffleProgress): RaffleMe {
+  const eligible = isEligible(progress.tasks, progress.joined);
+  return { ...progress, eligible, prize: eligible ? prizeForFriends(progress.friends) : null, next: nextPrize(progress.friends) };
+}
 
 // О чём написать после события: первое задание (subscribe-bonus) и первый вход в приложение нового
 // друга (init-user) случаются по разу, поэтому одно сообщение дважды не уходит.

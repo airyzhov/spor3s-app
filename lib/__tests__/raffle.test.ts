@@ -10,6 +10,7 @@ import {
   prizeRulesText,
   isEligible,
   openedMiniApp,
+  openedAt,
   countTasks,
   countFriends,
   publicName,
@@ -91,6 +92,17 @@ describe('открыл ли человек мини-приложение', () =>
   it('нет строки или дат — не открывал', () => {
     expect(openedMiniApp(null)).toBe(false);
     expect(openedMiniApp({ last_activity: null, created_at: '2026-09-30T12:00:00Z' })).toBe(false);
+  });
+
+  // Часы сервера приложения и базы могут расходиться: вход должен засчитаться, даже если «сейчас»
+  // по серверу оказалось раньше created_at, поставленного базой
+  it('время входа всегда позже created_at строки', () => {
+    const row = { last_activity: '2026-09-30T12:00:00Z', created_at: '2026-09-30T12:00:00Z' };
+    const lagging = Date.parse('2026-09-30T11:59:58Z');
+    const stamp = openedAt(row, lagging);
+    expect(openedMiniApp({ ...row, last_activity: stamp })).toBe(true);
+    expect(openedAt(row, Date.parse('2026-09-30T12:10:00Z'))).toBe('2026-09-30T12:10:00.000Z');
+    expect(openedAt(null, Date.parse('2026-09-30T12:10:00Z'))).toBe('2026-09-30T12:10:00.000Z');
   });
 });
 
