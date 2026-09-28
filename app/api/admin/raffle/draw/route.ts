@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     const participants = (await listParticipants()).filter((p) => p.eligible);
     if (!participants.length) {
-      return NextResponse.json({ error: 'Нет участников, выполнивших оба условия' }, { status: 400 });
+      return NextResponse.json({ error: 'Нет участников (задание + «Участвую»)' }, { status: 400 });
     }
 
     const winners = pickWinners(participants, RAFFLE.winnersCount, (max) => randomInt(max)).map((p) => ({
