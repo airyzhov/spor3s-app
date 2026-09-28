@@ -79,6 +79,10 @@ describe('cabinetFocusFromUrl — куда вести после кнопки б
     expect(cabinetFocusFromUrl('?tgWebAppStartParam=x&open=course')).toBe('course');
   });
 
+  it('?open=raffle — в кабинет, к карточке розыгрыша (кнопка «Открыть розыгрыш» в боте)', () => {
+    expect(cabinetFocusFromUrl('?open=raffle')).toBe('raffle');
+  });
+
   it('без параметра или с чужим значением — никуда', () => {
     expect(cabinetFocusFromUrl('')).toBeNull();
     expect(cabinetFocusFromUrl('?open=admin')).toBeNull();

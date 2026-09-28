@@ -9,6 +9,7 @@ import {
   nextPrize,
   prizeRulesText,
   isEligible,
+  openedMiniApp,
   countTasks,
   countFriends,
   publicName,
@@ -42,38 +43,54 @@ describe('стадии розыгрыша', () => {
   });
 });
 
+// Правила 28.09: без друзей — 1 добавка, 1–2 друга — 2 добавки, 3 и больше — комплекс
 describe('призы по числу своих друзей', () => {
   it.each([
-    [0, null],
-    [1, 'one'],
-    [2, 'one'],
-    [3, 'two'],
-    [4, 'two'],
-    [5, 'set'],
+    [0, 'one'],
+    [1, 'two'],
+    [2, 'two'],
+    [3, 'set'],
     [10, 'set'],
   ])('%i друзей → %s', (friends, code) => {
-    expect(prizeForFriends(friends as number)?.code ?? null).toBe(code);
+    expect(prizeForFriends(friends as number).code).toBe(code);
   });
 
   it('подсказывает, сколько друзей до следующего приза', () => {
     expect(nextPrize(0)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(1) });
     expect(nextPrize(1)).toEqual({ friendsNeeded: 2, prize: prizeForFriends(3) });
-    expect(nextPrize(4)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(5) });
-    expect(nextPrize(5)).toBeNull();
+    expect(nextPrize(2)).toEqual({ friendsNeeded: 1, prize: prizeForFriends(3) });
+    expect(nextPrize(3)).toBeNull();
   });
 
-  it('правила призов одной строкой — для кнопки и сообщений бота', () => {
+  it('правила призов одной строкой — для карточки и сообщений бота', () => {
     expect(prizeRulesText()).toBe(
-      '1–2 друга — 1 добавка на выбор, 3–4 друга — 2 добавки на выбор, 5 и больше — комплекс добавок',
+      'без друзей — 1 добавка на выбор, 1–2 друга — 2 добавки на выбор, 3 и больше — комплекс добавок',
     );
   });
 });
 
 describe('условия участия', () => {
-  it('нужны и задание, и друг', () => {
-    expect(isEligible(1, 1)).toBe(true);
-    expect(isEligible(3, 0)).toBe(false);
-    expect(isEligible(0, 2)).toBe(false);
+  it('нужны задание и нажатая кнопка «Участвую»; друзья не обязательны', () => {
+    expect(isEligible(1, true)).toBe(true);
+    expect(isEligible(3, false)).toBe(false);
+    expect(isEligible(0, true)).toBe(false);
+  });
+});
+
+// Строку ai_agent_status каждому новому пользователю создаёт триггер БД (last_activity = created_at),
+// а /api/init-user при входе в мини-апп обновляет last_activity
+describe('открыл ли человек мини-приложение', () => {
+  it('строка от триггера — ещё не открывал', () => {
+    expect(openedMiniApp({ last_activity: '2026-09-30T12:00:00.123Z', created_at: '2026-09-30T12:00:00.123Z' })).toBe(false);
+  });
+
+  it('вход в приложение обновил last_activity — открывал', () => {
+    expect(openedMiniApp({ last_activity: '2026-09-30T12:03:10Z', created_at: '2026-09-30T12:00:00Z' })).toBe(true);
+  });
+
+  it('нет строки или дат — не открывал', () => {
+    expect(openedMiniApp(null)).toBe(false);
+    expect(openedMiniApp({ last_activity: null, created_at: '2026-09-30T12:00:00Z' })).toBe(false);
   });
 });
 
@@ -146,20 +163,28 @@ describe('имя участника', () => {
 });
 
 describe('список участников для админки', () => {
-  it('сначала выполнившие оба условия, приз — по их друзьям', () => {
+  it('сначала участники (задание + «Участвую»), приз — по их друзьям', () => {
     const list = buildParticipants(
       [
         { id: 'a', username: 'anna', telegram_id: '111111' },
         { id: 'b', username: null, telegram_id: '222222' },
         { id: 'c', username: 'max', telegram_id: '333333' },
+        { id: 'd', username: 'dina', telegram_id: '444444' },
       ],
-      new Map([['a', 1], ['b', 2]]),
-      new Map([['b', 4], ['c', 7]]),
+      new Map([['a', 1], ['b', 2], ['d', 1]]),
+      new Map([['b', 1], ['c', 7]]),
+      new Set(['a', 'b']),
     );
-    expect(list.map((p) => p.user_id)).toEqual(['b', 'c', 'a']);
-    expect(list[0]).toMatchObject({ name: 'участник …2222', tasks: 2, friends: 4, eligible: true, prize: { code: 'two' } });
-    expect(list[1]).toMatchObject({ name: '@max', eligible: false, prize: null });
-    expect(list[2]).toMatchObject({ name: '@anna', eligible: false, friends: 0 });
+    expect(list.map((p) => p.user_id)).toEqual(['b', 'a', 'c', 'd']);
+    expect(list[0]).toMatchObject({ name: 'участник …2222', tasks: 2, friends: 1, joined: true, eligible: true, prize: { code: 'two' } });
+    expect(list[1]).toMatchObject({ name: '@anna', friends: 0, joined: true, eligible: true, prize: { code: 'one' } });
+    expect(list[2]).toMatchObject({ name: '@max', joined: false, eligible: false, prize: null });
+    expect(list[3]).toMatchObject({ name: '@dina', tasks: 1, joined: false, eligible: false, prize: null });
+  });
+
+  it('нажавший «Участвую» без задания в списке есть, но не участвует', () => {
+    const [p] = buildParticipants([{ id: 'e', username: 'eva', telegram_id: '555555' }], new Map(), new Map(), new Set(['e']));
+    expect(p).toMatchObject({ tasks: 0, joined: true, eligible: false, prize: null });
   });
 });
 
