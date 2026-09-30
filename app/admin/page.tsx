@@ -4,6 +4,8 @@ import { matchesOrder, matchesUser } from "../../lib/adminSearch";
 import { ORDER_STATUS_LABELS } from "../../lib/orderStatus";
 import { card, input, btn } from "./styles";
 import RaffleAdmin from "./RaffleAdmin";
+import UserPicker from "./UserPicker";
+import ScHistoryAdmin from "./ScHistoryAdmin";
 
 type Stats = {
   totalUsers: number;
@@ -49,6 +51,10 @@ export default function AdminPage() {
   const [coinAmount, setCoinAmount] = useState("");
   const [coinDesc, setCoinDesc] = useState("");
   const [coinMsg, setCoinMsg] = useState("");
+  // Галочка «Уведомить в боте»: снять — исправить баланс без сообщения человеку
+  const [coinNotify, setCoinNotify] = useState(true);
+  // Растёт после начисления — история SC выбранного перечитывается
+  const [historyKey, setHistoryKey] = useState(0);
 
   // Поиск по номеру заказа, Telegram ID или @логину — фильтрует заказы и балансы
   const [search, setSearch] = useState("");
@@ -112,13 +118,14 @@ export default function AdminPage() {
     const r = await fetch("/api/admin/manual-coin", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-secret": secret || "" },
-      body: JSON.stringify({ user_id: coinUser, amount: Number(coinAmount), description: coinDesc }),
+      body: JSON.stringify({ user_id: coinUser, amount: Number(coinAmount), description: coinDesc, notify: coinNotify }),
     });
     const d = await r.json();
     if (d.success) {
-      setCoinMsg("✅ Начислено");
+      setCoinMsg(Number(coinAmount) < 0 ? "✅ Списано" : "✅ Начислено");
       setCoinAmount("");
       setCoinDesc("");
+      setHistoryKey((k) => k + 1);
       if (secret) loadData(secret);
     } else {
       setCoinMsg("❌ " + (d.error || "Ошибка"));
@@ -343,18 +350,12 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Ручное начисление SC */}
+        {/* Ручное начисление SC: человек — поиском по нику или Telegram ID, под формой — его история SC.
+            Операция и комментарий уходят человеку в бот (галочка) и видны в его истории в кабинете */}
         <div style={{ ...card, marginBottom: 28 }}>
           <h2 style={{ fontSize: 17, marginTop: 0, marginBottom: 14 }}>💰 Начислить SC</h2>
           <form onSubmit={grantCoins} style={{ display: "grid", gap: 10 }}>
-            <select value={coinUser} onChange={(e) => setCoinUser(e.target.value)} style={input}>
-              <option value="">— выберите пользователя —</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {(u.name || (u.username ? "@" + String(u.username).replace(/^@/, "") : "") || u.telegram_id || u.id.slice(0, 8))} — {u.balance} SC
-                </option>
-              ))}
-            </select>
+            <UserPicker users={users} value={coinUser} onChange={(id) => { setCoinUser(id); setCoinMsg(""); }} />
             <input
               type="number"
               placeholder="Сумма SC (можно отрицательную для списания)"
@@ -362,16 +363,30 @@ export default function AdminPage() {
               onChange={(e) => setCoinAmount(e.target.value)}
               style={input}
             />
-            <input
-              type="text"
-              placeholder="Комментарий (необязательно)"
-              value={coinDesc}
-              onChange={(e) => setCoinDesc(e.target.value)}
-              style={input}
-            />
-            <button type="submit" style={btn}>Начислить</button>
+            <div>
+              <input
+                type="text"
+                placeholder="Комментарий (необязательно)"
+                value={coinDesc}
+                onChange={(e) => setCoinDesc(e.target.value)}
+                style={input}
+              />
+              <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 4 }}>Его увидит покупатель — в боте и в истории SC</div>
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#cbd5e1", cursor: "pointer" }}>
+              <input type="checkbox" checked={coinNotify} onChange={(e) => setCoinNotify(e.target.checked)} />
+              Уведомить в боте
+            </label>
+            <button
+              type="submit"
+              disabled={!coinUser}
+              style={{ ...btn, opacity: coinUser ? 1 : 0.4, cursor: coinUser ? "pointer" : "default" }}
+            >
+              Начислить
+            </button>
             {coinMsg && <div style={{ fontSize: 14 }}>{coinMsg}</div>}
           </form>
+          {coinUser && secret && <ScHistoryAdmin userId={coinUser} secret={secret} refreshKey={historyKey} />}
         </div>
 
         {/* Балансы пользователей */}
