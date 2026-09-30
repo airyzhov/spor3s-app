@@ -54,6 +54,7 @@ jest.mock('../../app/supabaseServerClient', () => ({ supabaseServer: { from: (na
 
 import { creditSC } from '../referral';
 import { manualAdjustSC, spendScForOrder } from '../scLedger';
+import { getScHistory } from '../scHistoryServer';
 
 const HISTORY_BUTTON = { inline_keyboard: [[{ text: '🧾 История SC', web_app: { url: 'https://ai.spor3s.ru/?open=sc' } }]] };
 const level = (userId: string) => db.user_levels.find((l) => l.user_id === userId);
@@ -203,5 +204,26 @@ describe('spendScForOrder — списание SC при заказе', () => {
     failing.add('user_levels');
     await spendScForOrder({ userId: 'buyer', orderId: ORDER_ID, coins: 40, balanceBefore: 100, spentBefore: 0 });
     expect(sent).toEqual([]);
+  });
+});
+
+describe('getScHistory — история SC человека', () => {
+  beforeEach(() => {
+    db.sc_transactions = [
+      { id: 't1', user_id: 'buyer', amount: 30, created_at: '2026-09-28T11:02:00Z', description: 'Бонус за задание: Telegram канал', source_type: 'subscribe_telegram' },
+      { id: 't2', user_id: 'guest', amount: 30, created_at: '2026-09-29T10:00:00Z', description: 'Опрос', source_type: 'survey' },
+      { id: 't3', user_id: 'buyer', amount: -40, created_at: '2026-09-30T09:00:00Z', description: 'Списание SC для заказа #x', source_type: 'order_discount' },
+      { id: 't4', user_id: 'buyer', amount: 50, created_at: '2026-09-25T08:00:00Z', description: 'Компенсация', source_type: 'manual' },
+    ];
+  });
+
+  it('только операции этого человека, новые сверху', async () => {
+    const rows = await getScHistory('buyer');
+    expect(rows.map((r) => r.id)).toEqual(['t3', 't1', 't4']);
+  });
+
+  it('не больше limit — самые новые', async () => {
+    const rows = await getScHistory('buyer', 2);
+    expect(rows.map((r) => r.id)).toEqual(['t3', 't1']);
   });
 });
