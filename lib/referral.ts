@@ -1,6 +1,7 @@
 import { supabaseServer } from '../app/supabaseServerClient';
 import { getLevelInfo, LEVEL_CONFIG, REFERRAL_WELCOME_SC } from './levelUtils';
 import { isPaidStatus, paidOrderTotals } from './orderStatus';
+import { notifyScChange } from './scNotify';
 
 // Нормализуем телефон к виду 79998887766 (11 цифр, ведущая 7). Возвращаем null, если не похоже на телефон.
 export function normalizePhone(raw: string | null | undefined): string | null {
@@ -141,18 +142,19 @@ export async function creditSC(params: {
     .eq('user_id', userId)
     .single();
 
+  const balance = (level?.current_sc_balance || 0) + amount;
   if (!level) {
     await supabaseServer.from('user_levels').insert([{
       user_id: userId,
       current_level: '🌱 Новичок',
       level_code: 'novice',
-      current_sc_balance: amount,
+      current_sc_balance: balance,
       total_sc_earned: amount,
       total_sc_spent: 0,
     }]);
   } else {
     await supabaseServer.from('user_levels').update({
-      current_sc_balance: (level.current_sc_balance || 0) + amount,
+      current_sc_balance: balance,
       total_sc_earned: (level.total_sc_earned || 0) + amount,
       updated_at: new Date().toISOString(),
     }).eq('user_id', userId);
@@ -164,6 +166,9 @@ export async function creditSC(params: {
   } catch (e) {
     console.error('[levels] ошибка пересчёта уровня:', e);
   }
+
+  // Бот пишет «💰 +N SC — за что, баланс» (lib/scNotify.ts; ошибки наружу не пробрасывает)
+  await notifyScChange(userId, { amount, description, balance });
 }
 
 // Есть ли у пользователя оплаченные заказы (paid / shipped / completed); exceptOrderId — не считать этот

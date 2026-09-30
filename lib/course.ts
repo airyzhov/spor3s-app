@@ -8,11 +8,11 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 export const COURSE_APP_URL = 'https://ai.spor3s.ru/?open=course';
 export const COURSE_START_TEXT = 'Отметьте, что вы начали курс, отслеживайте своё состояние и получайте SC каждую неделю!';
 
-// Кнопки бота открывают мини-приложение с ?open=course или ?open=raffle — сразу в кабинет,
-// к разделу курса или к карточке розыгрыша
-export function cabinetFocusFromUrl(search: string): 'course' | 'raffle' | null {
+// Кнопки бота открывают мини-приложение с ?open=course, ?open=raffle или ?open=sc — сразу в кабинет,
+// к разделу курса, к карточке розыгрыша или к истории SC (сообщение о начислении, lib/scHistory.ts)
+export function cabinetFocusFromUrl(search: string): 'course' | 'raffle' | 'sc' | null {
   const open = new URLSearchParams(search).get('open');
-  return open === 'course' || open === 'raffle' ? open : null;
+  return open === 'course' || open === 'raffle' || open === 'sc' ? open : null;
 }
 
 // Срок курса в месяцах для user_courses: кнопка «Я начал(а) курс» его не спрашивает — тогда 1.
