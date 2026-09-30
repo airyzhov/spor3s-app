@@ -7,6 +7,7 @@ import CopyLinkButton from "./CopyLinkButton";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import CabinetSection from "./CabinetSection";
 import CourseSection from "./CourseSection";
+import ScHistorySection from "./ScHistorySection";
 import { openExternal } from "../../lib/openExternal";
 import { referralLink, referralShareUrl, REFERRAL_TERMS } from "../../lib/referralLink";
 import { REFERRAL_WELCOME_SC } from "../../lib/levelUtils";
@@ -16,7 +17,7 @@ import { ORDER_STATUS_LABELS, PAID_STATUSES } from "../../lib/orderStatus";
 
 interface RoadMapProps {
   user: any;
-  focus?: 'tasks' | 'raffle' | 'course' | null;
+  focus?: 'tasks' | 'raffle' | 'course' | 'sc' | null;
   onFocusHandled?: () => void;
 }
 
@@ -46,6 +47,9 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   // Пришли по кнопке бота «Отметить начало курса» (?open=course) — раздел курса раскрыт сразу
   const [courseFocus, setCourseFocus] = useState(false);
   const courseRef = useRef<HTMLDivElement>(null);
+  // Пришли по кнопке бота «🧾 История SC» (?open=sc) — история SC раскрыта сразу
+  const [scHistoryFocus, setScHistoryFocus] = useState(false);
+  const scHistoryRef = useRef<HTMLDivElement>(null);
 
   const [referralStats, setReferralStats] = useState<any>(null);
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -54,7 +58,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
   const tasksRef = useRef<HTMLDivElement>(null);
-  const [scrollTarget, setScrollTarget] = useState<'tasks' | 'course' | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<'tasks' | 'course' | 'sc' | null>(null);
 
   // Раскрывает блок заданий и подводит к нему. Используется и плашкой на главном
   // экране (через проп focus), и плашкой здесь, в кабинете.
@@ -86,6 +90,9 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
     } else if (focus === 'course') {
       setCourseFocus(true);
       setScrollTarget('course');
+    } else if (focus === 'sc') {
+      setScHistoryFocus(true);
+      setScrollTarget('sc');
     } else {
       return;
     }
@@ -103,7 +110,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   useEffect(() => {
     if (!scrollTarget) return;
 
-    const target = scrollTarget === 'course' ? courseRef : tasksRef;
+    const target = scrollTarget === 'course' ? courseRef : scrollTarget === 'sc' ? scHistoryRef : tasksRef;
     const scroll = () => target.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
     scroll();
 
@@ -363,6 +370,11 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
 
       {/* SC, друзья, уровень и как заработать SC (раньше — на главном экране) */}
       <ScStatus userId={user?.id} refreshKey={refreshKey} />
+
+      {/* История SC: все начисления и списания. Бот ведёт сюда кнопкой «🧾 История SC» (?open=sc) */}
+      <div ref={scHistoryRef}>
+        <ScHistorySection userId={user?.id} refreshKey={refreshKey} forceOpen={scHistoryFocus} />
+      </div>
 
       {/* Плашка невыполненных заданий: клик раскрывает блок заданий ниже */}
       <TasksBanner

@@ -64,12 +64,12 @@ export default function AppClient() {
   const [error, setError] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
   // Куда проскроллить в Кабинете после перехода с главного экрана
-  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | 'course' | null>(null);
+  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | 'course' | 'sc' | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    // Кнопки бота открывают приложение с ?open=course («Отметить начало курса») или ?open=raffle
-    // («Открыть розыгрыш») — сразу в кабинет, к нужному разделу
+    // Кнопки бота открывают приложение с ?open=course («Отметить начало курса»), ?open=raffle
+    // («Открыть розыгрыш») или ?open=sc («🧾 История SC») — сразу в кабинет, к нужному разделу
     const focus = cabinetFocusFromUrl(window.location.search);
     if (focus) {
       setCabinetFocus(focus);
