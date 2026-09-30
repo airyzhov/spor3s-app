@@ -39,7 +39,8 @@ export default function ScHistorySection({ userId, refreshKey = 0, forceOpen }: 
           textAlign: "left",
         }}>
           <span style={{ color: "#999", whiteSpace: "nowrap", fontSize: "clamp(11px, 3vw, 13px)" }}>{scDateLabel(t.created_at)}</span>
-          <span style={{ color: t.amount < 0 ? "#ff6b6b" : "#00ff88", fontWeight: 700, whiteSpace: "nowrap" }}>
+          {/* Ширина под «+1000 SC» — описания в строках начинаются с одной линии */}
+          <span style={{ color: t.amount < 0 ? "#ff6b6b" : "#00ff88", fontWeight: 700, whiteSpace: "nowrap", minWidth: "4.8em" }}>
             {formatScAmount(t.amount)} SC
           </span>
           <span style={{ color: "#ddd" }}>{shortOrderIds(t.description)}</span>
