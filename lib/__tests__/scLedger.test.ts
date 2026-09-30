@@ -53,6 +53,7 @@ function table(name: string) {
 jest.mock('../../app/supabaseServerClient', () => ({ supabaseServer: { from: (name: string) => table(name) } }));
 
 import { creditSC } from '../referral';
+import { manualAdjustSC, spendScForOrder } from '../scLedger';
 
 const HISTORY_BUTTON = { inline_keyboard: [[{ text: '🧾 История SC', web_app: { url: 'https://ai.spor3s.ru/?open=sc' } }]] };
 const level = (userId: string) => db.user_levels.find((l) => l.user_id === userId);
@@ -132,5 +133,75 @@ describe('creditSC — сообщение в боте о начислении', 
     telegram = 'down';
     await expect(creditSC({ userId: 'buyer', amount: 30, sourceType: 'survey', description: 'Опрос' })).resolves.toBeUndefined();
     expect(level('buyer')?.current_sc_balance).toBe(130);
+  });
+});
+
+describe('manualAdjustSC — ручная операция из админки', () => {
+  it('начисление с комментарием: запись «вручную», баланс, сообщение с комментарием', async () => {
+    await expect(manualAdjustSC({ userId: 'buyer', amount: 50, description: 'Компенсация за доставку' })).resolves.toBe(150);
+    expect(db.sc_transactions).toEqual([expect.objectContaining({
+      user_id: 'buyer', amount: 50, transaction_type: 'earned', source_type: 'manual', description: 'Компенсация за доставку',
+    })]);
+    expect(level('buyer')).toMatchObject({ current_sc_balance: 150, total_sc_earned: 150, total_sc_spent: 0 });
+    expect(sent.map((m) => m.text)).toEqual(['💰 <b>+50 SC</b> — Компенсация за доставку\nБаланс: <b>150 SC</b>']);
+  });
+
+  it('списание без комментария — «Списание магазином»', async () => {
+    await expect(manualAdjustSC({ userId: 'buyer', amount: -20 })).resolves.toBe(80);
+    expect(db.sc_transactions).toEqual([expect.objectContaining({
+      amount: -20, transaction_type: 'spent', source_type: 'manual', description: 'Списание магазином',
+    })]);
+    expect(level('buyer')).toMatchObject({ current_sc_balance: 80, total_sc_earned: 100, total_sc_spent: 20 });
+    expect(sent.map((m) => m.text)).toEqual(['💸 <b>−20 SC</b> — Списание магазином\nБаланс: <b>80 SC</b>']);
+  });
+
+  it('начисление без комментария — «Начисление от магазина»', async () => {
+    await manualAdjustSC({ userId: 'buyer', amount: 10, description: '   ' });
+    expect(db.sc_transactions[0].description).toBe('Начисление от магазина');
+  });
+
+  it('галочка «Уведомить в боте» снята — без сообщения', async () => {
+    await manualAdjustSC({ userId: 'buyer', amount: 10, notify: false });
+    expect(level('buyer')?.current_sc_balance).toBe(110);
+    expect(sent).toEqual([]);
+  });
+
+  it('у человека ещё нет строки уровня — создаём с балансом', async () => {
+    await expect(manualAdjustSC({ userId: 'fresh', amount: 25 })).resolves.toBe(25);
+    expect(level('fresh')).toMatchObject({ current_sc_balance: 25, total_sc_earned: 25, total_sc_spent: 0 });
+  });
+
+  it('операция не записалась — ошибка, баланс прежний, без сообщения', async () => {
+    failing.add('sc_transactions');
+    await expect(manualAdjustSC({ userId: 'buyer', amount: 50 })).rejects.toThrow('sc_transactions');
+    expect(level('buyer')?.current_sc_balance).toBe(100);
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('spendScForOrder — списание SC при заказе', () => {
+  const ORDER_ID = '03d1710f-ffe0-4b2c-8555-b784f6e34b80';
+
+  it('запись с номером заказа, баланс и сообщение с коротким номером', async () => {
+    await spendScForOrder({ userId: 'buyer', orderId: ORDER_ID, coins: 40, balanceBefore: 100, spentBefore: 0 });
+    expect(db.sc_transactions).toEqual([expect.objectContaining({
+      user_id: 'buyer', amount: -40, transaction_type: 'spent', source_type: 'order_discount',
+      description: `Списание SC для заказа #${ORDER_ID}`,
+    })]);
+    expect(level('buyer')).toMatchObject({ current_sc_balance: 60, total_sc_spent: 40 });
+    expect(sent.map((m) => m.text)).toEqual(['💸 <b>−40 SC</b> — Списание SC для заказа #03d1710f\nБаланс: <b>60 SC</b>']);
+  });
+
+  it('списание не записалось — баланс не трогаем и не пишем', async () => {
+    failing.add('sc_transactions');
+    await spendScForOrder({ userId: 'buyer', orderId: ORDER_ID, coins: 40, balanceBefore: 100, spentBefore: 0 });
+    expect(level('buyer')?.current_sc_balance).toBe(100);
+    expect(sent).toEqual([]);
+  });
+
+  it('баланс не обновился — не пишем (в сообщении был бы неверный баланс)', async () => {
+    failing.add('user_levels');
+    await spendScForOrder({ userId: 'buyer', orderId: ORDER_ID, coins: 40, balanceBefore: 100, spentBefore: 0 });
+    expect(sent).toEqual([]);
   });
 });

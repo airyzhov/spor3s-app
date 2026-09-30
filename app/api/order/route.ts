@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 import { normalizePhone, recalcOrderTotals } from "../../../lib/referral";
 import { priceOrder } from "../../../lib/orderPricing";
+import { spendScForOrder } from "../../../lib/scLedger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,38 +83,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
     }
 
-    // 6. Если использованы монеты — фиксируем транзакцию списания
+    // 6. Если использованы монеты — списание SC и сообщение в боте «💸 −N SC» (lib/scLedger.ts)
     if (coinsToApply > 0) {
       console.log(`💰 Использовано SC: ${coinsToApply}`);
-      
-      const { error: scError } = await supabaseServer
-        .from("sc_transactions")
-        .insert([{
-          user_id: user_id,
-          amount: -coinsToApply, // Отрицательная сумма для списания
-          transaction_type: "spent",
-          source_type: "order_discount",
-          description: `Списание SC для заказа #${order.id}`,
-          created_at: new Date().toISOString()
-        }]);
-
-      if (scError) {
-        console.error('❌ Ошибка списания SC:', scError);
-      } else {
-        // Обновляем баланс пользователя
-        const newBalance = scBalance - coinsToApply;
-        const { error: updateError } = await supabaseServer
-          .from("user_levels")
-          .update({ 
-            current_sc_balance: newBalance,
-            total_sc_spent: (userLevel?.total_sc_spent || 0) + coinsToApply
-          })
-          .eq("user_id", user_id);
-
-        if (updateError) {
-          console.error('❌ Ошибка обновления баланса SC:', updateError);
-        }
-      }
+      await spendScForOrder({
+        userId: user_id,
+        orderId: order.id,
+        coins: coinsToApply,
+        balanceBefore: scBalance,
+        spentBefore: userLevel?.total_sc_spent || 0,
+      });
     }
 
     // 7. SC за заказ начисляются ПРИ ОПЛАТЕ (статус paid, shipped или completed), а не при создании —
