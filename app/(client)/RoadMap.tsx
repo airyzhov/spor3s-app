@@ -363,7 +363,6 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           userId={user?.id}
           telegramId={user?.telegram_id}
           onOpenTasks={focusTasks}
-          expand={raffleExpand}
           refreshKey={refreshKey}
         />
       </div>
