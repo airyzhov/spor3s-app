@@ -87,3 +87,12 @@ it('в заголовке — идущая неделя курса', async () =>
   expect(await screen.findByRole('button', { name: /Мой курс.*неделя 3/ })).toBeInTheDocument();
   await waitFor(() => expect((global as any).fetch).toHaveBeenCalledTimes(2));
 });
+
+it('строка «Отчёт о самочувствии» в «Как получить SC» (openSignal) раскрывает раздел', async () => {
+  mockApi({});
+  const { rerender } = render(<CourseSection userId={USER_ID} visible openSignal={0} />);
+  await screen.findByRole('button', { name: /Мой курс/ });
+  expect(screen.queryByRole('button', { name: /Я начал\(а\) курс/ })).toBeNull();
+  rerender(<CourseSection userId={USER_ID} visible openSignal={1} />);
+  expect(screen.getByRole('button', { name: /Я начал\(а\) курс/ })).toBeInTheDocument();
+});

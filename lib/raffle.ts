@@ -96,6 +96,18 @@ export function raffleStage(now: Date, hasDraw: boolean): RaffleStage {
   return t < Date.parse(RAFFLE.endsAt) ? 'open' : 'closed';
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Плашка на карточке в кабинете: «⏳ Ещё 9 дней», в последние сутки — «⏳ Последний день»,
+// после конца приёма — null. Неполные сутки считаем целыми.
+export function raffleDaysLeftLabel(now: Date): string | null {
+  const left = Date.parse(RAFFLE.endsAt) - now.getTime();
+  if (left <= 0) return null;
+  const days = Math.ceil(left / DAY_MS);
+  if (days <= 1) return '⏳ Последний день';
+  return `⏳ Ещё ${days} ${plural(days, 'день', 'дня', 'дней')}`;
+}
+
 // Участник — выполнил подписочное задание и нажал «Участвую». Друзья не обязательны: они увеличивают приз
 export function isEligible(tasks: number, joined: boolean): boolean {
   return tasks >= 1 && joined;

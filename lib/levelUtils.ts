@@ -108,6 +108,9 @@ export const REFERRAL_PERCENT = 0.05;
 // не покупал (lib/referral.ts grantReferralWelcome). Бот пишет ту же сумму (tg-bot/replies.ts).
 export const REFERRAL_WELCOME_SC = 100;
 
+// SC за каждое задание на подписку (Telegram, YouTube, Instagram) — начисляет /api/subscribe-bonus
+export const SUBSCRIBE_TASK_SC = 30;
+
 export function getLevelInfo(sc: number, ordersAmount: number = 0, ordersCount: number = 0): LevelInfo {
   // Находим текущий уровень
   let currentLevel = LEVEL_CONFIG[0];

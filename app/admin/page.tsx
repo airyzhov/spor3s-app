@@ -139,6 +139,14 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json", "x-admin-secret": secret || "" },
       body: JSON.stringify({ id, status }),
     });
+    // Оплата начисляет SC покупателю (и кэшбэк пригласившему) — «SC клиента» показываем сразу,
+    // а не после перезагрузки страницы (01.10 владелец видел 0 SC у только что начисленного заказа)
+    try {
+      const r = await fetch("/api/admin/users-balances", { headers: { "x-admin-secret": secret || "" } });
+      if (r.ok) setUsers((await r.json()).users || []);
+    } catch {
+      // не страшно: баланс обновится при следующей загрузке
+    }
   };
 
   // Черновики трек-номера/комментария по заказам (до нажатия «Сохранить»)

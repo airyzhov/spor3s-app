@@ -5,7 +5,7 @@ import { getMonthGoal } from "../../../lib/monthGoalServer";
 import { computeMonthGoal } from "../../../lib/monthGoal";
 import { getInvitedBy } from "../../../lib/referral";
 
-// Панель SC в кабинете (ScStatus): один запрос вместо пяти (уровень, рефералы, статусы трёх заданий).
+// Шапка кабинета с балансом (BonusHero): один запрос вместо пяти (уровень, рефералы, статусы трёх заданий).
 const TASK_CHANNELS = ["telegram", "youtube", "instagram"];
 const TASK_BONUS = 30;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

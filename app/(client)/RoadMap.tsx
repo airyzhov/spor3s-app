@@ -1,17 +1,14 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import TasksBanner from "./TasksBanner";
 import RaffleBanner from "./RaffleBanner";
-import ScStatus from "./ScStatus";
-import CopyLinkButton from "./CopyLinkButton";
 import MotivationalHabit from "../../components/MotivationalHabit";
 import CabinetSection from "./CabinetSection";
 import CourseSection from "./CourseSection";
 import ScHistorySection from "./ScHistorySection";
+import BonusHero from "./BonusHero";
+import EarnList, { EARN_TASKS, type EarnTaskId } from "./EarnList";
+import ReferralPanel from "./ReferralPanel";
 import { openExternal } from "../../lib/openExternal";
-import { referralLink, referralShareUrl, REFERRAL_TERMS } from "../../lib/referralLink";
-import { REFERRAL_WELCOME_SC } from "../../lib/levelUtils";
-import InviterCodeForm from "./InviterCodeForm";
 import { isGamificationTester } from "../../lib/testers";
 import { ORDER_STATUS_LABELS, PAID_STATUSES } from "../../lib/orderStatus";
 
@@ -19,46 +16,42 @@ interface RoadMapProps {
   user: any;
   focus?: 'tasks' | 'raffle' | 'course' | 'sc' | null;
   onFocusHandled?: () => void;
+  onOpenCatalog?: () => void; // «🛒 Покупки» в «Как получить SC» — в каталог
 }
 
-// Задания: подписки на каналы, бонус за каждое — TASK_BONUS SC
-const TASK_BONUS = 30;
-// Сколько удерживать блок заданий в поле зрения, пока догружается контент кабинета.
+// Сколько удерживать нужный блок в поле зрения, пока догружается контент кабинета.
 const FOCUS_SETTLE_MS = 2500;
-const TASKS = [
-  { id: 'telegram', icon: '📱', title: 'Telegram канал', desc: 'Подпишитесь на t.me/spor3s', url: 'https://t.me/spor3s', btnColor: 'linear-gradient(45deg, #0088cc, #00a8ff)' },
-  { id: 'youtube', icon: '📺', title: 'YouTube канал', desc: 'Подпишитесь на @spor3s', url: 'https://www.youtube.com/@spor3s', btnColor: 'linear-gradient(45deg, #ff0000, #cc0000)' },
-  { id: 'instagram', icon: '📸', title: 'Instagram', desc: 'Подпишитесь на @alex.spor3s', url: 'https://instagram.com/alex.spor3s', btnColor: 'linear-gradient(45deg, #e1306c, #f77737)' },
-];
+const CHANNEL_NAMES: Record<EarnTaskId, string> = { telegram: 'Telegram', youtube: 'YouTube', instagram: 'Instagram' };
 
-export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
+// Кабинет одним экраном (как бонусный экран Walt, 01.10): крупный баланс, карточка розыгрыша,
+// список «Как получить SC»; ниже история SC, курс и заказы. Спека: 2026-10-01-cabinet-bonus-screen-design.md
+export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: RoadMapProps) {
   // Тестировщики (lib/testers.ts — аккаунт владельца) видят то, что покупателям ещё не показываем: привычку
   const SHOW_GAMIFICATION = isGamificationTester(user?.telegram_id);
-  // Растёт после начисления за задание: панель SC и розыгрыш наверху перечитывают свои данные
+  // Растёт после начисления за задание: баланс, розыгрыш и история перечитывают свои данные
   const [refreshKey, setRefreshKey] = useState(0);
-  // Пришли со строки розыгрыша на главной — карточка розыгрыша открыта сразу
-  const [raffleExpand, setRaffleExpand] = useState(false);
   const raffleRef = useRef<HTMLDivElement>(null);
-  const [referralSC, setReferralSC] = useState(0);
 
-  const [subscribeLoading, setSubscribeLoading] = useState<string | null>(null);
-  const [tasksDone, setTasksDone] = useState<Record<string, boolean>>({});
-  const [tasksOpen, setTasksOpen] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState<EarnTaskId | null>(null);
+  const [tasksDone, setTasksDone] = useState<Partial<Record<EarnTaskId, boolean>>>({});
+  // Перешёл в канал из списка — рядом с заданием появляется «Получить +30 SC»
+  const [channelOpened, setChannelOpened] = useState<Partial<Record<EarnTaskId, boolean>>>({});
   // Пришли по кнопке бота «Отметить начало курса» (?open=course) — раздел курса раскрыт сразу
   const [courseFocus, setCourseFocus] = useState(false);
+  // Строка «🍄 Отчёт о самочувствии» — раскрыть курс (каждый раз)
+  const [courseSignal, setCourseSignal] = useState(0);
   const courseRef = useRef<HTMLDivElement>(null);
-  // Пришли по кнопке бота «🧾 История SC» (?open=sc) — история SC раскрыта сразу
-  const [scHistoryFocus, setScHistoryFocus] = useState(false);
+  // «🧾 История ›» в шапке и кнопка бота «🧾 История SC» (?open=sc) — раскрыть историю (каждый раз)
+  const [historySignal, setHistorySignal] = useState(0);
   const scHistoryRef = useRef<HTMLDivElement>(null);
 
   const [referralStats, setReferralStats] = useState<any>(null);
   const [myOrders, setMyOrders] = useState<any[]>([]);
-  const [showReferralModal, setShowReferralModal] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralBonus, setReferralBonus] = useState(0);
   const [invitedCount, setInvitedCount] = useState(0);
   const tasksRef = useRef<HTMLDivElement>(null);
-  const [scrollTarget, setScrollTarget] = useState<'tasks' | 'course' | 'sc' | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<'tasks' | 'raffle' | 'course' | 'sc' | null>(null);
 
   // Раскрывает блок заданий и подводит к нему. Используется и плашкой на главном
   // экране (через проп focus), и плашкой здесь, в кабинете.
@@ -73,31 +66,34 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   // Возвращает cleanup — вызов из эффекта обязан его вернуть, иначе размонтирование
   // оставит висящий observer. onDone дёргается только в конце: сбросить focus раньше
   // — значит перезапустить эффект и оборвать ещё не доехавший скролл.
+  // Задания теперь — строки списка «Как получить SC», он всегда раскрыт: только подводим к нему
   const focusTasks = useCallback(() => {
-    setTasksOpen(true);
     setScrollTarget('tasks');
   }, []);
 
-  // Приход с главного экрана. focus сбрасываем сразу: сам скролл живёт на
-  // локальном scrollTarget, поэтому сброс пропа его не обрывает.
-  // Розыгрыш — первый блок кабинета, над ним ничего не догружается: хватает одного скролла.
+  const openHistory = useCallback(() => {
+    setHistorySignal((n) => n + 1);
+    setScrollTarget('sc');
+  }, []);
+
+  // Приход с главного экрана или по кнопке бота. focus сбрасываем сразу: сам скролл живёт на
+  // локальном scrollTarget, поэтому сброс пропа его не обрывает. Над розыгрышем теперь шапка
+  // с балансом, которая догружается, — поэтому и к нему подводим с удержанием.
   useEffect(() => {
     if (focus === 'tasks') {
       focusTasks();
     } else if (focus === 'raffle') {
-      setRaffleExpand(true);
-      raffleRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      setScrollTarget('raffle');
     } else if (focus === 'course') {
       setCourseFocus(true);
       setScrollTarget('course');
     } else if (focus === 'sc') {
-      setScHistoryFocus(true);
-      setScrollTarget('sc');
+      openHistory();
     } else {
       return;
     }
     onFocusHandled?.();
-  }, [focus, focusTasks]);
+  }, [focus, focusTasks, openHistory]);
 
   // Скролл вынесен в отдельный эффект намеренно. Раньше он жил в том же эффекте,
   // что и реакция на focus, и запускался через requestAnimationFrame — кадр не успевал
@@ -110,7 +106,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
   useEffect(() => {
     if (!scrollTarget) return;
 
-    const target = scrollTarget === 'course' ? courseRef : scrollTarget === 'sc' ? scHistoryRef : tasksRef;
+    const target = { tasks: tasksRef, raffle: raffleRef, course: courseRef, sc: scHistoryRef }[scrollTarget];
     const scroll = () => target.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
     scroll();
 
@@ -128,7 +124,14 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
     };
   }, [scrollTarget]);
 
-  const handleSubscribe = async (channelType: 'telegram' | 'youtube' | 'instagram') => {
+  // «Подписаться» в списке: открыть канал и показать рядом «Получить +30 SC»
+  const openChannel = (id: EarnTaskId) => {
+    const task = EARN_TASKS.find((t) => t.id === id);
+    if (task) openExternal(task.url);
+    setChannelOpened((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const handleSubscribe = async (channelType: EarnTaskId) => {
     if (!user?.id) return;
 
     setSubscribeLoading(channelType);
@@ -168,7 +171,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
             <div style="font-size: 24px;">🎉</div>
             <div>
               <div style="font-weight: 700; margin-bottom: 4px;">Бонус получен!</div>
-              <div style="font-size: 14px; opacity: 0.9;">+${data.bonus} SC за подписку на ${channelType === 'telegram' ? 'Telegram' : 'YouTube'}</div>
+              <div style="font-size: 14px; opacity: 0.9;">+${data.bonus} SC за подписку на ${CHANNEL_NAMES[channelType]}</div>
             </div>
           </div>
         `;
@@ -308,20 +311,12 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
     }
   };
 
-  // Функция для копирования реферального кода
-  const copyReferralCode = () => {
-    if (referralCode) {
-      navigator.clipboard.writeText(referralCode);
-      alert('Реферальный код скопирован!');
-    }
-  };
-
   // Функция для проверки уже полученных бонусов подписки
   const checkSubscriptionBonuses = async () => {
     if (!user?.id) return;
-    
+
     try {
-      for (const ch of ['telegram', 'youtube', 'instagram']) {
+      for (const ch of EARN_TASKS.map((t) => t.id)) {
         const resp = await fetch('/api/check-subscription-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -357,32 +352,50 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
       width: "100%",
       boxSizing: "border-box"
     }}>
-      {/* Розыгрыш — первым: на главной от него осталась только строка-ссылка сюда (RaffleTeaser) */}
+      {/* Баланс крупно: «= N ₽ скидки», уровень, история, «Как это работает» */}
+      <BonusHero userId={user?.id} refreshKey={refreshKey} onOpenHistory={openHistory} />
+
+      {/* Розыгрыш: на главной от него только строка-ссылка сюда (RaffleTeaser) */}
       <div ref={raffleRef}>
         <RaffleBanner
           userId={user?.id}
           telegramId={user?.telegram_id}
           onOpenTasks={focusTasks}
-          expand={raffleExpand}
           refreshKey={refreshKey}
         />
       </div>
 
-      {/* SC, друзья, уровень и как заработать SC (раньше — на главном экране) */}
-      <ScStatus userId={user?.id} refreshKey={refreshKey} />
-
-      {/* История SC: все начисления и списания. Бот ведёт сюда кнопкой «🧾 История SC» (?open=sc) */}
-      <div ref={scHistoryRef}>
-        <ScHistorySection userId={user?.id} refreshKey={refreshKey} forceOpen={scHistoryFocus} />
+      {/* «Как получить SC»: подписки, приглашение (бывшая «Реферальная система»), покупки, отчёт по курсу */}
+      <div ref={tasksRef}>
+        <EarnList
+          tasksDone={tasksDone}
+          opened={channelOpened}
+          loading={subscribeLoading}
+          onOpenChannel={openChannel}
+          onClaim={handleSubscribe}
+          showCourse={!!eligibleOrder || SHOW_GAMIFICATION}
+          onOpenCourse={() => { setCourseSignal((n) => n + 1); setScrollTarget('course'); }}
+          onOpenCatalog={() => onOpenCatalog?.()}
+        >
+          <ReferralPanel
+            userId={user?.id}
+            telegramId={user?.telegram_id}
+            stats={referralStats}
+            referralCode={referralCode}
+            invitedCount={invitedCount}
+            referralBonus={referralBonus}
+            onClaimed={() => {
+              fetchReferralStats();
+              setRefreshKey(k => k + 1);
+            }}
+          />
+        </EarnList>
       </div>
 
-      {/* Плашка невыполненных заданий: клик раскрывает блок заданий ниже */}
-      <TasksBanner
-        left={TASKS.length - Object.values(tasksDone).filter(Boolean).length}
-        bonusPerTask={TASK_BONUS}
-        onClick={() => { focusTasks(); }}
-        style={{ marginBottom: 20 }}
-      />
+      {/* История SC: все начисления и списания. Ведут сюда «🧾 История ›» в шапке и кнопка бота (?open=sc) */}
+      <div ref={scHistoryRef}>
+        <ScHistorySection userId={user?.id} refreshKey={refreshKey} openSignal={historySignal} />
+      </div>
 
       {/* «Мой курс»: бывшие «Начало курса» и «Еженедельные отметки» — одна кнопка «Я начал(а) курс»
           и отчёт раз в неделю. Бот зовёт сюда, когда заказ стал «✅ Доставлен» (lib/courseNotify.ts) */}
@@ -391,6 +404,7 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           userId={user?.id}
           visible={!!eligibleOrder || SHOW_GAMIFICATION}
           forceOpen={courseFocus}
+          openSignal={courseSignal}
           onSCUpdate={() => setRefreshKey(k => k + 1)}
         />
       </div>
@@ -481,356 +495,6 @@ export default function RoadMap({ user, focus, onFocusHandled }: RoadMapProps) {
           })}
         </CabinetSection>
       )}
-
-      {/* Реферальная система */}
-      <CabinetSection
-        title="🎁 Реферальная система"
-        summary={referralStats?.canEnterInviterCode ? `код друга → +${REFERRAL_WELCOME_SC} SC` : `приглашено: ${invitedCount}`}
-        storageKey="spor3s_referral_open"
-      >
-      <div style={{ textAlign: "center" }}>
-        <div style={{
-          color: "#fff",
-          fontSize: "clamp(14px, 3.5vw, 16px)",
-          lineHeight: "1.5",
-          marginBottom: "20px",
-          wordBreak: "break-word"
-        }}>
-          {REFERRAL_TERMS}
-        </div>
-
-        {/* Кто пригласил — или поле «Код друга» для того, кто пришёл без ссылки и ещё не покупал */}
-        {referralStats?.invitedBy ? (
-          <div style={{ marginBottom: 15, fontSize: "clamp(13px, 3.3vw, 15px)", color: "#10b981", fontWeight: 600 }}>
-            🤝 Вас пригласил {referralStats.invitedBy.name}
-            {referralStats.invitedBy.welcomeSc > 0 && ` · 🎁 +${referralStats.invitedBy.welcomeSc} SC`}
-          </div>
-        ) : referralStats?.canEnterInviterCode && user?.id ? (
-          <InviterCodeForm
-            userId={user.id}
-            onClaimed={() => {
-              fetchReferralStats();
-              setRefreshKey(k => k + 1);
-            }}
-          />
-        ) : null}
-
-        {/* Персональная ссылка: друг кликает → бот сразу привязывает его к вам */}
-        {referralLink(user?.telegram_id) && (() => {
-          const refLink = referralLink(user.telegram_id)!;
-          return (
-            <div style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              borderRadius: "12px",
-              padding: "15px",
-              marginBottom: "15px",
-              width: "100%",
-              boxSizing: "border-box"
-            }}>
-              <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px", fontWeight: 600 }}>
-                🔗 Ваша персональная ссылка:
-              </div>
-              <div style={{
-                background: "rgba(255, 255, 255, 0.2)",
-                padding: "8px 12px",
-                borderRadius: "8px",
-                fontSize: "clamp(12px, 3vw, 14px)",
-                color: "#ff7ae0",
-                fontFamily: "monospace",
-                wordBreak: "break-all",
-                marginBottom: "10px"
-              }}>
-                {refLink}
-              </div>
-              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                <CopyLinkButton
-                  link={refLink}
-                  label="📋 Скопировать"
-                  style={{
-                    background: "#ff00cc", color: "#fff", border: "none", borderRadius: 8,
-                    padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
-                  }}
-                />
-                <button
-                  onClick={() => openExternal(referralShareUrl(user.telegram_id)!)}
-                  style={{
-                    background: "linear-gradient(45deg, #0088cc, #00a8ff)", color: "#fff", border: "none", borderRadius: 8,
-                    padding: "8px 16px", fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, cursor: "pointer"
-                  }}
-                >
-                  📤 Поделиться
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Гость из браузера: ссылки нет — подсказываем открыть через Telegram */}
-        {!referralLink(user?.telegram_id) && (
-          <div style={{
-            background: "rgba(0, 136, 204, 0.15)",
-            border: "1px solid rgba(0, 168, 255, 0.5)",
-            borderRadius: "12px",
-            padding: "15px",
-            marginBottom: "15px",
-            width: "100%",
-            boxSizing: "border-box",
-            fontSize: "clamp(12px, 3vw, 14px)",
-            color: "#fff",
-            lineHeight: 1.5
-          }}>
-            🔗 Персональная реферальная ссылка появится здесь, если открыть
-            приложение через Telegram:{" "}
-            <span
-              onClick={() => openExternal('https://t.me/spor3sbot')}
-              style={{ color: "#00a8ff", textDecoration: "underline", cursor: "pointer", fontWeight: 700 }}
-            >
-              @spor3sbot
-            </span>
-          </div>
-        )}
-
-        {referralCode && (
-          <div style={{
-            background: "rgba(255, 255, 255, 0.1)",
-            borderRadius: "12px",
-            padding: "15px",
-            marginBottom: "15px",
-            width: "100%",
-            boxSizing: "border-box"
-          }}>
-            <div style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#fff", marginBottom: "10px" }}>
-              {referralLink(user?.telegram_id)
-                ? "Или ваш код — друг введёт его в кабинете или при заказе:"
-                : "Ваш реферальный код:"}
-            </div>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "10px",
-              flexWrap: "wrap"
-            }}>
-              <div style={{
-                background: "rgba(255, 255, 255, 0.2)",
-                padding: "8px 15px",
-                borderRadius: "8px",
-                fontSize: "clamp(14px, 3.5vw, 16px)",
-                fontWeight: "bold",
-                color: "#ff00cc",
-                fontFamily: "monospace",
-                wordBreak: "break-all"
-              }}>
-                {referralCode}
-              </div>
-              <button
-                onClick={copyReferralCode}
-                style={{
-                  background: "#ff00cc",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "8px 12px",
-                  fontSize: "clamp(12px, 3vw, 14px)",
-                  cursor: "pointer",
-                  transition: "transform 0.2s",
-                  whiteSpace: "nowrap"
-                }}
-                onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.05)"}
-                onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
-              >
-                📋
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Статистика рефералов */}
-        {referralStats && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: "10px",
-            marginTop: "15px",
-            width: "100%"
-          }}>
-            <div style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              borderRadius: "8px",
-              padding: "10px",
-              textAlign: "center",
-              boxSizing: "border-box"
-            }}>
-              <div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", color: "#ccc", marginBottom: "5px" }}>
-                Приглашено
-              </div>
-              <div style={{ fontSize: "clamp(16px, 4vw, 18px)", fontWeight: "bold", color: "#ff00cc" }}>
-                {invitedCount}
-              </div>
-            </div>
-            
-            <div style={{
-              background: "rgba(255, 255, 255, 0.1)",
-              borderRadius: "8px",
-              padding: "10px",
-              textAlign: "center",
-              boxSizing: "border-box"
-            }}>
-              <div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", color: "#ccc", marginBottom: "5px" }}>
-                Кешбек
-              </div>
-              <div style={{ fontSize: "clamp(16px, 4vw, 18px)", fontWeight: "bold", color: "#10b981" }}>
-                {referralBonus}₽
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Список приглашённых: кто, статус, сколько SC принёс */}
-        {referralStats?.referrals?.length > 0 && (
-          <div style={{ marginTop: "12px", width: "100%" }}>
-            <div style={{ fontSize: "13px", color: "#ccc", marginBottom: "8px" }}>
-              👥 Ваши приглашённые:
-            </div>
-            {referralStats.referrals.map((r: any) => {
-              const u = r.referred_user;
-              const name = u?.username
-                ? `@${u.username}`
-                : `ID ${String(u?.telegram_id || "").slice(0, 4)}…`;
-              return (
-                <div key={r.id} style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "8px",
-                  padding: "8px 12px",
-                  marginBottom: "6px",
-                  fontSize: "13px",
-                  boxSizing: "border-box"
-                }}>
-                  <span style={{ fontWeight: 600 }}>👤 {name}</span>
-                  <span style={{ color: r.status === "completed" ? "#10b981" : "#f59e0b" }}>
-                    {r.status === "completed"
-                      ? `✅ активен${r.scEarned > 0 ? ` · принёс ${r.scEarned} SC` : ""}`
-                      : "⏳ ждёт первого заказа"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      </CabinetSection>
-
-      {/* Задания (свёрнуты по умолчанию) */}
-      <div ref={tasksRef} style={{
-        background: "linear-gradient(135deg, #0f172a, #1e293b)",
-        borderRadius: "20px",
-        padding: "clamp(20px, 5vw, 25px)",
-        marginBottom: "30px",
-        border: "2px solid rgba(255, 255, 255, 0.1)",
-        width: "100%",
-        boxSizing: "border-box",
-        overflow: "hidden"
-      }}>
-        <button
-          onClick={() => setTasksOpen(o => !o)}
-          style={{
-            width: "100%",
-            background: "none",
-            border: "none",
-            color: "#fff",
-            fontSize: "clamp(18px, 4.5vw, 20px)",
-            fontWeight: "bold",
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: 0
-          }}
-        >
-          <span>🎯 Задания</span>
-          <span style={{ fontSize: "clamp(12px, 3vw, 14px)", color: "#ccc", fontWeight: 500 }}>
-            {Object.values(tasksDone).filter(Boolean).length}/{TASKS.length} выполнено {tasksOpen ? "▲" : "▼"}
-          </span>
-        </button>
-        {tasksOpen && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "clamp(12px, 3vw, 15px)",
-            marginTop: 20,
-            width: "100%"
-          }}>
-            {TASKS.map((t) => (
-              <div key={t.id} style={{
-                background: "rgba(255, 255, 255, 0.1)",
-                borderRadius: 15,
-                padding: 18,
-                textAlign: "center",
-                border: tasksDone[t.id] ? "2px solid #10b981" : "2px solid rgba(255, 255, 255, 0.1)"
-              }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>{t.icon}</div>
-                <div style={{ fontSize: 17, fontWeight: "bold", color: "#fff", marginBottom: 6 }}>{t.title}</div>
-                <div style={{ fontSize: 13, color: "#ccc", marginBottom: 10, wordBreak: "break-word" }}>{t.desc}</div>
-                {tasksDone[t.id] ? (
-                  <div style={{
-                    background: "linear-gradient(45deg, #10b981, #059669)",
-                    color: "#fff",
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    fontSize: 13,
-                    fontWeight: "bold"
-                  }}>
-                    ✅ Готово — бонус +{TASK_BONUS} SC получен
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 15, fontWeight: "bold", color: "#ff00cc", marginBottom: 10 }}>+{TASK_BONUS} SC</div>
-                    <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => openExternal(t.url)}
-                        style={{
-                          background: t.btnColor,
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 8,
-                          padding: "8px 14px",
-                          fontSize: 13,
-                          fontWeight: "bold",
-                          cursor: "pointer"
-                        }}
-                      >
-                        Подписаться
-                      </button>
-                      <button
-                        onClick={() => handleSubscribe(t.id as 'telegram' | 'youtube' | 'instagram')}
-                        disabled={subscribeLoading === t.id}
-                        style={{
-                          background: subscribeLoading === t.id ? "rgba(255, 0, 204, 0.5)" : "linear-gradient(45deg, #ff00cc, #3333ff)",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 8,
-                          padding: "8px 14px",
-                          fontSize: 13,
-                          fontWeight: "bold",
-                          cursor: subscribeLoading === t.id ? "not-allowed" : "pointer"
-                        }}
-                      >
-                        {subscribeLoading === t.id ? "⏳" : "💰 Получить бонус"}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
     </div>
   );

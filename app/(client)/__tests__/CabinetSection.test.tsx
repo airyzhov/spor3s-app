@@ -37,3 +37,22 @@ it('открывается сам, если пришли по кнопке (forc
   renderSection({ forceOpen: true });
   expect(screen.getByText('содержимое')).toBeInTheDocument();
 });
+
+it('раскрывается по сигналу openSignal — и снова, если его свернули (кнопка «История» в шапке кабинета)', () => {
+  const { rerender } = renderSection({ openSignal: 0 });
+  expect(screen.queryByText('содержимое')).toBeNull();
+
+  const rerenderWith = (openSignal: number) =>
+    rerender(
+      <CabinetSection title="📦 Мои заказы" summary="2 заказа" storageKey="spor3s_test_section" openSignal={openSignal}>
+        <div>содержимое</div>
+      </CabinetSection>,
+    );
+
+  rerenderWith(1);
+  expect(screen.getByText('содержимое')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Мои заказы/ }));
+  expect(screen.queryByText('содержимое')).toBeNull();
+  rerenderWith(2);
+  expect(screen.getByText('содержимое')).toBeInTheDocument();
+});

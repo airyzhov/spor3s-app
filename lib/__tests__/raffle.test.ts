@@ -17,6 +17,7 @@ import {
   buildParticipants,
   pickWinners,
   toCsv,
+  raffleDaysLeftLabel,
   type FriendUser,
 } from '../raffle';
 
@@ -41,6 +42,29 @@ describe('стадии розыгрыша', () => {
   it('через неделю после итогов кнопка прячется', () => {
     expect(raffleStage(at('2026-10-19T00:00:00Z'), true)).toBe('hidden');
     expect(raffleStage(at('2026-10-20T00:00:00Z'), false)).toBe('hidden');
+  });
+});
+
+// Плашка на карточке розыгрыша в кабинете (экран как у Walt, 01.10): сколько осталось до конца приёма
+describe('raffleDaysLeftLabel — дедлайн на карточке', () => {
+  it('неполные дни округляет вверх', () => {
+    expect(raffleDaysLeftLabel(at('2026-10-01T21:59:00Z'))).toBe('⏳ Ещё 10 дней');
+    expect(raffleDaysLeftLabel(at('2026-10-08T12:00:00Z'))).toBe('⏳ Ещё 3 дня');
+  });
+
+  it('ровно N суток — N дней, с правильным окончанием', () => {
+    expect(raffleDaysLeftLabel(at('2026-10-05T00:00:00Z'))).toBe('⏳ Ещё 6 дней');
+    expect(raffleDaysLeftLabel(at('2026-10-09T00:00:00Z'))).toBe('⏳ Ещё 2 дня');
+  });
+
+  it('сутки и меньше — последний день', () => {
+    expect(raffleDaysLeftLabel(at('2026-10-10T00:00:00Z'))).toBe('⏳ Последний день');
+    expect(raffleDaysLeftLabel(at('2026-10-10T23:59:59Z'))).toBe('⏳ Последний день');
+  });
+
+  it('приём закончился — плашки нет', () => {
+    expect(raffleDaysLeftLabel(at(RAFFLE.endsAt))).toBeNull();
+    expect(raffleDaysLeftLabel(at('2026-10-12T10:00:00Z'))).toBeNull();
   });
 });
 
