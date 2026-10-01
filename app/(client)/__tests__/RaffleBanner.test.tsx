@@ -64,12 +64,12 @@ it('раскрыта сразу: дедлайн, шаги, приз и глав�
   expect(screen.getByText('👥 1 друг')).toBeInTheDocument();
   expect(screen.getByText(`🎁 Приз сейчас: ${prizeForFriends(1).label}`)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: '✋ Участвую' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '🎯 Выполнить задание (+30 SC)' }));
+  fireEvent.click(screen.getByRole('button', { name: '🎯 Выполнить задание' }));
   expect(onOpenTasks).toHaveBeenCalled();
 });
 
 describe('кнопка «Участвую»', () => {
-  it('после задания: нажал — участвуешь, приз и что даст друг, кнопка становится «Пригласить»', async () => {
+  it('после задания: нажал — участвуешь, приз и что даст друг, кнопка становится «Пригласить друга»', async () => {
     mockRaffle({ stage: 'open', me: me(1, 0), winners: null }, { status: 200, body: { success: true, me: me(1, 0, true) } });
     await renderCard();
     expect(screen.getByText('1 из 2 условий')).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('кнопка «Участвую»', () => {
     expect(screen.getByText('✅ Ты участвуешь')).toBeInTheDocument();
     expect(screen.getByText('✅ Участвую')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '✋ Участвую' })).toBeNull();
-    expect(screen.getByRole('button', { name: '👥 Пригласить друга — приз вырастет' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '👥 Пригласить друга' })).toBeInTheDocument();
   });
 
   it('ошибку сервера показывает под кнопкой', async () => {
@@ -101,15 +101,9 @@ it('участнику — приз, сколько друзей до следу
   await renderCard();
   expect(screen.getByText(/Если выиграешь — 2 добавки на выбор\. Пригласи ещё 1 друга — будет комплекс добавок/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Выполнить задание/ })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: '👥 Пригласить друга — приз вырастет' }));
+  fireEvent.click(screen.getByRole('button', { name: '👥 Пригласить друга' }));
   expect(await screen.findByRole('button', { name: /Ссылка скопирована/ })).toBeInTheDocument();
   expect(writeText).toHaveBeenCalledWith(`https://t.me/spor3sbot?start=${TG_ID}`);
-});
-
-it('максимальный приз — просто «Пригласить друга»', async () => {
-  mockRaffle({ stage: 'open', me: me(1, 3, true), winners: null });
-  await renderCard();
-  expect(screen.getByRole('button', { name: '👥 Пригласить друга' })).toBeInTheDocument();
 });
 
 it('«Условия ›» — правила призов, кто считается другом и сроки', async () => {

@@ -2,7 +2,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { referralLink } from "../../lib/referralLink";
 import { plural } from "../../lib/plural";
-import { SUBSCRIBE_TASK_SC } from "../../lib/levelUtils";
 import {
   RAFFLE,
   prizeForFriends,
@@ -150,21 +149,17 @@ export default function RaffleBanner({ userId, telegramId, onOpenTasks, refreshK
                   {me.eligible ? eligibleText(me) : `🎁 Приз сейчас: ${prizeForFriends(me.friends).label}`}
                 </div>
 
+                {/* Подписи короткие — в одну строку на телефоне; что даст друг, написано строкой выше */}
                 {me.tasks < 1 ? (
                   <button type="button" onClick={onOpenTasks} style={mainBtn}>
-                    🎯 Выполнить задание (+{SUBSCRIBE_TASK_SC} SC)
+                    🎯 Выполнить задание
                   </button>
                 ) : !me.joined ? (
                   <button type="button" onClick={join} disabled={joining} style={mainBtn}>
                     {joining ? "⏳" : "✋ Участвую"}
                   </button>
                 ) : (
-                  <CopyLinkButton
-                    link={link}
-                    label={me.next ? "👥 Пригласить друга — приз вырастет" : "👥 Пригласить друга"}
-                    fullWidth
-                    style={mainBtn}
-                  />
+                  <CopyLinkButton link={link} label="👥 Пригласить друга" fullWidth style={mainBtn} />
                 )}
                 {joinError && (
                   <div role="alert" style={{ ...line, color: "#ff6b6b", marginTop: 8 }}>{joinError}</div>
@@ -225,19 +220,20 @@ function eligibleText(me: RaffleMe): string {
 
 // Шаги участия: задание → «Участвую» → друзья (друзья — не условие, а рост приза)
 function Steps({ me }: { me: RaffleMe }) {
+  // Компактные «таблетки»: три шага помещаются в одну строку на экране телефона (375 px)
   const pill = (done: boolean): CSSProperties => ({
     background: done ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.1)",
     border: `1px solid ${done ? "rgba(16,185,129,0.6)" : "rgba(255,255,255,0.2)"}`,
     color: done ? "#10b981" : "#fff",
     borderRadius: 999,
-    padding: "5px 10px",
-    fontSize: "clamp(12px, 3.2vw, 13px)",
+    padding: "4px 8px",
+    fontSize: "clamp(11px, 3.1vw, 13px)",
     fontWeight: 700,
     whiteSpace: "nowrap",
   });
-  const arrow = <span style={{ color: "#aaa" }}>→</span>;
+  const arrow = <span style={{ color: "#aaa", fontSize: 12 }}>→</span>;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", margin: "12px 0 10px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", margin: "12px 0 10px" }}>
       <span style={pill(me.tasks >= 1)}>{me.tasks >= 1 ? "✅" : "⬜"} Задание</span>
       {arrow}
       <span style={pill(me.joined)}>{me.joined ? "✅" : "⬜"} Участвую</span>

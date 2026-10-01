@@ -7,10 +7,10 @@ import { plural } from "../../lib/plural";
 export type EarnTaskId = "telegram" | "youtube" | "instagram";
 
 // Задания на подписку: за каждое — SUBSCRIBE_TASK_SC (начисляет /api/subscribe-bonus)
-export const EARN_TASKS: { id: EarnTaskId; icon: string; title: string; desc: string; url: string }[] = [
-  { id: "telegram", icon: "📱", title: "Telegram канал", desc: "Подпишитесь на t.me/spor3s", url: "https://t.me/spor3s" },
-  { id: "youtube", icon: "📺", title: "YouTube канал", desc: "Подпишитесь на @spor3s", url: "https://www.youtube.com/@spor3s" },
-  { id: "instagram", icon: "📸", title: "Instagram", desc: "Подпишитесь на @alex.spor3s", url: "https://instagram.com/alex.spor3s" },
+export const EARN_TASKS: { id: EarnTaskId; icon: string; title: string; handle: string; url: string }[] = [
+  { id: "telegram", icon: "📱", title: "Telegram канал", handle: "t.me/spor3s", url: "https://t.me/spor3s" },
+  { id: "youtube", icon: "📺", title: "YouTube канал", handle: "@spor3s", url: "https://www.youtube.com/@spor3s" },
+  { id: "instagram", icon: "📸", title: "Instagram", handle: "@alex.spor3s", url: "https://instagram.com/alex.spor3s" },
 ];
 
 interface EarnListProps {
@@ -35,7 +35,15 @@ const rowStyle: CSSProperties = {
   textAlign: "left",
   color: "#fff",
 };
-const rowButton: CSSProperties = { ...rowStyle, background: "none", border: "none", borderTop: rowStyle.borderTop, cursor: "pointer" };
+// Без сокращения «border»: React не смешивает его с borderTop, и разделитель над строкой пропадал
+const rowButton: CSSProperties = {
+  ...rowStyle,
+  background: "none",
+  borderLeft: "none",
+  borderRight: "none",
+  borderBottom: "none",
+  cursor: "pointer",
+};
 const icon: CSSProperties = { fontSize: 26, width: 34, textAlign: "center", flexShrink: 0 };
 const titleStyle: CSSProperties = { fontSize: "clamp(14px, 3.8vw, 16px)", fontWeight: 700 };
 const subStyle: CSSProperties = { fontSize: "clamp(12px, 3.2vw, 13px)", color: "#bbb", marginTop: 2 };
@@ -81,15 +89,23 @@ export default function EarnList({
     }}>
       <h2 style={{ margin: "0 0 4px", fontSize: "clamp(17px, 4.4vw, 20px)", color: "#fff" }}>Как получить SC</h2>
 
+      {/* Сумма — в подписи, справа только кнопка: название и подпись помещаются на экране телефона */}
       {EARN_TASKS.map((t) => (
         <div key={t.id} role="group" aria-label={t.title} style={rowStyle}>
           <span style={icon}>{t.icon}</span>
-          <Text title={t.title} sub={t.desc} />
           {tasksDone[t.id] ? (
-            <span style={{ color: "#10b981", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap" }}>✅ +{SUBSCRIBE_TASK_SC} SC</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ ...titleStyle, display: "block" }}>{t.title}</span>
+              <span style={{ ...subStyle, display: "block", color: "#10b981", fontWeight: 700 }}>✅ +{SUBSCRIBE_TASK_SC} SC получено</span>
+            </span>
           ) : (
-            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
-              <span style={{ color: "#ff7ae0", fontWeight: 700, fontSize: 13 }}>+{SUBSCRIBE_TASK_SC} SC</span>
+            <>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ ...titleStyle, display: "block" }}>{t.title}</span>
+                <span style={{ ...subStyle, display: "block" }}>
+                  <b style={{ color: "#ff7ae0" }}>+{SUBSCRIBE_TASK_SC} SC</b> · {t.handle}
+                </span>
+              </span>
               {loading === t.id ? (
                 <button type="button" disabled style={{ ...action, opacity: 0.6, cursor: "not-allowed" }}>⏳</button>
               ) : opened[t.id] ? (
@@ -99,7 +115,7 @@ export default function EarnList({
                   Подписаться
                 </button>
               )}
-            </span>
+            </>
           )}
         </div>
       ))}

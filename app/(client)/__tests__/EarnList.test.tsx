@@ -42,9 +42,9 @@ it('«Подписаться» открывает канал; после пер�
   expect(onClaim).toHaveBeenCalledWith('youtube');
 });
 
-it('выполненная подписка — «✅ +30 SC», без кнопок; во время начисления — «⏳»', () => {
+it('выполненная подписка — «✅ +30 SC получено», без кнопок; во время начисления — «⏳»', () => {
   renderList({ tasksDone: { telegram: true }, opened: { youtube: true }, loading: 'youtube' });
-  expect(task('Telegram канал').getByText('✅ +30 SC')).toBeInTheDocument();
+  expect(task('Telegram канал').getByText('✅ +30 SC получено')).toBeInTheDocument();
   expect(task('Telegram канал').queryByRole('button')).toBeNull();
   expect(task('YouTube канал').getByRole('button', { name: '⏳' })).toBeDisabled();
 });
