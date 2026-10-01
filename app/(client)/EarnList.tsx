@@ -28,7 +28,7 @@ interface EarnListProps {
 const rowStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 12,
+  gap: 10,
   padding: "12px 0",
   borderTop: "1px solid rgba(255,255,255,0.08)",
   width: "100%",
@@ -44,7 +44,7 @@ const rowButton: CSSProperties = {
   borderBottom: "none",
   cursor: "pointer",
 };
-const icon: CSSProperties = { fontSize: 26, width: 34, textAlign: "center", flexShrink: 0 };
+const icon: CSSProperties = { fontSize: 24, width: 28, textAlign: "center", flexShrink: 0 };
 const titleStyle: CSSProperties = { fontSize: "clamp(14px, 3.8vw, 16px)", fontWeight: 700 };
 const subStyle: CSSProperties = { fontSize: "clamp(12px, 3.2vw, 13px)", color: "#bbb", marginTop: 2 };
 const action: CSSProperties = {
@@ -52,11 +52,12 @@ const action: CSSProperties = {
   color: "#fff",
   border: "none",
   borderRadius: 10,
-  padding: "8px 12px",
+  padding: "8px 10px",
   fontSize: 13,
   fontWeight: 700,
   cursor: "pointer",
   whiteSpace: "nowrap",
+  flexShrink: 0,
 };
 
 function Text({ title, sub }: { title: string; sub: string }) {

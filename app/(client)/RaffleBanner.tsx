@@ -231,13 +231,11 @@ function Steps({ me }: { me: RaffleMe }) {
     fontWeight: 700,
     whiteSpace: "nowrap",
   });
-  const arrow = <span style={{ color: "#aaa", fontSize: 12 }}>→</span>;
+  // Без стрелок между шагами: порядок видно по галочкам, а со стрелками третий шаг уезжал на вторую строку
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", margin: "12px 0 10px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", margin: "12px 0 10px" }}>
       <span style={pill(me.tasks >= 1)}>{me.tasks >= 1 ? "✅" : "⬜"} Задание</span>
-      {arrow}
       <span style={pill(me.joined)}>{me.joined ? "✅" : "⬜"} Участвую</span>
-      {arrow}
       <span style={pill(me.friends > 0)}>👥 {me.friends} {plural(me.friends, "друг", "друга", "друзей")}</span>
     </div>
   );
