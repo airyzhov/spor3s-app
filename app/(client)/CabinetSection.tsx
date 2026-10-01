@@ -6,11 +6,14 @@ interface CabinetSectionProps {
   summary?: ReactNode; // коротко справа в заголовке: «2 заказа», «неделя 3»…
   storageKey: string; // раскрыт/свёрнут — как оставил человек
   forceOpen?: boolean; // раскрыть сразу (пришли по кнопке из бота)
+  // Раскрыть при каждом изменении — кнопка в другом месте экрана («🧾 История» в шапке кабинета)
+  // раскрывает раздел и тогда, когда человек его уже свернул
+  openSignal?: number;
   children: ReactNode;
 }
 
 // Раздел кабинета: изначально свёрнут, раскрывается по нажатию на заголовок (просьба владельца 25.09).
-export default function CabinetSection({ title, summary, storageKey, forceOpen, children }: CabinetSectionProps) {
+export default function CabinetSection({ title, summary, storageKey, forceOpen, openSignal, children }: CabinetSectionProps) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -22,6 +25,10 @@ export default function CabinetSection({ title, summary, storageKey, forceOpen, 
   useEffect(() => {
     if (forceOpen) setOpen(true);
   }, [forceOpen]);
+
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
 
   const toggle = () => {
     const next = !open;

@@ -62,3 +62,12 @@ it('без пользователя — в API не ходит', () => {
   render(<ScHistorySection />);
   expect((global as any).fetch).not.toHaveBeenCalled();
 });
+
+it('кнопка «🧾 История» в шапке кабинета (openSignal) раскрывает раздел', async () => {
+  mockHistory(TX);
+  const { rerender } = render(<ScHistorySection userId={USER_ID} openSignal={0} />);
+  await screen.findByRole('button', { name: /История SC/ });
+  expect(screen.queryByText('+30 SC')).toBeNull();
+  rerender(<ScHistorySection userId={USER_ID} openSignal={1} />);
+  expect(screen.getByText('+30 SC')).toBeInTheDocument();
+});

@@ -7,11 +7,12 @@ interface ScHistorySectionProps {
   userId?: string;
   refreshKey?: number; // растёт после начисления в кабинете — перечитать
   forceOpen?: boolean; // пришли по кнопке бота «🧾 История SC» (?open=sc)
+  openSignal?: number; // кнопка «🧾 История ›» в шапке кабинета — раскрыть (каждый раз)
 }
 
 // «🧾 История SC» в кабинете: все начисления и списания, новые сверху (просьба владельца 30.09).
 // Нет операций — раздела нет. Данные — /api/sc-history.
-export default function ScHistorySection({ userId, refreshKey = 0, forceOpen }: ScHistorySectionProps) {
+export default function ScHistorySection({ userId, refreshKey = 0, forceOpen, openSignal }: ScHistorySectionProps) {
   const [rows, setRows] = useState<ScTransaction[]>([]);
 
   useEffect(() => {
@@ -27,7 +28,13 @@ export default function ScHistorySection({ userId, refreshKey = 0, forceOpen }: 
   if (rows.length === 0) return null;
 
   return (
-    <CabinetSection title="🧾 История SC" summary={`${rows.length}`} storageKey="spor3s_sc_history_open" forceOpen={forceOpen}>
+    <CabinetSection
+      title="🧾 История SC"
+      summary={`${rows.length}`}
+      storageKey="spor3s_sc_history_open"
+      forceOpen={forceOpen}
+      openSignal={openSignal}
+    >
       {rows.map((t) => (
         <div key={t.id} style={{
           display: "flex",
