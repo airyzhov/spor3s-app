@@ -743,7 +743,7 @@ export async function POST(req: NextRequest) {
   const userMessage = message.toLowerCase();
   const balanceKeywords = ['коин', 'балл', 'spor3s coin', 'сколько у меня', 'мой баланс', 'моих коинов', 'баллов у меня'];
   if (balanceKeywords.some(keyword => userMessage.includes(keyword))) {
-    // Способы заработать — те же, что в панели SC кабинета (app/(client)/ScStatus.tsx)
+    // Способы заработать — те же, что в кабинете (app/(client)/HowItWorksModal.tsx, EarnList.tsx)
     let balanceResponse = `Spor3s Coins (SC) — внутренняя валюта магазина: 1 SC = 1 ₽ скидки.
 
 🪙 Как заработать SC:

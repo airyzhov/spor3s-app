@@ -270,6 +270,7 @@ export default function AppClient() {
           }}
           focus={cabinetFocus}
           onFocusHandled={() => setCabinetFocus(null)}
+          onOpenCatalog={() => { setCurrentStep(2); window.scrollTo({ top: 0 }); }}
         />;
       case 10:
         return <OrderForm 

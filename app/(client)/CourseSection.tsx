@@ -7,6 +7,7 @@ interface CourseSectionProps {
   userId: string;
   visible: boolean; // есть оплаченный заказ (без покупки курс не начать)
   forceOpen?: boolean; // пришли по кнопке бота «Отметить начало курса» (?open=course)
+  openSignal?: number; // строка «🍄 Отчёт о самочувствии» в «Как получить SC» — раскрыть (каждый раз)
   onSCUpdate?: () => void;
 }
 
@@ -24,7 +25,7 @@ const START_METRICS: Metrics = { memory: 5, sleep: 5, energy: 5, stress: 5 };
 // «📊 Мой курс»: бывшие «Начало курса» и «Еженедельные отметки» в одном разделе (решение
 // владельца 25.09). Одна кнопка «Я начал(а) курс», дальше раз в неделю оценка самочувствия —
 // +25 SC за отчёт (до 100 SC в месяц) и бонус цели месяца. API: /api/start-course, /api/survey.
-export default function CourseSection({ userId, visible, forceOpen, onSCUpdate }: CourseSectionProps) {
+export default function CourseSection({ userId, visible, forceOpen, openSignal, onSCUpdate }: CourseSectionProps) {
   const [loaded, setLoaded] = useState(false);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -123,6 +124,7 @@ export default function CourseSection({ userId, visible, forceOpen, onSCUpdate }
       summary={!loaded ? "" : week ? `неделя ${week}` : "не начат"}
       storageKey="spor3s_course_open"
       forceOpen={forceOpen}
+      openSignal={openSignal}
     >
       {loaded && !startDate && (
         <>
