@@ -28,7 +28,7 @@ const task = (name: string) => within(screen.getByRole('group', { name }));
 it('заголовок и три подписки с суммой и кнопкой «Подписаться»', () => {
   renderList();
   expect(screen.getByRole('heading', { name: 'Как получить SC' })).toBeInTheDocument();
-  for (const name of ['Telegram канал', 'YouTube канал', 'Instagram']) {
+  for (const name of ['Telegram', 'YouTube', 'Instagram']) {
     expect(task(name).getByText('+30 SC')).toBeInTheDocument();
     expect(task(name).getByRole('button', { name: 'Подписаться' })).toBeInTheDocument();
   }
@@ -36,17 +36,17 @@ it('заголовок и три подписки с суммой и кнопк�
 
 it('«Подписаться» открывает канал; после перехода — «Получить +30 SC»', () => {
   const { onOpenChannel, onClaim } = renderList({ opened: { youtube: true } });
-  fireEvent.click(task('Telegram канал').getByRole('button', { name: 'Подписаться' }));
+  fireEvent.click(task('Telegram').getByRole('button', { name: 'Подписаться' }));
   expect(onOpenChannel).toHaveBeenCalledWith('telegram');
-  fireEvent.click(task('YouTube канал').getByRole('button', { name: 'Получить +30 SC' }));
+  fireEvent.click(task('YouTube').getByRole('button', { name: 'Получить +30 SC' }));
   expect(onClaim).toHaveBeenCalledWith('youtube');
 });
 
 it('выполненная подписка — «✅ +30 SC получено», без кнопок; во время начисления — «⏳»', () => {
   renderList({ tasksDone: { telegram: true }, opened: { youtube: true }, loading: 'youtube' });
-  expect(task('Telegram канал').getByText('✅ +30 SC получено')).toBeInTheDocument();
-  expect(task('Telegram канал').queryByRole('button')).toBeNull();
-  expect(task('YouTube канал').getByRole('button', { name: '⏳' })).toBeDisabled();
+  expect(task('Telegram').getByText('✅ +30 SC получено')).toBeInTheDocument();
+  expect(task('Telegram').queryByRole('button')).toBeNull();
+  expect(task('YouTube').getByRole('button', { name: '⏳' })).toBeDisabled();
 });
 
 it('«Пригласи друга» раскрывает и сворачивает панель приглашения', () => {

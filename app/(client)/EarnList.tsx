@@ -8,8 +8,9 @@ export type EarnTaskId = "telegram" | "youtube" | "instagram";
 
 // Задания на подписку: за каждое — SUBSCRIBE_TASK_SC (начисляет /api/subscribe-bonus)
 export const EARN_TASKS: { id: EarnTaskId; icon: string; title: string; handle: string; url: string }[] = [
-  { id: "telegram", icon: "📱", title: "Telegram канал", handle: "t.me/spor3s", url: "https://t.me/spor3s" },
-  { id: "youtube", icon: "📺", title: "YouTube канал", handle: "@spor3s", url: "https://www.youtube.com/@spor3s" },
+  // Названия — только площадка: в строке на телефоне около 100 px под текст, «Telegram канал» переносился
+  { id: "telegram", icon: "📱", title: "Telegram", handle: "t.me/spor3s", url: "https://t.me/spor3s" },
+  { id: "youtube", icon: "📺", title: "YouTube", handle: "@spor3s", url: "https://www.youtube.com/@spor3s" },
   { id: "instagram", icon: "📸", title: "Instagram", handle: "@alex.spor3s", url: "https://instagram.com/alex.spor3s" },
 ];
 
@@ -52,8 +53,8 @@ const action: CSSProperties = {
   color: "#fff",
   border: "none",
   borderRadius: 10,
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "7px 9px",
+  fontSize: 12,
   fontWeight: 700,
   cursor: "pointer",
   whiteSpace: "nowrap",

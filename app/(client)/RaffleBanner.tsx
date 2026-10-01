@@ -220,23 +220,25 @@ function eligibleText(me: RaffleMe): string {
 
 // Шаги участия: задание → «Участвую» → друзья (друзья — не условие, а рост приза)
 function Steps({ me }: { me: RaffleMe }) {
-  // Компактные «таблетки»: три шага помещаются в одну строку на экране телефона (375 px)
-  const pill = (done: boolean): CSSProperties => ({
+  // Три равные колонки, значок над подписью: в карточке на телефоне около 250 px, и шаги «таблетками»
+  // в одну строку не помещались. Пробел перед <br /> — чтобы текст шага читался «✅ Задание».
+  const cell = (done: boolean): CSSProperties => ({
     background: done ? "rgba(16,185,129,0.18)" : "rgba(255,255,255,0.1)",
     border: `1px solid ${done ? "rgba(16,185,129,0.6)" : "rgba(255,255,255,0.2)"}`,
     color: done ? "#10b981" : "#fff",
-    borderRadius: 999,
-    padding: "4px 8px",
-    fontSize: "clamp(11px, 3.1vw, 13px)",
+    borderRadius: 12,
+    padding: "6px 4px",
+    fontSize: "clamp(11px, 3.2vw, 13px)",
     fontWeight: 700,
+    lineHeight: 1.35,
+    textAlign: "center",
     whiteSpace: "nowrap",
   });
-  // Без стрелок между шагами: порядок видно по галочкам, а со стрелками третий шаг уезжал на вторую строку
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", margin: "12px 0 10px" }}>
-      <span style={pill(me.tasks >= 1)}>{me.tasks >= 1 ? "✅" : "⬜"} Задание</span>
-      <span style={pill(me.joined)}>{me.joined ? "✅" : "⬜"} Участвую</span>
-      <span style={pill(me.friends > 0)}>👥 {me.friends} {plural(me.friends, "друг", "друга", "друзей")}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, margin: "12px 0 10px" }}>
+      <span style={cell(me.tasks >= 1)}>{me.tasks >= 1 ? "✅" : "⬜"} <br />Задание</span>
+      <span style={cell(me.joined)}>{me.joined ? "✅" : "⬜"} <br />Участвую</span>
+      <span style={cell(me.friends > 0)}>👥 <br />{me.friends} {plural(me.friends, "друг", "друга", "друзей")}</span>
     </div>
   );
 }
