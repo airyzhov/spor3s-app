@@ -66,6 +66,18 @@ it('верный ответ — «Верно!» и «Дальше →»: вто�
   expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual([RIGHT[0]]);
 });
 
+it('после ответа подсказка или «Дальше» сами прокручиваются в поле зрения', () => {
+  const scrollIntoView = jest.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
+  renderGuide();
+  fireEvent.click(option(0, wrongOf(0)));
+  expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Ещё раз' }));
+  fireEvent.click(option(0, RIGHT[0]));
+  expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  delete (Element.prototype as any).scrollIntoView;
+});
+
 it('видео не грузится — ссылка открывает YouTube снаружи', () => {
   startAt(1);
   renderGuide();

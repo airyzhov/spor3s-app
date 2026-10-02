@@ -45,9 +45,11 @@ export default function GuideTeaser({ userId, onOpen }: { userId?: string; onOpe
         }}
       >
         <span style={{ fontSize: "clamp(14px, 3.6vw, 17px)", fontWeight: 800 }}>
-          🎓 Гид новичка: {GUIDE_LESSONS.length} уроков → +{GUIDE_REWARD_SC} SC
+          🎓 Гид новичка: {GUIDE_LESSONS.length} уроков
         </span>
-        <span aria-hidden="true" style={{ fontSize: 16, color: "#6ee7b7" }}>→</span>
+        <span style={{ fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, color: "#6ee7b7", whiteSpace: "nowrap" }}>
+          +{GUIDE_REWARD_SC} SC <span aria-hidden="true">→</span>
+        </span>
       </button>
     </div>
   );

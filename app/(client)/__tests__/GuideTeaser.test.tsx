@@ -21,7 +21,7 @@ it('гид не пройден — плашка с наградой, нажат�
   mockStatus(false);
   const onOpen = jest.fn();
   render(<GuideTeaser userId={USER_ID} onOpen={onOpen} />);
-  const teaser = await screen.findByRole('button', { name: /Гид новичка: 7 уроков → \+100 SC/ });
+  const teaser = await screen.findByRole('button', { name: /Гид новичка: 7 уроков.*\+100 SC/ });
   expect((global as any).fetch).toHaveBeenCalledWith(`/api/guide?user_id=${USER_ID}`);
   fireEvent.click(teaser);
   expect(onOpen).toHaveBeenCalled();

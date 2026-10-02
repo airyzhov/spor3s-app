@@ -99,10 +99,17 @@ export default function EarnList({
       {onOpenGuide && (
         <button type="button" onClick={onOpenGuide} style={rowButton}>
           <span style={icon}>🎓</span>
-          <Text
-            title="Гид новичка"
-            sub={guideDone ? `✅ +${GUIDE_REWARD_SC} SC получено` : `+${GUIDE_REWARD_SC} SC · ${GUIDE_LESSONS.length} уроков, 10 минут`}
-          />
+          {/* Подпись как у подписок: сумма розовым, пройдено — зелёным */}
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ ...titleStyle, display: "block" }}>Гид новичка</span>
+            {guideDone ? (
+              <span style={{ ...subStyle, display: "block", color: "#10b981", fontWeight: 700 }}>✅ +{GUIDE_REWARD_SC} SC получено</span>
+            ) : (
+              <span style={{ ...subStyle, display: "block" }}>
+                <b style={{ color: "#ff7ae0" }}>+{GUIDE_REWARD_SC} SC</b> · {GUIDE_LESSONS.length} уроков, 10 минут
+              </span>
+            )}
+          </span>
           <span style={{ color: "#ccc", fontSize: 16 }}>›</span>
         </button>
       )}

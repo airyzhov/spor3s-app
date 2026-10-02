@@ -91,7 +91,6 @@ function Video({ lesson }: { lesson: GuideLesson }) {
           src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}`}
           allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
-          loading="lazy"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
         />
       </div>
@@ -114,6 +113,12 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
   const [picked, setPicked] = useState<number | null>(null);
   const [finish, setFinish] = useState<Finish>({ state: "idle" });
   const panelRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+
+  // Ответ выбран — подсказка или «Дальше» ниже вариантов: подводим к ним, чтобы не искать прокруткой
+  useEffect(() => {
+    if (picked !== null) feedbackRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [picked]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -182,7 +187,8 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
         inset: 0,
         background: "rgba(0,0,0,0.75)",
         display: "flex",
-        alignItems: "center",
+        // Сверху, а не по центру: окно растёт вниз, когда появляется подсказка, и не прыгает
+        alignItems: "flex-start",
         justifyContent: "center",
         padding: "clamp(0px, 3vw, 16px)",
         zIndex: 100000,
@@ -206,28 +212,31 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
           color: "#fff",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#ffc107", display: "flex", gap: 6 }}>
-            <span aria-hidden="true">🎓</span>
-            <span>{done ? "Гид новичка" : `Урок ${index + 1} из ${GUIDE_LESSONS.length}`}</span>
-          </span>
-          <button
-            type="button"
-            aria-label="Закрыть"
-            onClick={onClose}
-            style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#fff", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
-          >
-            ✕
-          </button>
-        </div>
-        <div style={{ height: 6, background: "rgba(255,255,255,0.12)", borderRadius: 3, margin: "10px 0 16px", overflow: "hidden" }}>
-          <div
-            style={{
-              height: "100%",
-              width: `${((done ? GUIDE_LESSONS.length : index) / GUIDE_LESSONS.length) * 100}%`,
-              background: "linear-gradient(90deg, #ff00cc, #3333ff)",
-            }}
-          />
+        {/* Номер урока и ✕ остаются на виду, пока листаешь длинный урок */}
+        <div style={{ position: "sticky", top: -16, zIndex: 1, margin: "-16px -16px 16px", padding: "16px 16px 10px", background: "#21143f" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#ffc107", display: "flex", gap: 6 }}>
+              <span aria-hidden="true">🎓</span>
+              <span>{done ? "Гид новичка" : `Урок ${index + 1} из ${GUIDE_LESSONS.length}`}</span>
+            </span>
+            <button
+              type="button"
+              aria-label="Закрыть"
+              onClick={onClose}
+              style={{ background: "rgba(255,255,255,0.12)", border: "none", color: "#fff", borderRadius: 10, width: 34, height: 34, fontSize: 16, cursor: "pointer", flexShrink: 0 }}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{ height: 6, background: "rgba(255,255,255,0.12)", borderRadius: 3, marginTop: 10, overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${((done ? GUIDE_LESSONS.length : index) / GUIDE_LESSONS.length) * 100}%`,
+                background: "linear-gradient(90deg, #ff00cc, #3333ff)",
+              }}
+            />
+          </div>
         </div>
 
         {done ? (
@@ -263,14 +272,14 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
               </div>
 
               {picked !== null && !right && (
-                <div style={{ marginTop: 12 }}>
+                <div ref={feedbackRef} style={{ marginTop: 12 }}>
                   <p style={{ ...text, color: "#fca5a5" }}>{question.hint}</p>
                   <button type="button" onClick={() => setPicked(null)} style={secondary}>Ещё раз</button>
                 </div>
               )}
 
               {right && (
-                <div style={{ marginTop: 12 }}>
+                <div ref={feedbackRef} style={{ marginTop: 12 }}>
                   <p style={{ ...text, color: "#6ee7b7", fontWeight: 700 }}>✅ Верно!</p>
                   {index < LAST ? (
                     <button type="button" onClick={next} style={primary}>Дальше →</button>
