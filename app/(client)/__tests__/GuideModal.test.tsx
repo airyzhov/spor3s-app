@@ -33,13 +33,13 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
-it('первый урок: номер, заголовок, вопрос с тремя вариантами и строка про БАД', () => {
+it('первый урок: номер, заголовок, вопрос с тремя вариантами и строка «не лекарство»', () => {
   renderGuide();
   expect(screen.getByRole('dialog', { name: 'Что такое грибные добавки' })).toBeInTheDocument();
   expect(screen.getByText('Урок 1 из 7')).toBeInTheDocument();
   expect(screen.getByText('Когда оценивать результат?')).toBeInTheDocument();
   GUIDE_LESSONS[0].question.options.forEach((_, i) => expect(option(0, i)).toBeEnabled());
-  expect(screen.getByText('БАД. Не является лекарственным средством.')).toBeInTheDocument();
+  expect(screen.getByText('Не является лекарственным средством.')).toBeInTheDocument();
 });
 
 it('неверный ответ — подсказка и «Ещё раз», дальше не пускает', () => {
@@ -92,12 +92,12 @@ it('продолжает с того урока, где остановился',
   expect(screen.getByRole('heading', { name: 'Как выбрать' })).toBeInTheDocument();
 });
 
-it('мухомор — своя строка вместо «БАД…»', () => {
+it('мухомор — своя строка вместо «не лекарство»', () => {
   startAt(2);
   renderGuide();
   expect(screen.getByRole('heading', { name: 'Мухомор' })).toBeInTheDocument();
   expect(screen.getByText('Рассказы участников опроса — не рекомендация к применению. Посоветуйтесь с врачом.')).toBeInTheDocument();
-  expect(screen.queryByText('БАД. Не является лекарственным средством.')).toBeNull();
+  expect(screen.queryByText('Не является лекарственным средством.')).toBeNull();
 });
 
 it('гид уже пройден — перечитать можно с первого урока', () => {
