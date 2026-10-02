@@ -2,6 +2,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { REFERRAL_PERCENT, REFERRAL_WELCOME_SC, SC_MECHANICS, SUBSCRIBE_TASK_SC } from "../../lib/levelUtils";
 import { MONTH_GOAL } from "../../lib/monthGoal";
+import { GUIDE_LESSONS, GUIDE_REWARD_SC } from "../../lib/newbieGuide";
 import { plural } from "../../lib/plural";
 
 export type EarnTaskId = "telegram" | "youtube" | "instagram";
@@ -23,6 +24,8 @@ interface EarnListProps {
   showCourse: boolean; // доступен курс — показываем строку отчёта
   onOpenCourse: () => void;
   onOpenCatalog: () => void;
+  onOpenGuide?: () => void; // гид новичка (GuideModal) — первая строка списка
+  guideDone?: boolean; // гид пройден, 100 SC начислены — строка остаётся, чтобы перечитать
   children?: ReactNode; // панель приглашения (ReferralPanel) — раскрывается строкой «Пригласи друга»
 }
 
@@ -70,10 +73,11 @@ function Text({ title, sub }: { title: string; sub: string }) {
   );
 }
 
-// «Как получить SC» в кабинете (экран как у Walt, 01.10): подписки, приглашение, покупки, отчёт по курсу.
+// «Как получить SC» в кабинете (экран как у Walt, 01.10): гид новичка (02.10), подписки, приглашение,
+// покупки, отчёт по курсу.
 // Состояние заданий и обработчики — из RoadMap; список сам в сеть не ходит.
 export default function EarnList({
-  tasksDone, opened, loading, onOpenChannel, onClaim, showCourse, onOpenCourse, onOpenCatalog, children,
+  tasksDone, opened, loading, onOpenChannel, onClaim, showCourse, onOpenCourse, onOpenCatalog, onOpenGuide, guideDone, children,
 }: EarnListProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const pct = Math.round(REFERRAL_PERCENT * 100);
@@ -90,6 +94,18 @@ export default function EarnList({
       width: "100%",
     }}>
       <h2 style={{ margin: "0 0 4px", fontSize: "clamp(17px, 4.4vw, 20px)", color: "#fff" }}>Как получить SC</h2>
+
+      {/* Гид новичка (02.10): 7 уроков с вопросами, +100 SC один раз */}
+      {onOpenGuide && (
+        <button type="button" onClick={onOpenGuide} style={rowButton}>
+          <span style={icon}>🎓</span>
+          <Text
+            title="Гид новичка"
+            sub={guideDone ? `✅ +${GUIDE_REWARD_SC} SC получено` : `+${GUIDE_REWARD_SC} SC · ${GUIDE_LESSONS.length} уроков, 10 минут`}
+          />
+          <span style={{ color: "#ccc", fontSize: 16 }}>›</span>
+        </button>
+      )}
 
       {/* Сумма — в подписи, справа только кнопка: название и подпись помещаются на экране телефона */}
       {EARN_TASKS.map((t) => (

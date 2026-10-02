@@ -72,6 +72,29 @@ it('отчёт о самочувствии — только когда дост�
   expect(screen.queryByRole('button', { name: /Отчёт о самочувствии/ })).toBeNull();
 });
 
+describe('гид новичка (02.10)', () => {
+  it('первая строка списка: «Гид новичка» и сумма, нажатие открывает гид', () => {
+    const onOpenGuide = jest.fn();
+    renderList({ onOpenGuide });
+    const row = screen.getByRole('button', { name: /Гид новичка.*\+100 SC · 7 уроков, 10 минут/ });
+    expect(screen.getAllByRole('button')[0]).toBe(row);
+    fireEvent.click(row);
+    expect(onOpenGuide).toHaveBeenCalled();
+  });
+
+  it('пройден — «✅ +100 SC получено», перечитать можно', () => {
+    const onOpenGuide = jest.fn();
+    renderList({ onOpenGuide, guideDone: true });
+    fireEvent.click(screen.getByRole('button', { name: /Гид новичка.*✅ \+100 SC получено/ }));
+    expect(onOpenGuide).toHaveBeenCalled();
+  });
+
+  it('без обработчика строки нет', () => {
+    renderList();
+    expect(screen.queryByRole('button', { name: /Гид новичка/ })).toBeNull();
+  });
+});
+
 it('с курсом — строка отчёта с суммами', () => {
   const { onOpenCourse } = renderList({ showCourse: true });
   fireEvent.click(screen.getByRole('button', { name: /Отчёт о самочувствии.*\+25 SC в неделю, \+50 SC за 4 отчёта в месяц/ }));

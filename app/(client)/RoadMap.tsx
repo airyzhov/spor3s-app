@@ -8,13 +8,14 @@ import ScHistorySection from "./ScHistorySection";
 import BonusHero from "./BonusHero";
 import EarnList, { EARN_TASKS, type EarnTaskId } from "./EarnList";
 import ReferralPanel from "./ReferralPanel";
+import GuideModal from "./GuideModal";
 import { openExternal } from "../../lib/openExternal";
 import { isGamificationTester } from "../../lib/testers";
 import { ORDER_STATUS_LABELS, PAID_STATUSES } from "../../lib/orderStatus";
 
 interface RoadMapProps {
   user: any;
-  focus?: 'tasks' | 'raffle' | 'course' | 'sc' | null;
+  focus?: 'tasks' | 'raffle' | 'course' | 'sc' | 'guide' | null;
   onFocusHandled?: () => void;
   onOpenCatalog?: () => void; // «🛒 Покупки» в «Как получить SC» — в каталог
 }
@@ -44,6 +45,10 @@ export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: 
   // «🧾 История ›» в шапке и кнопка бота «🧾 История SC» (?open=sc) — раскрыть историю (каждый раз)
   const [historySignal, setHistorySignal] = useState(0);
   const scHistoryRef = useRef<HTMLDivElement>(null);
+  // Гид новичка: окно открывают строка «🎓 Гид новичка», плашка на главной и кнопка бота (?open=guide)
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideDone, setGuideDone] = useState(false);
+  const closeGuide = useCallback(() => setGuideOpen(false), []);
 
   const [referralStats, setReferralStats] = useState<any>(null);
   const [myOrders, setMyOrders] = useState<any[]>([]);
@@ -89,6 +94,8 @@ export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: 
       setScrollTarget('course');
     } else if (focus === 'sc') {
       openHistory();
+    } else if (focus === 'guide') {
+      setGuideOpen(true);
     } else {
       return;
     }
@@ -334,12 +341,25 @@ export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: 
     }
   };
 
+  // Пройден ли гид новичка (/api/guide): строка «✅ +100 SC получено» и перечитывание с первого урока
+  const fetchGuideStatus = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`/api/guide?user_id=${encodeURIComponent(user.id)}`);
+      const data = await response.json();
+      if (data.success) setGuideDone(!!data.completed);
+    } catch (error) {
+      console.error('Fetch guide status error:', error);
+    }
+  };
+
   // Загружаем данные при монтировании компонента
   useEffect(() => {
     if (user?.id) {
       fetchReferralStats();
       checkSubscriptionBonuses();
       fetchMyOrders();
+      fetchGuideStatus();
     }
   }, [user?.id]);
 
@@ -365,7 +385,24 @@ export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: 
         />
       </div>
 
-      {/* «Как получить SC»: подписки, приглашение (бывшая «Реферальная система»), покупки, отчёт по курсу */}
+      {/* Гид новичка: 7 уроков с вопросами, +100 SC (lib/newbieGuide.ts). Окно на весь экран */}
+      {guideOpen && user?.id && (
+        <GuideModal
+          userId={user.id}
+          completed={guideDone}
+          onClose={closeGuide}
+          onCompleted={() => {
+            setGuideDone(true);
+            setRefreshKey(k => k + 1);
+          }}
+          onOpenCatalog={() => {
+            setGuideOpen(false);
+            onOpenCatalog?.();
+          }}
+        />
+      )}
+
+      {/* «Как получить SC»: гид новичка, подписки, приглашение (бывшая «Реферальная система»), покупки, отчёт по курсу */}
       <div ref={tasksRef}>
         <EarnList
           tasksDone={tasksDone}
@@ -376,6 +413,8 @@ export default function RoadMap({ user, focus, onFocusHandled, onOpenCatalog }: 
           showCourse={!!eligibleOrder || SHOW_GAMIFICATION}
           onOpenCourse={() => { setCourseSignal((n) => n + 1); setScrollTarget('course'); }}
           onOpenCatalog={() => onOpenCatalog?.()}
+          onOpenGuide={() => setGuideOpen(true)}
+          guideDone={guideDone}
         >
           <ReferralPanel
             userId={user?.id}
