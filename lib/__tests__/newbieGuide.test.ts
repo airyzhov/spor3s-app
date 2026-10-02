@@ -85,6 +85,22 @@ describe('уроки', () => {
     expect(text).toContain('Поэтому мы выращиваем ежовик сами: на буром рисе, на своей ферме в Севастополе, уже больше 4 лет.');
   });
 
+  it('ежовик: нейрогенез и миелиновая оболочка - с тем, где это видели (правка владельца 02.10)', () => {
+    const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'ezhovik')!);
+    expect(text).toContain('в опытах на клетках и животных');
+    expect(text).toContain('нейрогенез');
+    expect(text).toContain('миелиновую оболочку');
+    expect(text).toContain('Поэтому его принимают для памяти и внимания.');
+  });
+
+  it('кордицепс: без мышьяка; урок 6: мягче про перерыв; урок 7: всё в одном приложении', () => {
+    const byId = (id: string) => lessonText(GUIDE_LESSONS.find((l) => l.id === id)!);
+    expect(byId('kordiceps')).not.toContain('мышьяк');
+    expect(byId('start')).not.toContain('сыпь');
+    expect(byId('start')).toContain('Первую неделю может идти адаптация к добавкам. Если состояние нетипичное, стоит сделать перерыв, чтобы исключить другие факторы.');
+    expect(byId('choose')).toContain('система оздоровления и поддержания состояния, система бонусов и рекомендаций - всё внутри одного приложения');
+  });
+
   it('кордицепс: без экстрактов и «подделок», факт 1993 года, частые эффекты, обе формы', () => {
     const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'kordiceps')!);
     expect(text).not.toMatch(/экстракт/i);
