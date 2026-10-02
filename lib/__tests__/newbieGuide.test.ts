@@ -41,20 +41,20 @@ describe('уроки', () => {
 
   it('строка «не лекарство» под уроками, у мухомора — своя', () => {
     for (const l of GUIDE_LESSONS) {
-      if (l.id === 'muhomor') expect(l.note).toBe('Рассказы участников опроса — не рекомендация к применению. Посоветуйтесь с врачом.');
+      if (l.id === 'muhomor') expect(l.note).toBe('Рассказы участников опроса - не рекомендация к применению. Посоветуйтесь с врачом.');
       else expect(l.note).toBe('Не является лекарственным средством.');
     }
   });
 
   it('грибные добавки — пищевые добавки, не лекарство (правка владельца 02.10)', () => {
     const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'basics')!);
-    expect(text).toContain('Грибные добавки — это пищевые добавки, а не лекарство.');
+    expect(text).toContain('Грибные добавки - это пищевые добавки, а не лекарство.');
     expect(text).not.toContain('БАД');
   });
 
   it('суммы в текстах — из констант магазина', () => {
     const byId = (id: string) => lessonText(GUIDE_LESSONS.find((l) => l.id === id)!);
-    expect(byId('basics')).toContain('получите 100 SC — это 100 ₽ скидки');
+    expect(byId('basics')).toContain('получите 100 SC - это 100 ₽ скидки');
     expect(byId('start')).toContain('+25 SC');
     expect(byId('choose')).toContain('за подписку +30 SC');
     expect(byId('choose')).toContain('до 30% заказа');
@@ -70,12 +70,56 @@ describe('уроки', () => {
     expect(text).not.toMatch(/депресс|зависимост/i);
   });
 
-  it('мухомор: нельзя с алкоголем, без граммов', () => {
+  it('мухомор: нельзя с алкоголем; средняя порция и сбор (правка владельца 02.10)', () => {
     const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'muhomor')!);
     expect(text).toContain('с алкоголем');
-    // \b в JS не видит границу у кириллицы — поэтому «после г не буква»
-    expect(text).not.toMatch(/\d\s*(г|гр|грамм)(?![а-яё])/i);
-    expect('по 1 г утром').toMatch(/\d\s*(г|гр|грамм)(?![а-яё])/i);
+    expect(text).toContain('Средняя порция - 1 г красного мухомора или 0,2 г пантерного в день.');
+    expect(text).toContain('Собираем раз в год в нетронутых лесах Алтая');
+    expect(text).toContain('ферментируем - от 2 месяцев');
+    // «заповедных» не пишем: сбор в заповеднике запрещён (33-ФЗ) — фраза читалась бы как признание
+    expect(text).not.toMatch(/заповедн/i);
+  });
+
+  it('ежовик: свой, на буром рисе, больше 4 лет на ферме', () => {
+    const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'ezhovik')!);
+    expect(text).toContain('Поэтому мы выращиваем ежовик сами: на буром рисе, на своей ферме в Севастополе, уже больше 4 лет.');
+  });
+
+  it('кордицепс: без экстрактов и «подделок», факт 1993 года, частые эффекты, обе формы', () => {
+    const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'kordiceps')!);
+    expect(text).not.toMatch(/экстракт/i);
+    expect(text).not.toContain('Под видом кордицепса');
+    expect(text).toContain('1993');
+    expect(text).toContain('золото чемпионата мира');
+    for (const effect of ['быстрое восстановление после тренировок', 'меньше воспалений', 'выше либидо']) {
+      expect(text).toContain(effect);
+    }
+    expect(text).toContain('и мицелий, и плодовые тела');
+  });
+
+  it('урок 6: с ежовика, комбинация, комплекс; вопрос про максимальный эффект', () => {
+    const lesson = GUIDE_LESSONS.find((l) => l.id === 'start')!;
+    const text = lessonText(lesson);
+    expect(text).toContain('Можно начать с ежовика - он подходит почти всем.');
+    expect(text).toContain('ежовик + мухомор');
+    expect(text).toContain('Для максимального эффекта берите комплекс.');
+    expect(text).toContain('Отмечайте состояние в дневнике или в этом приложении');
+    expect(lesson.question.text).toBe('Как получить максимальный эффект?');
+    expect(lesson.question.options[lesson.question.correct]).toBe('Брать комплекс');
+  });
+
+  it('урок 7: настоящий вид гриба, доставка OZON и СДЭК, отзывы', () => {
+    const text = lessonText(GUIDE_LESSONS.find((l) => l.id === 'choose')!);
+    expect(text).toContain('Лично я люблю настоящий вид гриба');
+    expect(text).toContain('доставляем через OZON и СДЭК');
+    expect(text).not.toContain('WB');
+    expect(text).toContain('t.me/spor3s_comments');
+    expect(text).toContain('кордицепс - и мицелий, и плодовые тела');
+  });
+
+  it('без длинных тире — только «-» (правка владельца 02.10)', () => {
+    const all = GUIDE_LESSONS.map((l) => [l.title, lessonText(l), l.question.text, ...l.question.options, l.question.hint, l.note].join(' ')).join(' ');
+    expect(all).not.toMatch(/[—–]/);
   });
 });
 

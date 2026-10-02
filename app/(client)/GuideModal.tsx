@@ -244,7 +244,7 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
             <h2 id="guide-title" style={{ margin: "0 0 10px", fontSize: "clamp(20px, 5.5vw, 24px)" }}>🎉 Гид пройден!</h2>
             <p style={{ ...text, fontSize: 17, color: "#fff" }}>
               {finish.credited
-                ? `+${GUIDE_REWARD_SC} SC — это ${GUIDE_REWARD_SC} ₽ скидки на заказ`
+                ? `+${GUIDE_REWARD_SC} SC - это ${GUIDE_REWARD_SC} ₽ скидки на заказ`
                 : `${GUIDE_REWARD_SC} SC уже начислены раньше`}
             </p>
             <div style={{ display: "grid", gap: 10, marginTop: 18 }}>

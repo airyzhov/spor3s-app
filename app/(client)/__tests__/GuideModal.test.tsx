@@ -96,7 +96,7 @@ it('мухомор — своя строка вместо «не лекарст�
   startAt(2);
   renderGuide();
   expect(screen.getByRole('heading', { name: 'Мухомор' })).toBeInTheDocument();
-  expect(screen.getByText('Рассказы участников опроса — не рекомендация к применению. Посоветуйтесь с врачом.')).toBeInTheDocument();
+  expect(screen.getByText('Рассказы участников опроса - не рекомендация к применению. Посоветуйтесь с врачом.')).toBeInTheDocument();
   expect(screen.queryByText('Не является лекарственным средством.')).toBeNull();
 });
 
@@ -126,7 +126,7 @@ describe('финал', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Получить 100 SC' }));
 
     expect(await screen.findByText('🎉 Гид пройден!')).toBeInTheDocument();
-    expect(screen.getByText('+100 SC — это 100 ₽ скидки на заказ')).toBeInTheDocument();
+    expect(screen.getByText('+100 SC - это 100 ₽ скидки на заказ')).toBeInTheDocument();
     const [url, init] = (global as any).fetch.mock.calls[0];
     expect(url).toBe('/api/guide');
     expect(init.method).toBe('POST');
@@ -144,7 +144,7 @@ describe('финал', () => {
     fireEvent.click(option(6, RIGHT[6]));
     fireEvent.click(screen.getByRole('button', { name: 'Получить 100 SC' }));
     expect(await screen.findByText('100 SC уже начислены раньше')).toBeInTheDocument();
-    expect(screen.queryByText('+100 SC — это 100 ₽ скидки на заказ')).toBeNull();
+    expect(screen.queryByText('+100 SC - это 100 ₽ скидки на заказ')).toBeNull();
   });
 
   it('сервер не ответил — ошибка и повтор', async () => {
