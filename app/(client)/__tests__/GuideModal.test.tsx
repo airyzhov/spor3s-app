@@ -42,14 +42,14 @@ it('первый урок: номер, заголовок, вопрос с тр�
   expect(screen.getByText('Не является лекарственным средством.')).toBeInTheDocument();
 });
 
-it('неверный ответ — подсказка и «Ещё раз», дальше не пускает', () => {
+it('неверный ответ — подсказка и «Еще раз», дальше не пускает', () => {
   renderGuide();
   fireEvent.click(option(0, wrongOf(0)));
   expect(screen.getByText(GUIDE_LESSONS[0].question.hint)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Дальше →' })).toBeNull();
   expect(option(0, RIGHT[0])).toBeDisabled();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Ещё раз' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Еще раз' }));
   expect(screen.queryByText(GUIDE_LESSONS[0].question.hint)).toBeNull();
   expect(option(0, RIGHT[0])).toBeEnabled();
 });
@@ -72,7 +72,7 @@ it('после ответа подсказка или «Дальше» сами 
   renderGuide();
   fireEvent.click(option(0, wrongOf(0)));
   expect(scrollIntoView).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('button', { name: 'Ещё раз' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Еще раз' }));
   fireEvent.click(option(0, RIGHT[0]));
   expect(scrollIntoView).toHaveBeenCalledTimes(2);
   delete (Element.prototype as any).scrollIntoView;
@@ -156,8 +156,8 @@ describe('финал', () => {
     fireEvent.click(option(6, RIGHT[6]));
     fireEvent.click(screen.getByRole('button', { name: 'Получить 100 SC' }));
 
-    expect(await screen.findByText('Не получилось начислить SC. Попробуйте ещё раз.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Попробовать ещё раз' }));
+    expect(await screen.findByText('Не получилось начислить SC. Попробуйте еще раз.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Попробовать еще раз' }));
     expect(await screen.findByText('🎉 Гид пройден!')).toBeInTheDocument();
     expect((global as any).fetch).toHaveBeenCalledTimes(2);
   });
@@ -168,7 +168,7 @@ describe('финал', () => {
     renderGuide();
     fireEvent.click(option(6, RIGHT[6]));
     fireEvent.click(screen.getByRole('button', { name: 'Получить 100 SC' }));
-    expect(await screen.findByText('Не получилось начислить SC. Попробуйте ещё раз.')).toBeInTheDocument();
+    expect(await screen.findByText('Не получилось начислить SC. Попробуйте еще раз.')).toBeInTheDocument();
   });
 });
 

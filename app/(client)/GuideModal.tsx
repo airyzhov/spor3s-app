@@ -274,7 +274,7 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
               {picked !== null && !right && (
                 <div ref={feedbackRef} style={{ marginTop: 12 }}>
                   <p style={{ ...text, color: "#fca5a5" }}>{question.hint}</p>
-                  <button type="button" onClick={() => setPicked(null)} style={secondary}>Ещё раз</button>
+                  <button type="button" onClick={() => setPicked(null)} style={secondary}>Еще раз</button>
                 </div>
               )}
 
@@ -285,8 +285,8 @@ export default function GuideModal({ userId, completed = false, onClose, onCompl
                     <button type="button" onClick={next} style={primary}>Дальше →</button>
                   ) : finish.state === "error" ? (
                     <>
-                      <p style={{ ...text, color: "#fca5a5" }}>Не получилось начислить SC. Попробуйте ещё раз.</p>
-                      <button type="button" onClick={submit} style={primary}>Попробовать ещё раз</button>
+                      <p style={{ ...text, color: "#fca5a5" }}>Не получилось начислить SC. Попробуйте еще раз.</p>
+                      <button type="button" onClick={submit} style={primary}>Попробовать еще раз</button>
                     </>
                   ) : (
                     <button type="button" onClick={submit} disabled={finish.state === "sending"} style={primary}>

@@ -98,7 +98,7 @@ describe('уроки', () => {
     expect(byId('kordiceps')).not.toContain('мышьяк');
     expect(byId('start')).not.toContain('сыпь');
     expect(byId('start')).toContain('Первую неделю может идти адаптация к добавкам. Если состояние нетипичное, стоит сделать перерыв, чтобы исключить другие факторы.');
-    expect(byId('choose')).toContain('система оздоровления и поддержания состояния, система бонусов и рекомендаций - всё внутри одного приложения');
+    expect(byId('choose')).toContain('система оздоровления и поддержания состояния, система бонусов и рекомендаций - все внутри одного приложения');
   });
 
   it('кордицепс: без экстрактов и «подделок», факт 1993 года, частые эффекты, обе формы', () => {
@@ -131,6 +131,12 @@ describe('уроки', () => {
     expect(text).not.toContain('WB');
     expect(text).toContain('t.me/spor3s_comments');
     expect(text).toContain('кордицепс - и мицелий, и плодовые тела');
+  });
+
+  it('«е» вместо «ё» во всех текстах гида (правка владельца 02.10)', () => {
+    const all = GUIDE_LESSONS.map((l) => [l.title, lessonText(l), l.question.text, ...l.question.options, l.question.hint, l.note].join(' ')).join(' ');
+    expect(all).not.toMatch(/[ёЁ]/);
+    expect(all).toContain('Черного моря');
   });
 
   it('без длинных тире — только «-» (правка владельца 02.10)', () => {
