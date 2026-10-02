@@ -6,6 +6,7 @@ import Cart from "./Cart";
 import Dashboard from "../Dashboard";
 import RoadMap from "./RoadMap";
 import { RaffleTeaser } from "./RaffleBanner";
+import GuideTeaser from "./GuideTeaser";
 import OrderForm from "../order-form";
 import LevelProgress from "../../components/LevelProgress";
 import MotivationalHabit from "../../components/MotivationalHabit";
@@ -64,12 +65,12 @@ export default function AppClient() {
   const [error, setError] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
   // Куда проскроллить в Кабинете после перехода с главного экрана
-  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | 'course' | 'sc' | null>(null);
+  const [cabinetFocus, setCabinetFocus] = useState<'tasks' | 'raffle' | 'course' | 'sc' | 'guide' | null>(null);
 
   useEffect(() => {
     setMounted(true);
     // Кнопки бота открывают приложение с ?open=course («Отметить начало курса»), ?open=raffle
-    // («Открыть розыгрыш») или ?open=sc («🧾 История SC») — сразу в кабинет, к нужному разделу
+    // («Открыть розыгрыш»), ?open=sc («🧾 История SC») или ?open=guide (гид новичка) — сразу в кабинет
     const focus = cabinetFocusFromUrl(window.location.search);
     if (focus) {
       setCabinetFocus(focus);
@@ -484,13 +485,19 @@ export default function AppClient() {
           </button>
         </nav>
 
-        {/* На главной — только строка розыгрыша; он сам, SC и уровень живут в кабинете */}
+        {/* На главной — строка розыгрыша и, пока гид не пройден, плашка гида новичка; сами они живут в кабинете */}
         {currentStep === 2 && (
-          <RaffleTeaser
-            userId={user?.id}
-            telegramId={user?.telegram_id}
-            onOpen={() => { setCabinetFocus('raffle'); setCurrentStep(3); }}
-          />
+          <>
+            <RaffleTeaser
+              userId={user?.id}
+              telegramId={user?.telegram_id}
+              onOpen={() => { setCabinetFocus('raffle'); setCurrentStep(3); }}
+            />
+            <GuideTeaser
+              userId={user?.id}
+              onOpen={() => { setCabinetFocus('guide'); setCurrentStep(3); }}
+            />
+          </>
         )}
 
         <main className={styles.main}>

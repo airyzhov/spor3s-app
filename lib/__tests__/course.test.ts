@@ -85,6 +85,7 @@ describe('cabinetFocusFromUrl — куда вести после кнопки б
 
   it('?open=sc — в кабинет, к истории SC (кнопка «🧾 История SC» в сообщении о начислении)', () => {
     expect(cabinetFocusFromUrl('?open=sc')).toBe('sc');
+    expect(cabinetFocusFromUrl('?open=guide')).toBe('guide');
   });
 
   it('без параметра или с чужим значением — никуда', () => {
