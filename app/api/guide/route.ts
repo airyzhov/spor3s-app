@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Нужен user_id' }, { status: 400 });
     }
     const result = await completeGuide(user_id, answers);
-    if (!result.ok) {
+    // 'reason' in — без strict в tsconfig сужение по result.ok не срабатывает
+    if ('reason' in result) {
       return result.reason === 'answers'
         ? NextResponse.json({ success: false, error: 'Ответы не сходятся' }, { status: 400 })
         : NextResponse.json({ success: false, error: 'Пользователь не найден' }, { status: 404 });
