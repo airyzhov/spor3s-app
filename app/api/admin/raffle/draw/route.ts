@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return adminUnauthorized();
   try {
     if (Date.now() < Date.parse(RAFFLE.endsAt)) {
-      return NextResponse.json({ error: 'Приём заявок ещё идёт — розыгрыш после 10.10, 23:59 GMT' }, { status: 400 });
+      return NextResponse.json({ error: 'Приём заявок ещё идёт — розыгрыш после 11.10, 23:59 GMT' }, { status: 400 });
     }
     const { force } = await req.json().catch(() => ({ force: false }));
 

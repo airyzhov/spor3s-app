@@ -28,11 +28,11 @@ const at = (iso: string) => new Date(iso);
 describe('стадии розыгрыша', () => {
   it('до конца приёма — open, включая последнюю секунду 10.10 по Гринвичу', () => {
     expect(raffleStage(at('2026-09-25T12:00:00Z'), false)).toBe('open');
-    expect(raffleStage(at('2026-10-10T23:59:59Z'), false)).toBe('open');
+    expect(raffleStage(at('2026-10-11T23:59:59Z'), false)).toBe('open');
   });
 
   it('с 11.10 00:00 GMT приём закрыт', () => {
-    expect(raffleStage(at('2026-10-11T00:00:00Z'), false)).toBe('closed');
+    expect(raffleStage(at('2026-10-12T00:00:00Z'), false)).toBe('closed');
   });
 
   it('после сохранения итогов — drawn', () => {
@@ -48,18 +48,18 @@ describe('стадии розыгрыша', () => {
 // Плашка на карточке розыгрыша в кабинете (экран как у Walt, 01.10): сколько осталось до конца приёма
 describe('raffleDaysLeftLabel — дедлайн на карточке', () => {
   it('неполные дни округляет вверх', () => {
-    expect(raffleDaysLeftLabel(at('2026-10-01T21:59:00Z'))).toBe('⏳ Ещё 10 дней');
-    expect(raffleDaysLeftLabel(at('2026-10-08T12:00:00Z'))).toBe('⏳ Ещё 3 дня');
+    expect(raffleDaysLeftLabel(at('2026-10-02T21:59:00Z'))).toBe('⏳ Ещё 10 дней');
+    expect(raffleDaysLeftLabel(at('2026-10-09T12:00:00Z'))).toBe('⏳ Ещё 3 дня');
   });
 
   it('ровно N суток — N дней, с правильным окончанием', () => {
-    expect(raffleDaysLeftLabel(at('2026-10-05T00:00:00Z'))).toBe('⏳ Ещё 6 дней');
-    expect(raffleDaysLeftLabel(at('2026-10-09T00:00:00Z'))).toBe('⏳ Ещё 2 дня');
+    expect(raffleDaysLeftLabel(at('2026-10-06T00:00:00Z'))).toBe('⏳ Ещё 6 дней');
+    expect(raffleDaysLeftLabel(at('2026-10-10T00:00:00Z'))).toBe('⏳ Ещё 2 дня');
   });
 
   it('сутки и меньше — последний день', () => {
-    expect(raffleDaysLeftLabel(at('2026-10-10T00:00:00Z'))).toBe('⏳ Последний день');
-    expect(raffleDaysLeftLabel(at('2026-10-10T23:59:59Z'))).toBe('⏳ Последний день');
+    expect(raffleDaysLeftLabel(at('2026-10-11T00:00:00Z'))).toBe('⏳ Последний день');
+    expect(raffleDaysLeftLabel(at('2026-10-11T23:59:59Z'))).toBe('⏳ Последний день');
   });
 
   it('приём закончился — плашки нет', () => {
@@ -136,7 +136,7 @@ describe('подсчёт заданий', () => {
       { user_id: 'a', source_type: 'subscribe_telegram', created_at: '2026-07-01T10:00:00Z' },
       { user_id: 'a', source_type: 'subscribe_youtube', created_at: '2026-09-30T10:00:00Z' },
       { user_id: 'a', source_type: 'subscribe_youtube', created_at: '2026-10-01T10:00:00Z' },
-      { user_id: 'b', source_type: 'subscribe_instagram', created_at: '2026-10-11T00:00:00Z' },
+      { user_id: 'b', source_type: 'subscribe_instagram', created_at: '2026-10-12T00:00:00Z' },
       { user_id: 'c', source_type: 'order', created_at: '2026-09-30T10:00:00Z' },
     ]);
     expect(counts.get('a')).toBe(2);
