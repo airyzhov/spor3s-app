@@ -57,7 +57,7 @@ it('ничего не показывает после окончания роз�
 it('раскрыта сразу: дедлайн, шаги, приз и главная кнопка «Выполнить задание»', async () => {
   mockRaffle({ stage: 'open', me: me(0, 1), winners: null });
   const { onOpenTasks } = await renderCard();
-  expect(screen.getByText('⏳ Ещё 10 дней')).toBeInTheDocument();
+  expect(screen.getByText('⏳ Ещё 11 дней')).toBeInTheDocument();
   expect(screen.getByText('0 из 2 условий')).toBeInTheDocument();
   expect(screen.getByText('⬜ Задание')).toBeInTheDocument();
   expect(screen.getByText('⬜ Участвую')).toBeInTheDocument();

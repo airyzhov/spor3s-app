@@ -177,7 +177,7 @@ export default function RaffleAdmin({ secret, search }: { secret: string; search
             </button>
             {acceptingEntries && (
               <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 8 }}>
-                Доступно после 10.10, 23:59 GMT — пока идёт приём заявок
+                Доступно после 11.10, 23:59 GMT — пока идёт приём заявок
               </div>
             )}
           </>
