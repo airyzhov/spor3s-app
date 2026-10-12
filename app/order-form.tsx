@@ -180,6 +180,7 @@ export default function OrderForm({ products = [], setStep, userId, telegramUser
         items: selectedItems.map(it => ({ id: it.id, name: it.name, price: it.price, quantity: it.quantity || 1 })),
         total,
         address: survey.delivery_type === 'courier' ? survey.delivery_address : survey.cdek_address,
+        delivery_type: survey.delivery_type,
         fio: survey.fio,
         phone: survey.phone,
         referral_code: survey.referral || null,

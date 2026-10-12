@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "../../supabaseServerClient";
 import { normalizePhone, recalcOrderTotals } from "../../../lib/referral";
+import { withDeliveryType } from "../../../lib/delivery";
 import { priceOrder } from "../../../lib/orderPricing";
 import { spendScForOrder } from "../../../lib/scLedger";
 
@@ -11,13 +12,16 @@ export async function POST(req: NextRequest) {
       user_id,
       items,
       total,
-      address,
+      address: rawAddress,
+      delivery_type,
       fio,
       phone,
       referral_code,
       comment,
       coins_to_use = 0
     } = body;
+    // Способ доставки (СДЭК / OZON / курьер) - в начало адреса: так его видно в уведомлении и в админке
+    const address = withDeliveryType(delivery_type, rawAddress);
 
     console.log('📦 Создание заказа:', { user_id, total, fio, phone });
 
