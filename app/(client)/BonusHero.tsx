@@ -70,12 +70,12 @@ export default function BonusHero({ userId, refreshKey, onOpenHistory }: BonusHe
         textAlign: "center",
         color: "#fff",
       }}>
-        <div style={{ fontSize: "clamp(14px, 3.6vw, 16px)", color: "#ddd", fontWeight: 600 }}>Ваши SC</div>
+        <div style={{ fontSize: "clamp(14px, 3.6vw, 16px)", color: "#ddd", fontWeight: 600 }}>Ваши Spor3s Coins</div>
         <div style={{ fontSize: "clamp(44px, 13vw, 60px)", fontWeight: 800, lineHeight: 1.1, margin: "4px 0" }}>{data.sc}</div>
         <div style={{ fontSize: "clamp(13px, 3.4vw, 15px)", color: "#10b981", fontWeight: 600 }}>
           {data.sc > 0
             ? `= ${data.sc} ₽ скидки · до ${share}% суммы заказа`
-            : `1 SC = 1 ₽ скидки · до ${share}% суммы заказа`}
+            : `1 Spor3s Coin = 1 ₽ скидки · до ${share}% суммы заказа`}
         </div>
         {needs && (
           <div style={{ fontSize: "clamp(12px, 3.2vw, 14px)", color: "#bbb", marginTop: 6 }}>
@@ -99,7 +99,7 @@ export default function BonusHero({ userId, refreshKey, onOpenHistory }: BonusHe
         {data.invitedBy && (
           <div style={{ marginTop: 12, fontSize: "clamp(12px, 3vw, 14px)", color: "#10b981", fontWeight: 600 }}>
             🤝 Вас пригласил {data.invitedBy.name}
-            {data.invitedBy.welcomeSc > 0 && ` · 🎁 +${data.invitedBy.welcomeSc} SC`}
+            {data.invitedBy.welcomeSc > 0 && ` · 🎁 +${data.invitedBy.welcomeSc} Spor3s Coins`}
           </div>
         )}
       </div>

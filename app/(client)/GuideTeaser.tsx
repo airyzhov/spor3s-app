@@ -48,7 +48,7 @@ export default function GuideTeaser({ userId, onOpen }: { userId?: string; onOpe
           🎓 Гид новичка: {GUIDE_LESSONS.length} уроков
         </span>
         <span style={{ fontSize: "clamp(12px, 3vw, 14px)", fontWeight: 700, color: "#6ee7b7", whiteSpace: "nowrap" }}>
-          +{GUIDE_REWARD_SC} SC <span aria-hidden="true">→</span>
+          +{GUIDE_REWARD_SC} Spor3s Coins <span aria-hidden="true">→</span>
         </span>
       </button>
     </div>

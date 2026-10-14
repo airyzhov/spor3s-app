@@ -38,14 +38,14 @@ it('крупно баланс и сколько это рублей скидки
   mockSummary({ sc: 130 });
   renderHero();
   expect(await screen.findByText('130')).toBeInTheDocument();
-  expect(screen.getByText('Ваши SC')).toBeInTheDocument();
+  expect(screen.getByText('Ваши Spor3s Coins')).toBeInTheDocument();
   expect(screen.getByText('= 130 ₽ скидки · до 30% суммы заказа')).toBeInTheDocument();
 });
 
 it('без SC — правило вместо «= 0 ₽»', async () => {
   mockSummary({ sc: 0 });
   renderHero();
-  expect(await screen.findByText('1 SC = 1 ₽ скидки · до 30% суммы заказа')).toBeInTheDocument();
+  expect(await screen.findByText('1 Spor3s Coin = 1 ₽ скидки · до 30% суммы заказа')).toBeInTheDocument();
 });
 
 it('с 1000 SC без заказов пишет, что до Собирателя не хватает заказа, а не минус SC', async () => {
@@ -101,7 +101,7 @@ it('перечитывает данные, когда в кабинете нач
 it('приглашённому видно, кто пригласил, и приветственные SC', async () => {
   mockSummary({ sc: 100, invitedBy: { name: '@web3grow', welcomeSc: 100 } });
   renderHero();
-  expect(await screen.findByText('🤝 Вас пригласил @web3grow · 🎁 +100 SC')).toBeInTheDocument();
+  expect(await screen.findByText('🤝 Вас пригласил @web3grow · 🎁 +100 Spor3s Coins')).toBeInTheDocument();
 });
 
 it('пока бонус не начислен — только кто пригласил; без приглашения строки нет', async () => {
