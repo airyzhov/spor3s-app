@@ -14,6 +14,7 @@ import SCGiftForm from "../../components/SCGiftForm";
 import { useState, useEffect, useRef } from "react";
 import { openExternal } from "../../lib/openExternal";
 import { cabinetFocusFromUrl } from "../../lib/course";
+import { assetUrl } from "../../lib/cdn";
 // Removed test AI agent control panel from main screen
 
 type Product = {
@@ -327,7 +328,7 @@ export default function AppClient() {
           <div className={styles.headerWrap}>
             <div className={styles.headerRow}>
               <img
-                src="/logo.jpg"
+                src={assetUrl("/logo.jpg")}
                 alt="logo"
                 className={styles.logo}
                 onError={(e) => {

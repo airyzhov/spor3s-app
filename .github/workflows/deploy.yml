@@ -10,11 +10,19 @@ concurrency:
   group: deploy-vps
   cancel-in-progress: false
 
+# Нужно, чтобы запушить тег со статикой
+permissions:
+  contents: write
+
+env:
+  CDN_TAG: cdn-${{ github.sha }}
+  CDN_PREFIX: https://cdn.jsdelivr.net/gh/${{ github.repository }}@cdn-${{ github.sha }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to VPS
+      - name: Сборка на VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -28,8 +36,48 @@ jobs:
             echo "Обновление кода..."
             git pull
             echo "Сборка..."
-            npm run build
-            echo "Перезапуск приложения..."
+            CDN_PREFIX="${{ env.CDN_PREFIX }}" npm run build
+
+      # Статика уезжает на jsDelivr: он читает её из отдельного тега публичного репозитория
+      # (см. lib/cdn.ts). Без рабочего CDN приложение не перезапускаем.
+      - name: Публикация статики
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          install -m 600 /dev/null key
+          printf '%s\n' "$VPS_SSH_KEY" > key
+          ssh -i key -o StrictHostKeyChecking=accept-new "root@$VPS_HOST" \
+            'cd /opt/spor3s-app && tar cz .next/static public' | tar xz
+          rm -f key
+          mkdir cdn
+          cp -r public/. cdn/
+          mkdir cdn/_next
+          cp -r .next/static cdn/_next/static
+          cd cdn
+          git init -q
+          git add .
+          git -c user.name=deploy -c user.email=deploy@spor3s.ru commit -qm "$CDN_TAG"
+          git push -q "https://x-access-token:$TOKEN@github.com/${{ github.repository }}" "HEAD:refs/tags/$CDN_TAG"
+          sample=$(find _next/static/chunks -name 'webpack-*.js' | head -1)
+          for i in 1 2 3 4 5 6; do
+            curl -fsS -o /dev/null "$CDN_PREFIX/$sample" && exit 0
+            sleep 10
+          done
+          echo "jsDelivr не отдаёт статику"
+          exit 1
+
+      - name: Перезапуск приложения
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
             pm2 restart spor3s
             sleep 5
             echo "Проверка здоровья..."

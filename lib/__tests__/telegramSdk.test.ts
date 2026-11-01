@@ -19,7 +19,7 @@ describe('Telegram WebApp SDK', () => {
   });
 
   it('layout подключает SDK со своего домена, с версией для сброса кеша', () => {
-    expect(layout).toMatch(/<script src="\/telegram-web-app\.js\?v=\d{8}" defer><\/script>/);
+    expect(layout).toMatch(/<script src=\{assetUrl\("\/telegram-web-app\.js\?v=\d{8}"\)\} defer><\/script>/);
   });
 
   it('файл SDK лежит в public/ и объявляет window.Telegram.WebApp', () => {

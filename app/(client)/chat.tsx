@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useCart } from "../CartContext";
 import { findProductByAITag } from "../../lib/productIdMap";
+import { assetUrl } from "../../lib/cdn";
 
 interface Message {
   id: string;
@@ -1326,7 +1327,7 @@ ${productsToAdd.map(p => `• **${p.name}** - ${p.price}₽`).join('\n')}
               }}>
                 {product.image ? (
                   <img 
-                    src={product.image} 
+                    src={assetUrl(product.image)} 
                     alt={product.name}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={(e) => {
