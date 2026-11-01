@@ -1,0 +1,14 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="для добрых дел">
+  <circle cx="100" cy="100" r="97" fill="#141414"/>
+  <defs>
+    <path id="ring" d="M100,100 m-73,0 a73,73 0 1,1 146,0 a73,73 0 1,1 -146,0" fill="none"/>
+  </defs>
+  <text fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="18" letter-spacing="0.5">
+    <textPath href="#ring" startOffset="25%" text-anchor="middle">для добрых дел</textPath>
+  </text>
+  <!-- mushroom-cap eyes (∩ ∩) -->
+  <path d="M62 98 a16 16 0 0 0 32 0 z" fill="#ffffff"/>
+  <path d="M106 98 a16 16 0 0 0 32 0 z" fill="#ffffff"/>
+  <!-- wide smile -->
+  <path d="M56 108 Q100 158 144 108" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+</svg>
