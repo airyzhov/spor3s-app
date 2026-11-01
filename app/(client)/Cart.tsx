@@ -2,6 +2,7 @@
 import { useCart } from "../CartContext";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { assetUrl } from "../../lib/cdn";
 
 type Product = {
   id: string;
@@ -752,7 +753,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                   >
                     {product.image ? (
                       <img 
-                        src={product.image} 
+                        src={assetUrl(product.image)} 
                         alt={product.name} 
                         style={{ 
                           objectFit: "cover", 
@@ -967,7 +968,7 @@ export default function Cart({ products = [], setStep }: CartProps) {
                 }}>
                   {modalProduct?.image ? (
                     <img 
-                      src={modalProduct.image} 
+                      src={assetUrl(modalProduct.image)} 
                       alt={modalProduct?.name || 'product'} 
                       style={{ objectFit: "cover", width: "100%", height: "100%" }}
                       onError={(e) => {

@@ -36,8 +36,13 @@ try {
   console.error('[next.config.js] Ошибка загрузки .env.local:', error.message);
 }
 
+// jsDelivr для статики (см. lib/cdn.ts). Пусто - отдаем сами.
+const CDN_PREFIX = process.env.CDN_PREFIX || '';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  assetPrefix: CDN_PREFIX || undefined,
+  env: { NEXT_PUBLIC_CDN_PREFIX: CDN_PREFIX },
   // Исключаем my-fresh-app из сборки
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   typescript: {
